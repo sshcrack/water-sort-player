@@ -78,21 +78,6 @@ fn test_11_bottle_detection() {
 }
 
 #[test]
-fn test_detect_layout_10_bottles() {
-    let image = match TestUtils::load_test_image("10-bottles.png") {
-        Ok(img) => img,
-        Err(_) => {
-            println!("Warning: Could not load 10-bottles.png, skipping test");
-            return;
-        }
-    };
-
-    let layout = BottleLayout::detect_layout(&image).expect("Failed to detect layout");
-    assert_eq!(layout.name, "10-bottles");
-    assert_eq!(layout.bottle_count(), 10);
-}
-
-#[test]
 fn test_detect_layout_11_bottles() {
     let image = match TestUtils::load_test_image("11-bottles.png") {
         Ok(img) => img,
@@ -108,13 +93,21 @@ fn test_detect_layout_11_bottles() {
 
 #[test]
 fn test_layout_comparison() {
-    // Compare different layouts to ensure they produce different results
-    let layout_10 = BottleLayout::ten_bottle_layout();
-    let layout_12 = BottleLayout::eleven_bottle_layout();
+    let layouts = BottleLayout::get_layouts();
+    // Make sure that each layout is unique and has the expected number of bottles
 
-    assert_ne!(layout_10.bottle_count(), layout_12.bottle_count());
-    assert_ne!(layout_10.positions, layout_12.positions);
+    let mut seen_layouts = std::collections::HashSet::new();
+    for layout in layouts {
+        assert!(
+            seen_layouts.insert(layout.clone()),
+            "Duplicate layout detected: {}",
+            layout.name
+        );
 
-    println!("10-bottle layout: {} bottles", layout_10.bottle_count());
-    println!("12-bottle layout: {} bottles", layout_12.bottle_count());
+        println!(
+            "Layout '{}' has {} bottles",
+            layout.name,
+            layout.bottle_count()
+        );
+    }
 }

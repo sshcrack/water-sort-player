@@ -2,13 +2,13 @@ use crate::constants::{BOTTLE_SPACING, BottleColor, FIRST_ROW_START_POS, SECOND_
 use crate::position::Pos;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct BottleLayout {
     pub name: String,
     pub positions: Vec<BottlePosition>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BottlePosition {
     /// Starting position for bottle detection (top layer)
     pub base_pos: Pos,
@@ -53,12 +53,16 @@ impl BottleLayout {
         ))
     }
 
+    pub fn get_layouts() -> Vec<Self> {
+        vec![
+            Self::ten_bottle_layout(),
+            Self::eleven_bottle_layout(),
+        ]
+    }
+
     /// Attempt to automatically detect the best layout for an image
     pub fn detect_layout(image: &Mat) -> anyhow::Result<Self> {
-        let layouts = vec![
-            BottleLayout::ten_bottle_layout(),
-            BottleLayout::eleven_bottle_layout(),
-        ];
+        let layouts = Self::get_layouts();
 
         let mut best_layout = layouts[0].clone();
         let mut best_score = 0;
