@@ -16,8 +16,6 @@ pub mod discovery;
 #[derive(Debug, Clone, Copy)]
 pub struct Move(usize, usize);
 
-#[cfg(feature = "solver-visualization")]
-#[cfg(test)]
 pub mod visualization;
 
 fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bottle, &mut Bottle) {
