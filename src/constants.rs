@@ -1,16 +1,20 @@
+use lazy_static::lazy_static;
+use opencv::core::Vec3b;
+
 use crate::position::Pos;
 
 pub const VIRTUAL_CAM: &str = "/dev/video10";
 
 pub const START_BUTTON_POS: Pos = Pos(186, 605);
 
-pub const FIRST_ROW_START_POS: Pos = Pos(42, 224);
+pub const FIRST_ROW_START_POS: Pos = Pos(41, 223);
 pub const SECOND_ROW_OFFSET: Pos = Pos(0, 217);
-pub const BOTTLE_SPACING: Pos = Pos(62, 0);
+pub const BOTTLE_SPACING: Pos = Pos(69, 0);
+pub const COLOR_CHECK_OFFSET: Pos = Pos(0, 35);
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
-pub enum Color {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BottleState {
     Yellow,
     Red,
     Green,
@@ -19,21 +23,54 @@ pub enum Color {
     Purple,
     Pink,
     Orange,
+    Empty
 }
 
-#[allow(dead_code)]
-impl Color {
-    pub fn from_pixel_value(value: u32) -> Option<Self> {
-        match value {
-            0x00FFFF00 => Some(Color::Yellow),
-            0x00FF0000 => Some(Color::Red),
-            0x0000FF00 => Some(Color::Green),
-            0x0000FFFF => Some(Color::LightBlue),
-            0x000000FF => Some(Color::Blue),
-            0x00FF00FF => Some(Color::Purple),
-            0x00FFC0CB => Some(Color::Pink),
-            0x00FFA500 => Some(Color::Orange),
-            _ => None,
+fn is_color_within_tolerance(pixel: Vec3b, target: Vec3b, tolerance: u8) -> bool {
+    let b_diff = (pixel[0] as i16 - target[0] as i16).abs() as u8;
+    let g_diff = (pixel[1] as i16 - target[1] as i16).abs() as u8;
+    let r_diff = (pixel[2] as i16 - target[2] as i16).abs() as u8;
+
+    b_diff <= tolerance && g_diff <= tolerance && r_diff <= tolerance
+}
+
+fn vec3_from_hex(hex: &str) -> Vec3b {
+    let r = u8::from_str_radix(&hex[1..3], 16).unwrap();
+    let g = u8::from_str_radix(&hex[3..5], 16).unwrap();
+    let b = u8::from_str_radix(&hex[5..7], 16).unwrap();
+    Vec3b::from([b, g, r])
+}
+
+lazy_static! {
+    pub static ref COLOR_VALUES: Vec<(BottleState, Vec3b)> = vec![
+        (BottleState::Yellow, vec3_from_hex("#fbdf20")),
+        (BottleState::Red, vec3_from_hex("#df1a24")),
+        (BottleState::Green, vec3_from_hex("#46de1e")),
+        (BottleState::LightBlue, vec3_from_hex("#52b7fb")),
+        (BottleState::Blue, vec3_from_hex("#194af9")),
+        (BottleState::Purple, vec3_from_hex("#8c00d9")),
+        (BottleState::Pink, vec3_from_hex("#d212cc")),
+        (BottleState::Orange, vec3_from_hex("#f37c1c")),
+        (BottleState::Empty, vec3_from_hex("#713d2c")),
+    ];
+}
+
+impl BottleState {
+    pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
+        for (color, target_pixel) in COLOR_VALUES.iter() {
+            if is_color_within_tolerance(pixel, *target_pixel, 30) {
+                return Some(*color);
+            }
         }
+
+        None
+    }
+
+    pub fn to_pixel_value(self) -> Vec3b {
+        COLOR_VALUES
+            .iter()
+            .find(|(color, _)| *color == self)
+            .map(|(_, pixel)| *pixel)
+            .unwrap()
     }
 }

@@ -6,7 +6,9 @@ mod position;
 mod scrcpy;
 
 fn main() {
-    if let Err(error) = app::run() {
+    let quick_mode = std::env::args().any(|arg| arg == "--quick");
+
+    if let Err(error) = app::run(quick_mode) {
         eprintln!("Error: {}", error);
     }
 }

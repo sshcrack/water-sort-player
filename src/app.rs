@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::{
     core::{Mat, MatTraitConst},
@@ -19,11 +19,15 @@ use crate::{
     scrcpy::{click_at_position, measure_window_to_mobile_scale, start_scrcpy},
 };
 
-pub fn run() -> Result<()> {
+pub fn run(quick_mode: bool) -> Result<()> {
+
+    if quick_mode {
+        println!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
+    }
     println!("Loading loopback video device...");
     load_loopback_device();
 
-    let mut scrcpy = start_scrcpy()?;
+    let mut scrcpy = start_scrcpy(quick_mode)?;
     println!("scrcpy started successfully.");
 
     let child_stdout = scrcpy
@@ -33,6 +37,7 @@ pub fn run() -> Result<()> {
     wait_for_video_stream(BufReader::new(child_stdout))?;
 
     thread::sleep(Duration::from_secs(1));
+
     let mut cam = VideoCapture::from_file(VIRTUAL_CAM, videoio::CAP_V4L2)?;
 
     let width = cam.get(videoio::CAP_PROP_FRAME_WIDTH)? as usize;
@@ -45,7 +50,7 @@ pub fn run() -> Result<()> {
 
     let mut frame_raw = Mat::default();
 
-    let mut pressed_start = false;
+    let mut pressed_start = quick_mode;
     let mut new_level = false;
     let mut previous_right_click = false;
 
@@ -85,7 +90,7 @@ pub fn run() -> Result<()> {
         }
 
         let mut frame_display = frame_raw.try_clone()?;
-        let _bottles = detect_and_draw_bottles(&mut frame_display);
+        let _bottles = detect_and_draw_bottles(&frame_raw, &mut frame_display);
 
         let buffer = frame_to_window_buffer(&frame_display)?;
         window.update_with_buffer(&buffer, width, height)?;

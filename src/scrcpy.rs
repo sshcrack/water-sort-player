@@ -4,7 +4,7 @@ use std::{
     sync::Mutex,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use lazy_static::lazy_static;
 
 use crate::{constants::VIRTUAL_CAM, position::Pos};
@@ -58,7 +58,7 @@ pub fn click_at(x: i32, y: i32) {
         .unwrap();
 }
 
-pub fn start_scrcpy() -> Result<ScrcpyChild> {
+pub fn start_scrcpy(quick_mode: bool) -> Result<ScrcpyChild> {
     let current_executable = std::env::current_exe()?;
     let current_dir = current_executable
         .parent()
@@ -71,29 +71,32 @@ pub fn start_scrcpy() -> Result<ScrcpyChild> {
             scrcpy_path.display()
         ));
     }
+    let mut cmd = Command::new("stdbuf");
+    cmd.args([
+        "-oL",
+        scrcpy_path.to_str().unwrap(),
+        "--stay-awake",
+        "--no-audio",
+        "--mouse=disabled",
+        "--keyboard=disabled",
+        "--gamepad=disabled",
+        "--max-size=800",
+        "--max-fps=15",
+        "--video-bit-rate=2M",
+        "--video-codec=h264",
+        "--no-clipboard-autosync",
+        "--window-title=AutoPlayer",
+        "--no-video-playback",
+        format!("--v4l2-sink={}", VIRTUAL_CAM).as_str(),
+    ])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
 
-    let child = Command::new("stdbuf")
-        .args([
-            "-oL",
-            scrcpy_path.to_str().unwrap(),
-            "--start-app=+com.no1ornothing.color.water.sort.woody.puzzle",
-            "--stay-awake",
-            "--no-audio",
-            "--mouse=disabled",
-            "--keyboard=disabled",
-            "--gamepad=disabled",
-            "--max-size=800",
-            "--max-fps=15",
-            "--video-bit-rate=2M",
-            "--video-codec=h264",
-            "--no-clipboard-autosync",
-            "--window-title=AutoPlayer",
-            "--no-video-playback",
-            format!("--v4l2-sink={}", VIRTUAL_CAM).as_str(),
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+    if !quick_mode {
+        cmd.arg("--start-app=+com.no1ornothing.color.water.sort.woody.puzzle");
+    }
+
+    let child = cmd.spawn()?;
 
     Ok(ScrcpyChild(child))
 }
