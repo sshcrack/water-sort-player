@@ -23,9 +23,12 @@ pub struct Bottle {
 const FULL_BOTTLE_COUNT: usize = 4;
 
 impl Bottle {
-    #[cfg(test)]
     pub fn from_fills(fills: Vec<BottleColor>) -> Self {
         Bottle { fills }
+    }
+
+    pub fn get_fills_mut(&mut self) -> &mut Vec<BottleColor> {
+        &mut self.fills
     }
 
     pub fn get_fills(&self) -> &Vec<BottleColor> {
@@ -68,7 +71,7 @@ impl Bottle {
         }
 
         let first_color = self.fills[0];
-        self.fills.iter().all(|&color| color == first_color)
+        self.fills.iter().all(|&color| color == first_color && color != BottleColor::Mystery)
     }
 
     pub fn can_fill_from(&self, other: &Bottle) -> bool {

@@ -108,23 +108,12 @@ where
     )
 }
 
-fn inner_solver(
-    bottles: Vec<Bottle>,
-    moves_so_far: Vec<Move>,
+pub fn get_possible_moves(
+    bottles: &Vec<Bottle>,
     visited_states: &mut HashSet<Vec<Bottle>>,
-    observer: &mut SolverObserver<'_>,
-) -> Option<Vec<Move>> {
-    observer.render(&bottles, None);
+) -> Vec<(Move, Vec<Bottle>)> {
+    let mut possible_moves = Vec::new();
 
-    if !visited_states.insert(bottles.clone()) {
-        return None;
-    }
-
-    if bottles.iter().all(|b| b.is_solved() || b.is_empty()) {
-        return Some(moves_so_far);
-    }
-
-    let mut possible_moves = vec![];
     for source_idx in 0..bottles.len() {
         for destination_idx in 0..bottles.len() {
             if source_idx == destination_idx {
@@ -167,6 +156,27 @@ fn inner_solver(
         }
     }
 
+    possible_moves
+}
+
+fn inner_solver(
+    bottles: Vec<Bottle>,
+    moves_so_far: Vec<Move>,
+    visited_states: &mut HashSet<Vec<Bottle>>,
+    observer: &mut SolverObserver<'_>,
+) -> Option<Vec<Move>> {
+    observer.render(&bottles, None);
+
+    if !visited_states.insert(bottles.clone()) {
+        return None;
+    }
+
+    if bottles.iter().all(|b| b.is_solved() || b.is_empty()) {
+        return Some(moves_so_far);
+    }
+
+    let mut possible_moves = get_possible_moves(&bottles, visited_states);
+
     sort_moves_by_heuristic(&mut possible_moves);
 
     for (m, new_bottles) in possible_moves {
@@ -188,7 +198,7 @@ fn inner_solver(
     None
 }
 
-fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
+pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
     possible_moves.sort_by(|(_, a), (_, b)| {
         let a_solved = a.iter().filter(|x| x.is_solved()).count();
         let b_solved = b.iter().filter(|x| x.is_solved()).count();

@@ -1,103 +1,117 @@
 use std::collections::HashSet;
 
-use crate::{bottles::Bottle, constants::BottleColor, solver::Move};
+use crate::{
+    bottles::Bottle,
+    constants::BottleColor,
+    solver::{Move, get_possible_moves},
+};
 
-/// Counts the number of mystery colors remaining in all bottles
-pub fn count_mystery_colors(bottles: &[Bottle]) -> usize {
+pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
     bottles
         .iter()
-        .flat_map(|bottle| bottle.get_fills())
-        .filter(|color| **color == BottleColor::Mystery)
+        .map(|b| {
+            b.get_fills()
+                .iter()
+                .filter(|&color| color == &BottleColor::Mystery)
+                .count()
+        })
         .count()
 }
 
-/// Generates legal moves, prioritizing those involving mystery colors.
-/// Returns moves ordered by: moves with mystery source/dest first, then others.
-fn get_moves_prioritizing_mystery(bottles: &[Bottle]) -> Vec<Move> {
-    let mut mystery_moves = Vec::new();
-    let mut other_moves = Vec::new();
+/// Replaces the mystery colors in the already visited states with the revealed colors from the max revealed bottle state, and checks if any of those states are now solved. If so, it returns the solution to that state.
+pub fn reveal_mystery_colors_in_already_visited(
+    max_revealed_bottle_state: &[Bottle],
+    already_visited_states: &mut HashSet<Vec<Bottle>>,
+) {
+    let mut new_visited_states = HashSet::new();
 
-    for source_idx in 0..bottles.len() {
-        for destination_idx in 0..bottles.len() {
-            if source_idx == destination_idx {
-                continue;
-            }
-
-            let source_bottle = &bottles[source_idx];
-            let destination_bottle = &bottles[destination_idx];
-
-            // Skip invalid moves
-            if source_bottle.is_solved()
-                || source_bottle.is_empty()
-                || destination_bottle.is_solved()
-            {
-                continue;
-            }
-
-            let is_bottle_of_one_color = |bottle: &Bottle| {
-                let fills = bottle.get_fills();
-                let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
-                hash_set.len() == 1
-            };
-
-            if is_bottle_of_one_color(source_bottle) && destination_bottle.is_empty() {
-                continue;
-            }
-
-            if !destination_bottle.can_fill_from(source_bottle) {
-                continue;
-            }
-
-            let has_mystery = |bottle: &Bottle| {
-                bottle
+    for state in already_visited_states.iter() {
+        let zipped = state.iter().zip(max_revealed_bottle_state.iter());
+        let new_state: Vec<Bottle> = zipped
+            .map(|(current_state_bottle, bottle_with_revealed_colors)| {
+                let fills = current_state_bottle
                     .get_fills()
                     .iter()
-                    .any(|color| *color == BottleColor::Mystery)
-            };
+                    .zip(bottle_with_revealed_colors.get_fills().iter())
+                    .map(|(color_in_state, revealed_color)| {
+                        if color_in_state == &BottleColor::Mystery {
+                            *revealed_color
+                        } else {
+                            *color_in_state
+                        }
+                    })
+                    .collect();
 
-            let m = Move(source_idx, destination_idx);
+                Bottle::from_fills(fills)
+            })
+            .collect();
 
-            // Prioritize moves involving mystery bottles
-            if has_mystery(source_bottle) || has_mystery(destination_bottle) {
-                mystery_moves.push(m);
+        new_visited_states.insert(new_state);
+    }
+
+    *already_visited_states = new_visited_states;
+}
+
+pub enum DiscoverResult {
+    NoMove,
+    MoveToDiscover(Move),
+    AlreadySolved,
+}
+
+pub fn find_best_discovery_move(
+    current_moves: &[Move],
+    max_revealed_bottle_state: &[Bottle],
+    already_visited_states: &mut HashSet<Vec<Bottle>>,
+) -> DiscoverResult {
+    let mut current_revealed_state = max_revealed_bottle_state.to_vec();
+    for m in current_moves {
+        m.perform_move_on_bottles(&mut current_revealed_state);
+    }
+
+    let already_solved = current_revealed_state.iter().all(|b| b.is_solved() || b.is_empty());
+    if already_solved {
+        return DiscoverResult::AlreadySolved;
+    }
+
+    let possible_moves = get_possible_moves(&current_revealed_state, already_visited_states);
+
+    for (m, new_state) in &possible_moves {
+        let has_any_mystery_on_top = new_state.iter().any(|b| {
+            if let Some((_, top_color)) = b.get_top_fill() {
+                top_color == BottleColor::Mystery
             } else {
-                other_moves.push(m);
+                false
             }
+        });
+
+        if has_any_mystery_on_top {
+            return DiscoverResult::MoveToDiscover(m.clone());
         }
     }
 
-    // Combine: mystery moves first, then others
-    mystery_moves.extend(other_moves);
-    mystery_moves
+    if !possible_moves.is_empty() {
+        return DiscoverResult::MoveToDiscover(possible_moves[0].0);
+    }
+
+    DiscoverResult::NoMove
 }
 
-/// Main discovery algorithm: returns the next move to try if mysteries remain, or None if all revealed/stuck.
-/// This is meant to be called iteratively as moves are executed and re-detected on device.
-pub fn get_next_discovery_move(
-    bottles: &[Bottle],
-    visited_states: &mut HashSet<Vec<Bottle>>,
-) -> Result<Option<Move>, String> {
-    // If no mysteries remain, discovery is complete
-    if count_mystery_colors(bottles) == 0 {
-        return Ok(None);
-    }
-
-    // Mark this state as visited
-    if !visited_states.insert(bottles.to_vec()) {
-        return Err("Discovery stuck: revisited state, no new moves possible".to_string());
-    }
-
-    // Generate moves prioritizing mystery bottles
-    let possible_moves = get_moves_prioritizing_mystery(bottles);
-
-    if possible_moves.is_empty() {
-        return Err(format!(
-            "Discovery stuck: no legal moves available, mysteries remaining: {}",
-            count_mystery_colors(bottles)
-        ));
-    }
-
-    // For discovery, we prioritize moves that involve mystery bottles
-    // Return the first one (already prioritized)
-    Ok(possible_moves.first().copied())
+pub fn improve_best_revealed_state(
+    initial_revealed_bottle_state: &mut Vec<Bottle>,
+    current_bottles: &[Bottle],
+) {
+    initial_revealed_bottle_state
+        .iter_mut()
+        .zip(current_bottles.iter())
+        .for_each(|(revealed_bottle, current_bottle)| {
+            revealed_bottle
+                .get_fills_mut()
+                .iter_mut()
+                .zip(current_bottle.get_fills().iter())
+                .for_each(|(revealed_color, current_color)| {
+                    if *revealed_color == BottleColor::Mystery {
+                        *revealed_color = *current_color;
+                    }
+                });
+        });
 }

@@ -22,7 +22,14 @@ use crate::{
         VIRTUAL_CAM, is_color_within_tolerance,
     },
     scrcpy::{click_at_position, measure_window_to_mobile_scale, start_scrcpy},
-    solver::{Move, discovery, run_solver},
+    solver::{
+        Move,
+        discovery::{
+            self, count_total_mystery_colors, find_best_discovery_move,
+            improve_best_revealed_state, reveal_mystery_colors_in_already_visited,
+        },
+        run_solver,
+    },
 };
 
 const START_WAIT: Duration = Duration::from_secs(10);
@@ -30,7 +37,6 @@ const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
 const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
 const MOVE_DELAY: Duration = Duration::from_millis(2500);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(2500);
-const DISCOVERY_MAX_RETRIES: usize = 3;
 
 enum AppState {
     WaitingToPressStart {
@@ -46,21 +52,21 @@ enum AppState {
         trigger_at: Instant,
     },
     MysteryDiscoverColors {
-        discovery_visited: HashSet<Vec<Bottle>>,
-        bottles: Vec<Bottle>,
-        layout: BottleLayout,
-        accumulated_bottles: Vec<Bottle>, // Carries forward revealed colors across retries
+        trigger_at: Instant,
+        max_revealed_bottle_state: Vec<Bottle>,
+        current_moves: Vec<Move>,
+        already_visited_states: HashSet<Vec<Bottle>>,
     },
     MysteryExecuteDiscoverMove {
-        next_move_at: Instant,
         move_to_execute: Move,
-        source_bottles: Vec<Bottle>,
-        layout: BottleLayout,
-        discovery_iteration: usize,
-        accumulated_bottles: Vec<Bottle>, // Pass through accumulated knowledge
+        max_revealed_bottle_state: Vec<Bottle>,
+        current_moves: Vec<Move>,
+        already_visited_states: HashSet<Vec<Bottle>>,
     },
-    ExecutingMoves {
+    ExecuteFinalSolveMoves {
         next_move_at: Instant,
+        planned_moves: Vec<Move>,
+        performed_moves: usize,
     },
 }
 
@@ -104,8 +110,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
         }
     };
     let mut previous_right_click = false;
-    let mut planned_moves: Vec<Move> = Vec::new();
-    let mut performed_moves = 0usize;
     let mut active_layout: Option<BottleLayout> = None;
 
     while window.is_open() {
@@ -169,27 +173,22 @@ pub fn run(quick_mode: bool) -> Result<()> {
             AppState::DetectAndPlan { trigger_at } => {
                 if now >= *trigger_at {
                     println!("Detecting bottles for new level...");
-                    planned_moves.clear();
-                    performed_moves = 0;
                     let layout = match BottleLayout::detect_layout(&frame_raw) {
                         Ok(layout) => layout,
                         Err(error) => {
-                            println!("Error detecting layout: {:?}", error);
-                            active_layout = None;
-                            app_state = AppState::ClickNextLevel {
-                                trigger_at: now + NEXT_LEVEL_WAIT,
-                            };
-                            continue;
+                            panic!(
+                                "Layout detection failed with error: {:?}. Cannot proceed without layout.",
+                                error
+                            );
                         }
                     };
                     let bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
                     if let Err(error) = bottles {
-                        println!("Error detecting bottles: {:?}", error);
-                        active_layout = None;
-                        app_state = AppState::ClickNextLevel {
-                            trigger_at: now + NEXT_LEVEL_WAIT,
-                        };
+                        panic!(
+                            "Could not detect bottles. Error: {:?}. Cannot proceed without bottle detection.",
+                            error
+                        );
                     } else {
                         active_layout = Some(layout.clone());
 
@@ -202,39 +201,118 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let detected_bottles = bottles?;
 
                         // Check if there are any mystery colors
-                        let mystery_count = discovery::count_mystery_colors(&detected_bottles);
-                        if mystery_count > 0 {
-                            println!(
-                                "Found {} mystery colors! Starting discovery phase...",
-                                mystery_count
-                            );
-                            app_state = AppState::MysteryDiscoverColors {
-                                bottles: detected_bottles.clone(),
-                                layout,
-                                accumulated_bottles: detected_bottles,
+                        let mystery_count =
+                            discovery::count_total_mystery_colors(&detected_bottles);
+                        if mystery_count == 0 {
+                            println!("No mystery colors detected, running solver directly...");
+                            let solution = run_solver(&detected_bottles)
+                                .expect("Failed to find a solution for the detected bottles");
+
+                            app_state = AppState::ExecuteFinalSolveMoves {
+                                planned_moves: solution,
+                                performed_moves: 0,
+                                next_move_at: Instant::now() + MOVE_DELAY,
                             };
                         } else {
-                            println!("No mystery colors detected. Running normal solver...");
-                            println!("Running solver...");
-                            if let Some(moves) = run_solver(&detected_bottles) {
-                                println!("Planned moves:");
-                                for m in &moves {
-                                    println!("{:?}", m);
-                                }
+                            println!(
+                                "Detected {} mystery colors, starting discovery process...",
+                                mystery_count
+                            );
 
-                                planned_moves = moves;
-                                performed_moves = 0;
-                                if let Some(first_move) = planned_moves.first().copied() {
-                                    active_move = Some(first_move);
-                                    app_state = AppState::ExecutingMoves { next_move_at: now };
-                                } else {
-                                    app_state = AppState::ClickNextLevel {
-                                        trigger_at: now + NEXT_LEVEL_WAIT,
-                                    };
-                                }
-                            } else {
-                                println!("No solution found!");
-                                app_state = AppState::ClickNextLevel {
+                            app_state = AppState::MysteryDiscoverColors {
+                                trigger_at: now,
+                                max_revealed_bottle_state: detected_bottles.clone(),
+                                current_moves: vec![],
+                                already_visited_states: HashSet::new(),
+                            };
+                        }
+                    }
+                }
+            }
+            AppState::MysteryDiscoverColors {
+                trigger_at,
+                max_revealed_bottle_state: initial_revealed_bottle_state,
+                current_moves,
+                already_visited_states,
+            } => {
+                if now >= *trigger_at {
+                    if active_layout.is_none() {
+                        panic!("No active layout available for discovery move execution.");
+                    }
+
+                    let current_bottles = detect_bottles_with_layout(
+                        &frame_raw,
+                        &mut frame_display,
+                        active_layout.as_ref().unwrap(),
+                    );
+
+                    if let Err(error) = current_bottles {
+                        panic!(
+                            "Error detecting bottles during discovery process: {:?}",
+                            error
+                        );
+                    }
+
+                    let current_bottles = current_bottles.unwrap();
+                    improve_best_revealed_state(initial_revealed_bottle_state, &current_bottles);
+
+                    let mystery_colors = count_total_mystery_colors(initial_revealed_bottle_state);
+                    println!("Total mystery colors still hidden: {}", mystery_colors);
+                    if mystery_colors == 0 {
+                        println!("All mystery colors revealed! Running solver...");
+                        let solution = run_solver(initial_revealed_bottle_state)
+                            .expect("Failed to find a solution for the revealed bottle state");
+
+                        app_state = AppState::ExecuteFinalSolveMoves {
+                            planned_moves: solution,
+                            performed_moves: 0,
+                            next_move_at: Instant::now() + MOVE_DELAY,
+                        };
+                    } else {
+                        // First update already visited state
+                        reveal_mystery_colors_in_already_visited(
+                            initial_revealed_bottle_state,
+                            already_visited_states,
+                        );
+
+                        // Find best move to reveal more colors
+                        let best_move = find_best_discovery_move(
+                            current_moves,
+                            initial_revealed_bottle_state,
+                            already_visited_states,
+                        );
+
+                        match best_move {
+                            discovery::DiscoverResult::MoveToDiscover(best_move) => {
+                                let mut moves_cloned = current_moves.clone();
+
+                                moves_cloned.push(best_move);
+                                app_state = AppState::MysteryExecuteDiscoverMove {
+                                    move_to_execute: best_move,
+                                    max_revealed_bottle_state: initial_revealed_bottle_state
+                                        .clone(),
+                                    current_moves: moves_cloned,
+                                    already_visited_states: already_visited_states.clone(),
+                                };
+                            }
+                            discovery::DiscoverResult::NoMove => {
+                                println!(
+                                    "No discovery move found that reveals new colors. Retrying level..."
+                                );
+
+                                click_at_position(RETRY_BUTTON_POS);
+
+                                app_state = AppState::MysteryDiscoverColors {
+                                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                    max_revealed_bottle_state: initial_revealed_bottle_state
+                                        .clone(),
+                                    current_moves: vec![],
+                                    already_visited_states: already_visited_states.clone(),
+                                };
+                            }
+                            discovery::DiscoverResult::AlreadySolved => {
+                                println!("While discovering, the puzzle has been solved. Proceeding to next level...");
+                                app_state = AppState::CheckForRewards {
                                     trigger_at: now + NEXT_LEVEL_WAIT,
                                 };
                             }
@@ -242,184 +320,45 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
                 }
             }
-            AppState::ExecutingMoves { next_move_at } => {
-                if let Some(next) = planned_moves.get(performed_moves).copied() {
+            AppState::MysteryExecuteDiscoverMove {
+                move_to_execute,
+                max_revealed_bottle_state,
+                current_moves,
+                already_visited_states,
+            } => {
+                if active_layout.is_none() {
+                    panic!("No active layout available for discovery move execution.");
+                }
+
+                move_to_execute.perform_move_on_device(active_layout.as_ref().unwrap());
+                app_state = AppState::MysteryDiscoverColors {
+                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                    current_moves: current_moves.clone(),
+                    already_visited_states: already_visited_states.clone(),
+                };
+            }
+            AppState::ExecuteFinalSolveMoves {
+                planned_moves,
+                performed_moves,
+                next_move_at,
+            } => {
+                if let Some(next) = planned_moves.get(*performed_moves).copied() {
                     active_move = Some(next);
                     if now >= *next_move_at {
                         println!("Performing move: {:?}.", next);
                         if let Some(layout) = active_layout.as_ref() {
                             next.perform_move_on_device(layout);
-                            performed_moves += 1;
+                            *performed_moves += 1;
                             *next_move_at = now + MOVE_DELAY;
                         } else {
-                            println!("No active layout available for move execution.");
-                            app_state = AppState::ClickNextLevel {
-                                trigger_at: now + NEXT_LEVEL_WAIT,
-                            };
+                            panic!("No active layout available for performing solve moves.");
                         }
                     }
                 } else {
                     app_state = AppState::CheckForRewards {
                         trigger_at: now + NO_THANK_YOU_REWARDS_WAIT,
                     };
-                }
-            }
-            AppState::MysteryDiscoverColors {
-                discovery_visited,
-                bottles,
-                layout,
-                accumulated_bottles,
-            } => {
-                if discovery::count_mystery_colors(bottles) == 0 {
-                    println!("Discovery complete! All colors revealed. Running normal solver...");
-                    active_layout = Some(layout.clone());
-                    if let Some(moves) = run_solver(bottles) {
-                        println!("Planned moves after discovery:");
-                        for m in &moves {
-                            println!("{:?}", m);
-                        }
-
-                        planned_moves = moves;
-                        performed_moves = 0;
-                        if let Some(first_move) = planned_moves.first().copied() {
-                            active_move = Some(first_move);
-                            app_state = AppState::ExecutingMoves { next_move_at: now };
-                        } else {
-                            app_state = AppState::ClickNextLevel {
-                                trigger_at: now + NEXT_LEVEL_WAIT,
-                            };
-                        }
-                    } else {
-                        println!("Solver failed on discovered state!");
-                        app_state = AppState::ClickNextLevel {
-                            trigger_at: now + NEXT_LEVEL_WAIT,
-                        };
-                    }
-                } else {
-                    // Get next move to try
-                    match discovery::get_next_discovery_move(bottles, &mut discovery_visited) {
-                        Ok(Some(m)) => {
-                            println!(
-                                "Discovery: executing move {:?}. Mysteries remaining: {}",
-                                m,
-                                discovery::count_mystery_colors(bottles)
-                            );
-                            active_layout = Some(layout.clone());
-                            app_state = AppState::MysteryExecuteDiscoverMove {
-                                next_move_at: now,
-                                move_to_execute: m,
-                                source_bottles: bottles.clone(),
-                                layout: layout.clone(),
-                                discovery_iteration: 0,
-                                accumulated_bottles: accumulated_bottles.clone(),
-                            };
-                        }
-                        Ok(None) => {
-                            // Should not reach here if mysteries > 0, but handle gracefully
-                            println!(
-                                "Discovery: no moves available but still have mysteries. Retrying level..."
-                            );
-                            click_at_position(RETRY_BUTTON_POS);
-                            app_state = AppState::DetectAndPlan {
-                                trigger_at: now + Duration::from_secs(3),
-                            };
-                        }
-                        Err(error) => {
-                            println!("Discovery error: {}", error);
-                            println!("Discovery stuck. Retrying level...");
-                            click_at_position(RETRY_BUTTON_POS);
-                            app_state = AppState::DetectAndPlan {
-                                trigger_at: now + Duration::from_secs(3), // Wait for level to reset
-                            };
-                        }
-                    }
-                }
-            }
-            AppState::MysteryExecuteDiscoverMove {
-                next_move_at,
-                move_to_execute,
-                source_bottles,
-                layout,
-                discovery_iteration,
-                accumulated_bottles,
-            } => {
-                if now >= *next_move_at {
-                    if *discovery_iteration == 0 {
-                        // First iteration: execute the move on device
-                        println!(
-                            "Executing discovery move: {:?}. Move #{}, Mysteries: {}",
-                            move_to_execute,
-                            discovery_iteration,
-                            discovery::count_mystery_colors(source_bottles)
-                        );
-                        move_to_execute.perform_move_on_device(layout);
-
-                        // Schedule next iteration (detection) after move delay
-                        app_state = AppState::MysteryExecuteDiscoverMove {
-                            next_move_at: now + DISCOVERY_MOVE_DELAY,
-                            move_to_execute: *move_to_execute,
-                            source_bottles: source_bottles.clone(),
-                            layout: layout.clone(),
-                            discovery_iteration: 1,
-                            accumulated_bottles: accumulated_bottles.clone(),
-                        };
-                    } else {
-                        // Second iteration: re-detect bottles after move
-                        println!("Re-detecting bottles after discovery move...");
-                        let mut frame_display_discovery = frame_raw.try_clone()?;
-
-                        match detect_bottles_with_layout(
-                            &frame_raw,
-                            &mut frame_display_discovery,
-                            layout,
-                        ) {
-                            Ok(detected_bottles) => {
-                                let mysteries_before =
-                                    discovery::count_mystery_colors(source_bottles);
-                                let mysteries_after =
-                                    discovery::count_mystery_colors(&detected_bottles);
-
-                                if mysteries_after < mysteries_before {
-                                    println!(
-                                        "Discovery move revealed colors! Before: {}, After: {}",
-                                        mysteries_before, mysteries_after
-                                    );
-                                } else {
-                                    println!(
-                                        "Discovery move completed. Mysteries: {} (no change or exploratory)",
-                                        mysteries_after
-                                    );
-                                }
-
-                                // Update window with detected bottles
-                                let buffer = frame_to_window_buffer(&frame_display_discovery)?;
-                                window.update_with_buffer(&buffer, width, height)?;
-
-                                // Go back to discovery with updated bottles
-                                // The game persists discovered colors, so detected_bottles already has them
-                                app_state = AppState::MysteryDiscoverColors {
-                                    bottles: detected_bottles.clone(),
-                                    layout: layout.clone(),
-                                    accumulated_bottles: detected_bottles,
-                                };
-                            }
-                            Err(error) => {
-                                println!(
-                                    "Error re-detecting bottles after discovery move: {:?}",
-                                    error
-                                );
-                                // Continue with estimated bottles from move
-                                let mut estimated_bottles = source_bottles.clone();
-                                move_to_execute.perform_move_on_bottles(&mut estimated_bottles);
-
-                                app_state = AppState::MysteryDiscoverColors {
-                                    bottles: estimated_bottles.clone(),
-                                    layout: layout.clone(),
-                                    accumulated_bottles: estimated_bottles,
-                                };
-                            }
-                        }
-                    }
                 }
             }
             AppState::CheckForRewards { trigger_at } => {
@@ -445,13 +384,22 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
         }
 
+        let (overlay_planned_moves, overlay_performed_moves) = match &app_state {
+            AppState::ExecuteFinalSolveMoves {
+                planned_moves,
+                performed_moves,
+                ..
+            } => (planned_moves.as_slice(), *performed_moves),
+            _ => (&[][..], 0),
+        };
+
         let mut buffer = frame_to_window_buffer(&frame_display)?;
         draw_move_overlay(
             &mut buffer,
             width,
             height,
-            &planned_moves,
-            performed_moves,
+            overlay_planned_moves,
+            overlay_performed_moves,
             active_move,
         );
 
@@ -460,6 +408,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
     Ok(())
 }
+
 fn load_loopback_device() {
     Command::new("sudo")
         .args(["modprobe", "v4l2loopback", "video_nr=10"])
