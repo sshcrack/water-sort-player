@@ -86,7 +86,7 @@ impl TestUtils {
         sequence
             .split_whitespace()
             .map(TestUtils::parse_bottle_string)
-            .map(|fills| Bottle::from_fills(fills))
+            .map(Bottle::from_fills)
             .collect()
     }
 }

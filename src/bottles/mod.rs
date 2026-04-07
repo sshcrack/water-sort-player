@@ -71,7 +71,9 @@ impl Bottle {
         }
 
         let first_color = self.fills[0];
-        self.fills.iter().all(|&color| color == first_color && color != BottleColor::Mystery)
+        self.fills
+            .iter()
+            .all(|&color| color == first_color && color != BottleColor::Mystery)
     }
 
     pub fn can_fill_from(&self, other: &Bottle) -> bool {

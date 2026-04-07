@@ -93,7 +93,6 @@ impl BottleLayout {
         ))
     }
 
-
     /// Attempt to automatically detect the best layout for an image
     pub fn detect_layout(image: &Mat) -> anyhow::Result<Self> {
         let layouts = Self::get_layouts();
@@ -170,7 +169,11 @@ impl BottlePosition {
 /// Predefined layouts
 impl BottleLayout {
     pub fn get_layouts() -> Vec<Self> {
-        vec![Self::ten_bottle_layout(), Self::eleven_bottle_layout(), Self::twelve_bottle_layout()]
+        vec![
+            Self::ten_bottle_layout(),
+            Self::eleven_bottle_layout(),
+            Self::twelve_bottle_layout(),
+        ]
     }
 
     /// Create the standard 10-bottle layout (2x5 grid)

@@ -1,9 +1,5 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
-#[cfg(feature = "solver-visualization")]
-use std::thread;
-#[cfg(feature = "solver-visualization")]
-use std::time::Duration;
 
 use crate::{
     bottles::{Bottle, BottleLayout},
@@ -39,10 +35,12 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
 }
 
 impl Move {
+    #[cfg(test)]
     pub fn source_index(&self) -> usize {
         self.0
     }
 
+    #[cfg(test)]
     pub fn destination_index(&self) -> usize {
         self.1
     }
@@ -73,8 +71,10 @@ fn is_solved_state(bottles: &[Bottle]) -> bool {
 }
 
 fn canonicalize_state(bottles: &[Bottle]) -> Vec<Vec<BottleColor>> {
-    let mut normalized: Vec<Vec<BottleColor>> =
-        bottles.iter().map(|bottle| bottle.get_fills().clone()).collect();
+    let mut normalized: Vec<Vec<BottleColor>> = bottles
+        .iter()
+        .map(|bottle| bottle.get_fills().clone())
+        .collect();
     normalized.sort();
     normalized
 }
@@ -151,37 +151,11 @@ fn solve_shortest_path(bottles: &[Bottle]) -> Option<Vec<Move>> {
     None
 }
 
-#[allow(dead_code)]
 pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
     println!("Solving puzzle with initial state: {:?}", bottles);
     solve_shortest_path(bottles)
 }
 
-#[allow(dead_code)]
-#[cfg(feature = "solver-visualization")]
-pub fn run_solver_with_visualization<F>(bottles: &[Bottle], callback: &mut F) -> Option<Vec<Move>>
-where
-    F: FnMut(&[Bottle], Option<Move>) + 'static,
-{
-    println!("Solving puzzle with initial state: {:?}", bottles);
-
-    let solution = solve_shortest_path(bottles)?;
-
-    let mut replay_state = bottles.to_vec();
-    callback(&replay_state, None);
-
-    for m in &solution {
-        #[cfg(feature = "solver-visualization")]
-        thread::sleep(Duration::from_millis(50));
-
-        m.perform_move_on_bottles(&mut replay_state);
-        callback(&replay_state, Some(*m));
-    }
-
-    Some(solution)
-}
-
-#[allow(dead_code)]
 pub fn get_possible_moves(
     bottles: &[Bottle],
     visited_states: &HashSet<Vec<Bottle>>,

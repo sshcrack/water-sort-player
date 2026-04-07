@@ -14,7 +14,7 @@ use opencv::{
 };
 
 use crate::{
-    app_visualization::{OverlaySnapshot, draw_move_overlay, draw_state_hud},
+    app_visualization::{OverlaySnapshot, draw_state_hud},
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
     capture::{frame_to_window_buffer, save_frame_png},
     constants::{
@@ -135,7 +135,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
         let now = Instant::now();
         let mut frame_display = frame_raw.try_clone()?;
-        let mut active_move: Option<Move> = None;
 
         match &mut app_state {
             AppState::WaitingToPressStart { trigger_at } => {
@@ -249,11 +248,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "discovery move execution");
 
-                    let current_bottles = detect_bottles_with_layout(
-                        &frame_raw,
-                        &mut frame_display,
-                        layout,
-                    );
+                    let current_bottles =
+                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
                         panic!(
@@ -354,7 +350,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute[0];
-                        active_move = Some(next_move);
 
                         println!("Performing discovery move: {:?}.", next_move);
                         next_move.perform_move_on_device(layout);
@@ -374,7 +369,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 next_move_at,
             } => {
                 if let Some(next) = planned_moves.get(*performed_moves).copied() {
-                    active_move = Some(next);
                     if now >= *next_move_at {
                         println!("Performing move: {:?}.", next);
                         let layout = require_active_layout(&active_layout, "solve move execution");
@@ -411,7 +405,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
         }
 
-        let overlay_snapshot = build_overlay_snapshot(&app_state, now, active_move);
+        let overlay_snapshot = build_overlay_snapshot(&app_state, now);
 
         draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
 
@@ -474,8 +468,7 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
 
 fn build_overlay_snapshot<'a>(
     app_state: &'a AppState,
-    now: Instant,
-    active_move: Option<Move>,
+    now: Instant
 ) -> OverlaySnapshot<'a> {
     match app_state {
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
@@ -488,7 +481,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            active_move,
         },
         AppState::ClickNextLevel { trigger_at } => OverlaySnapshot {
             phase: "ClickNextLevel".to_string(),
@@ -500,7 +492,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            active_move,
         },
         AppState::CheckForRewards { trigger_at } => OverlaySnapshot {
             phase: "CheckForRewards".to_string(),
@@ -512,7 +503,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            active_move,
         },
         AppState::DetectAndPlan { trigger_at } => OverlaySnapshot {
             phase: "DetectAndPlan".to_string(),
@@ -524,7 +514,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            active_move,
         },
         AppState::MysteryDiscoverColors {
             trigger_at,
@@ -541,7 +530,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: Some(0),
             solve_moves: &[],
             solve_performed_moves: 0,
-            active_move,
         },
         AppState::MysteryExecuteDiscoverMove {
             trigger_at,
@@ -559,7 +547,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: Some(moves_to_execute.len()),
             solve_moves: &[],
             solve_performed_moves: 0,
-            active_move,
         },
         AppState::ExecuteFinalSolveMoves {
             next_move_at,
@@ -579,7 +566,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: planned_moves.as_slice(),
             solve_performed_moves: *performed_moves,
-            active_move,
         },
     }
 }
