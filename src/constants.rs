@@ -14,7 +14,7 @@ pub const COLOR_CHECK_OFFSET: Pos = Pos(0, 35);
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BottleState {
+pub enum BottleColor {
     Yellow,
     Red,
     Green,
@@ -23,7 +23,6 @@ pub enum BottleState {
     Purple,
     Pink,
     Orange,
-    Empty
 }
 
 fn is_color_within_tolerance(pixel: Vec3b, target: Vec3b, tolerance: u8) -> bool {
@@ -42,20 +41,20 @@ fn vec3_from_hex(hex: &str) -> Vec3b {
 }
 
 lazy_static! {
-    pub static ref COLOR_VALUES: Vec<(BottleState, Vec3b)> = vec![
-        (BottleState::Yellow, vec3_from_hex("#fbdf20")),
-        (BottleState::Red, vec3_from_hex("#df1a24")),
-        (BottleState::Green, vec3_from_hex("#46de1e")),
-        (BottleState::LightBlue, vec3_from_hex("#52b7fb")),
-        (BottleState::Blue, vec3_from_hex("#194af9")),
-        (BottleState::Purple, vec3_from_hex("#8c00d9")),
-        (BottleState::Pink, vec3_from_hex("#d212cc")),
-        (BottleState::Orange, vec3_from_hex("#f37c1c")),
-        (BottleState::Empty, vec3_from_hex("#713d2c")),
+    pub static ref COLOR_VALUES: Vec<(BottleColor, Vec3b)> = vec![
+        (BottleColor::Yellow, vec3_from_hex("#fbdf20")),
+        (BottleColor::Red, vec3_from_hex("#df1a24")),
+        (BottleColor::Green, vec3_from_hex("#46de1e")),
+        (BottleColor::LightBlue, vec3_from_hex("#52b7fb")),
+        (BottleColor::Blue, vec3_from_hex("#194af9")),
+        (BottleColor::Purple, vec3_from_hex("#8c00d9")),
+        (BottleColor::Pink, vec3_from_hex("#d212cc")),
+        (BottleColor::Orange, vec3_from_hex("#f37c1c")),
     ];
+    pub static ref EMPTY_COLOR: Vec3b = vec3_from_hex("#713d2c");
 }
 
-impl BottleState {
+impl BottleColor {
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
         for (color, target_pixel) in COLOR_VALUES.iter() {
             if is_color_within_tolerance(pixel, *target_pixel, 30) {
@@ -64,6 +63,14 @@ impl BottleState {
         }
 
         None
+    }
+
+    pub fn values() -> Vec<BottleColor> {
+        COLOR_VALUES.iter().map(|(color, _)| *color).collect()
+    }
+
+    pub fn is_empty_pixel(pixel: Vec3b) -> bool {
+        is_color_within_tolerance(pixel, *EMPTY_COLOR, 30)
     }
 
     pub fn to_pixel_value(self) -> Vec3b {

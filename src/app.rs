@@ -20,7 +20,6 @@ use crate::{
 };
 
 pub fn run(quick_mode: bool) -> Result<()> {
-
     if quick_mode {
         println!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
     }
@@ -36,7 +35,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
     wait_for_video_stream(BufReader::new(child_stdout))?;
 
-    thread::sleep(Duration::from_secs(1));
+    thread::sleep(Duration::from_secs(2));
 
     let mut cam = VideoCapture::from_file(VIRTUAL_CAM, videoio::CAP_V4L2)?;
 
@@ -51,8 +50,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut frame_raw = Mat::default();
 
     let mut pressed_start = quick_mode;
-    let mut new_level = false;
+    let mut new_level = true;
     let mut previous_right_click = false;
+    let mut moves_to_perform = None;
 
     while window.is_open() {
         cam.read(&mut frame_raw)?;
@@ -83,17 +83,43 @@ pub fn run(quick_mode: bool) -> Result<()> {
             new_level = true;
         }
 
+        let mut frame_display = frame_raw.try_clone()?;
         if new_level {
             println!("Waiting for level to load...");
             thread::sleep(Duration::from_secs(2));
             new_level = false;
+
+            let bottles = detect_and_draw_bottles(&frame_raw, &mut frame_display);
+
+            let buffer = frame_to_window_buffer(&frame_display)?;
+            window.update_with_buffer(&buffer, width, height)?;
+            if let Err(error) = bottles {
+                println!("Error detecting bottles: {:?}", error);
+                continue;
+            }
+
+            moves_to_perform = crate::solver::run_solver(&bottles.unwrap());
+            if let Some(moves) = &moves_to_perform {
+                println!("Planned moves:");
+                for m in moves {
+                    println!("{:?}", m);
+                }
+            } else {
+                println!("No solution found!");
+                continue;
+            }
         }
 
-        let mut frame_display = frame_raw.try_clone()?;
-        let _bottles = detect_and_draw_bottles(&frame_raw, &mut frame_display);
+        if let Some(moves) = &moves_to_perform {
+            for m in moves {
+                m.perform_move_on_device();
+                thread::sleep(Duration::from_millis(500));
+            }
+            moves_to_perform = None;
+        }
 
-        let buffer = frame_to_window_buffer(&frame_display)?;
-        window.update_with_buffer(&buffer, width, height)?;
+        //let buffer = frame_to_window_buffer(&frame_display)?;
+        //window.update_with_buffer(&buffer, width, height)?;
     }
 
     Ok(())

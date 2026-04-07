@@ -4,6 +4,7 @@ mod capture;
 mod constants;
 mod position;
 mod scrcpy;
+mod solver;
 
 fn main() {
     let quick_mode = std::env::args().any(|arg| arg == "--quick");
