@@ -95,6 +95,37 @@ impl TestUtils {
 
         result
     }
+
+    pub fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {
+        let mut fills: Vec<BottleColor> = bottle_str
+            .chars()
+            .filter_map(|c| match c {
+                'Y' => Some(BottleColor::Yellow),
+                'R' => Some(BottleColor::Red),
+                'G' => Some(BottleColor::Green),
+                'L' => Some(BottleColor::LightBlue),
+                'M' => Some(BottleColor::MediumBlue),
+                'B' => Some(BottleColor::Blue),
+                'P' => Some(BottleColor::Purple),
+                'O' => Some(BottleColor::Orange),
+                'W' => Some(BottleColor::Pink),
+                '?' => Some(BottleColor::Mystery),
+                'E' => None,
+                _ => panic!("Invalid character in bottle string: {}", c),
+            })
+            .collect();
+
+        // Strings are provided top->bottom; bottle fills are stored bottom->top.
+        fills.reverse();
+        fills
+    }
+
+    pub fn parse_bottles_sequence(sequence: &str) -> Vec<Vec<BottleColor>> {
+        sequence
+            .split_whitespace()
+            .map(TestUtils::parse_bottle_string)
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -140,9 +171,9 @@ impl ExpectedBottles {
         }
     }
 
-    pub fn for_12_bottle_layout() -> Self {
+    pub fn for_11_bottle_layout() -> Self {
         Self {
-            total_bottles: 11, // Actually 11 bottles visible
+            total_bottles: 11,
             min_filled_bottles: 9,
             max_filled_bottles: 11,
         }

@@ -57,7 +57,7 @@ impl BottleLayout {
     pub fn detect_layout(image: &Mat) -> anyhow::Result<Self> {
         let layouts = vec![
             BottleLayout::ten_bottle_layout(),
-            BottleLayout::twelve_bottle_layout(),
+            BottleLayout::eleven_bottle_layout(),
         ];
 
         let mut best_layout = layouts[0].clone();
@@ -93,8 +93,7 @@ impl BottleLayout {
                         let pixel = image.at_2d::<Vec3b>(y, x)?;
 
                         // Check if pixel looks like bottle content (not empty background)
-                        if BottleColor::from_pixel_value(*pixel).is_some()
-                        {
+                        if BottleColor::from_pixel_value(*pixel).is_some() {
                             bottle_has_content = true;
                             break;
                         }
@@ -162,8 +161,8 @@ impl BottleLayout {
         Self::new("10-bottles".to_string(), positions)
     }
 
-    /// Create the 12-bottle layout (6 + 5 arrangement)
-    pub fn twelve_bottle_layout() -> Self {
+    /// Create the 11-bottle layout (6 + 5 arrangement)
+    pub fn eleven_bottle_layout() -> Self {
         let mut positions = Vec::new();
 
         // Constants from the original implementation
@@ -190,8 +189,7 @@ impl BottleLayout {
             positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
         }
 
-
-        Self::new("12-bottles".to_string(), positions)
+        Self::new("11-bottles".to_string(), positions)
     }
 }
 
@@ -248,8 +246,8 @@ mod tests {
 
     #[test]
     fn test_twelve_bottle_layout() {
-        let layout = BottleLayout::twelve_bottle_layout();
-        assert_eq!(layout.bottle_count(), 11); // Actually 11 bottles visible in the image
-        assert_eq!(layout.name, "12-bottles");
+        let layout = BottleLayout::eleven_bottle_layout();
+        assert_eq!(layout.bottle_count(), 11);
+        assert_eq!(layout.name, "11-bottles");
     }
 }

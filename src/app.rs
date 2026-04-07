@@ -14,7 +14,7 @@ use opencv::{
 
 use crate::{
     app_visualization::draw_move_overlay,
-    bottles::{detect_bottles_with_layout, BottleLayout},
+    bottles::{BottleLayout, detect_bottles_with_layout},
     capture::{frame_to_window_buffer, save_frame_png},
     constants::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, START_BUTTON_POS, VIRTUAL_CAM,
@@ -88,9 +88,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
         }
 
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
-            && window.get_mouse_down(MouseButton::Left) {
-                println!("Clicked at: ({}, {})", x, y);
-            }
+            && window.get_mouse_down(MouseButton::Left)
+        {
+            println!("Clicked at: ({}, {})", x, y);
+        }
 
         let right_click = window.get_mouse_down(MouseButton::Right);
         if right_click && !previous_right_click {
@@ -154,7 +155,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             continue;
                         }
                     };
-                    let bottles = detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
+                    let bottles =
+                        detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
                     if let Err(error) = bottles {
                         println!("Error detecting bottles: {:?}", error);
                         active_layout = None;

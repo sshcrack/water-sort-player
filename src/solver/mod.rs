@@ -5,7 +5,10 @@ use std::thread;
 #[cfg(feature = "solver-visualization")]
 use std::time::Duration;
 
-use crate::{bottles::{Bottle, BottleLayout}, constants::BottleColor};
+use crate::{
+    bottles::{Bottle, BottleLayout},
+    constants::BottleColor,
+};
 
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
 #[derive(Debug, Clone, Copy)]
@@ -17,11 +20,7 @@ pub mod visualization;
 #[cfg(test)]
 mod tests;
 
-fn get_two_mut_from_vec(
-    bottles: &mut [Bottle],
-    a: usize,
-    b: usize,
-) -> (&mut Bottle, &mut Bottle) {
+fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bottle, &mut Bottle) {
     assert_ne!(a, b, "source and destination must be different");
 
     if a < b {
@@ -60,12 +59,13 @@ impl Move {
     }
 }
 
+pub type CallbackFn = dyn FnMut(&[Bottle], Option<Move>);
 struct SolverObserver<'a> {
-    callback: Option<&'a mut dyn FnMut(&[Bottle], Option<Move>)>,
+    callback: Option<&'a mut CallbackFn>,
 }
 
 impl<'a> SolverObserver<'a> {
-    fn new(callback: Option<&'a mut dyn FnMut(&[Bottle], Option<Move>)>) -> Self {
+    fn new(callback: Option<&'a mut CallbackFn>) -> Self {
         Self { callback }
     }
 

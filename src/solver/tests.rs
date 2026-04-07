@@ -1,32 +1,12 @@
-use crate::{bottles::Bottle, constants::BottleColor};
-
 macro_rules! create_test_level {
     ($level:literal, $bottles:expr) => {
         paste::paste! {
             #[test]
             fn [<solver_level_ $level>]() {
-                let mut bottles_parsed: Vec<Bottle> = $bottles
-                    .split_whitespace()
-                    .map(|bottle_str| {
-                        let fills = bottle_str
-                            .chars()
-                            .filter_map(|c| match c {
-                                'Y' => Some(BottleColor::Yellow),
-                                'R' => Some(BottleColor::Red),
-                                'G' => Some(BottleColor::Green),
-                                'L' => Some(BottleColor::LightBlue),
-                                'M' => Some(BottleColor::MediumBlue),
-                                'B' => Some(BottleColor::Blue),
-                                'P' => Some(BottleColor::Purple),
-                                'O' => Some(BottleColor::Orange),
-                                'W' => Some(BottleColor::Pink),
-                                'E' => None,
-                                _ => panic!("Invalid character in bottle string: {}", c),
-                            })
-                            .collect();
-
-                        Bottle::from_fills(fills)
-                    })
+                use crate::solver::Bottle;
+                let mut bottles_parsed: Vec<Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles)
+                    .into_iter()
+                    .map(|fills| Bottle::from_fills(fills))
                     .collect();
 
                 #[cfg(feature = "solver-visualization")]
@@ -70,4 +50,7 @@ macro_rules! create_test_level {
 }
 
 create_test_level!(213, "YRGM BPWO OBPG ROPM YRPW MWBG BGRY YMWO EEEE EEEE");
-create_test_level!(214, "POGR LMOR GYPO GYGB WBRL MLRY WMLP POMW BWBY EEEE EEEE");
+create_test_level!(
+    214,
+    "POGR LMOR GYPO GYGB WBRL MLRY WMLP POMW BWBY EEEE EEEE"
+);

@@ -1,20 +1,19 @@
 use opencv::{
     core::{Mat, MatTraitConst, Rect, Scalar, Vec3b},
-    imgproc, imgcodecs,
+    imgcodecs, imgproc,
 };
 
 mod layout;
 #[cfg(test)]
-pub mod test_utils;
+mod specific_tests;
 #[cfg(test)]
-mod tests;
+pub mod test_utils;
 
 pub use layout::BottleLayout;
 
 use crate::constants::BottleColor;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     fills: Vec<BottleColor>,
@@ -119,13 +118,11 @@ impl Bottle {
     }
 }
 
-
 #[allow(dead_code)]
 pub fn detect_and_draw_bottles(
     frame_raw: &Mat,
     frame_display: &mut Mat,
 ) -> anyhow::Result<Vec<Bottle>> {
-    
     // Automatically detect the best layout for this image
     let layout = BottleLayout::detect_layout(frame_raw)?;
     detect_bottles_with_layout(frame_raw, frame_display, &layout)

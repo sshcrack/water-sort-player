@@ -31,6 +31,7 @@ pub enum BottleColor {
     Purple,
     Pink,
     Orange,
+    Mystery,
 }
 
 pub fn is_color_within_tolerance(pixel: &Vec3b, target: &Vec3b, tolerance: u8) -> bool {
@@ -67,12 +68,17 @@ lazy_static! {
         (BottleColor::Purple, vec3_from_hex("#8c00d9")),
         (BottleColor::Pink, vec3_from_hex("#d212cc")),
         (BottleColor::Orange, vec3_from_hex("#f37c1c")),
+        (BottleColor::Mystery, vec3_from_hex("#363636")),
     ];
     pub static ref EMPTY_COLOR: Vec3b = vec3_from_hex("#713d2c");
 }
 
 impl BottleColor {
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
+        if Self::is_empty_pixel(&pixel) {
+            return None;
+        }
+
         const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
 
         let mut best_match = None;
