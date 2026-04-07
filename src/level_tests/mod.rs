@@ -81,6 +81,27 @@ macro_rules! create_test_level {
 
                     assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for level {}", $level);
                 }
+
+                #[test]
+                fn bottle_detection() {
+                    let image = match crate::bottles::test_utils::TestUtils::load_test_image(&format!("level-{}.png", $level)) {
+                        Ok(img) => img,
+                        Err(_) => {
+                            println!("Warning: Could not load level-{}.png, skipping test", $level);
+                            return;
+                        }
+                    };
+
+                    let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
+                    let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(&image, &expected_layout)
+                        .expect("Failed to detect bottles from image");
+
+                    assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for level {}", $level);
+
+                    for (idx, (detected, expected)) in detected_bottles.iter().zip(PARSED_BOTTLES.iter()).enumerate() {
+                        assert_eq!(detected.get_fills(), expected.get_fills(), "Bottle {} fills do not match expected for level {}", idx, $level);
+                    }
+                }
             }
         }
     };
