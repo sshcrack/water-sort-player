@@ -14,7 +14,7 @@ use opencv::{
 };
 
 use crate::{
-    app_visualization::draw_move_overlay,
+    app_visualization::{OverlaySnapshot, draw_move_overlay, draw_state_hud},
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
     capture::{frame_to_window_buffer, save_frame_png},
     constants::{
@@ -162,9 +162,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     ) {
                         click_at_position(NEXT_LEVEL_BUTTON_POS);
                     } else {
-                        panic!(
-                            "Error: Next level button color did not match expected value. Clicking anyway..."
+                        println!(
+                            "Warning: Next level button color mismatch. Clicking configured position anyway..."
                         );
+                        click_at_position(NEXT_LEVEL_BUTTON_POS);
                     }
 
                     app_state = AppState::DetectAndPlan {
@@ -246,14 +247,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 }
 
                 if now >= *trigger_at {
-                    if active_layout.is_none() {
-                        panic!("No active layout available for discovery move execution.");
-                    }
+                    let layout = require_active_layout(&active_layout, "discovery move execution");
 
                     let current_bottles = detect_bottles_with_layout(
                         &frame_raw,
                         &mut frame_display,
-                        active_layout.as_ref().unwrap(),
+                        layout,
                     );
 
                     if let Err(error) = current_bottles {
@@ -338,13 +337,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 already_visited_states,
             } => {
                 if now >= *trigger_at {
-                    if active_layout.is_none() {
-                        panic!("No active layout available for discovery move execution.");
-                    }
+                    let layout = require_active_layout(&active_layout, "discovery move execution");
 
                     draw_revealed_fill_markers(
                         &mut frame_display,
-                        active_layout.as_ref().unwrap(),
+                        layout,
                         max_revealed_bottle_state,
                     )?;
 
@@ -360,7 +357,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         active_move = Some(next_move);
 
                         println!("Performing discovery move: {:?}.", next_move);
-                        next_move.perform_move_on_device(active_layout.as_ref().unwrap());
+                        next_move.perform_move_on_device(layout);
 
                         // Remove the executed move from the list
                         moves_to_execute.remove(0);
@@ -380,13 +377,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     active_move = Some(next);
                     if now >= *next_move_at {
                         println!("Performing move: {:?}.", next);
-                        if let Some(layout) = active_layout.as_ref() {
-                            next.perform_move_on_device(layout);
-                            *performed_moves += 1;
-                            *next_move_at = now + MOVE_DELAY;
-                        } else {
-                            panic!("No active layout available for performing solve moves.");
-                        }
+                        let layout = require_active_layout(&active_layout, "solve move execution");
+                        next.perform_move_on_device(layout);
+                        *performed_moves += 1;
+                        *next_move_at = now + MOVE_DELAY;
                     }
                 } else {
                     app_state = AppState::CheckForRewards {
@@ -417,23 +411,18 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
         }
 
-        let (overlay_planned_moves, overlay_performed_moves) = match &app_state {
-            AppState::ExecuteFinalSolveMoves {
-                planned_moves,
-                performed_moves,
-                ..
-            } => (planned_moves.as_slice(), *performed_moves),
-            _ => (&[][..], 0),
-        };
+        let overlay_snapshot = build_overlay_snapshot(&app_state, now, active_move);
+
+        draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
 
         let mut buffer = frame_to_window_buffer(&frame_display)?;
         draw_move_overlay(
             &mut buffer,
             width,
             height,
-            overlay_planned_moves,
-            overlay_performed_moves,
-            active_move,
+            overlay_snapshot.solve_moves,
+            overlay_snapshot.solve_performed_moves,
+            overlay_snapshot.active_move,
         );
 
         window.update_with_buffer(&buffer, width, height)?;
@@ -473,4 +462,133 @@ fn wait_for_video_stream<R: BufRead>(mut reader: R) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn require_active_layout<'a>(
+    active_layout: &'a Option<BottleLayout>,
+    context: &str,
+) -> &'a BottleLayout {
+    active_layout
+        .as_ref()
+        .unwrap_or_else(|| panic!("No active layout available for {}.", context))
+}
+
+fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
+    if trigger_at > now {
+        Some(trigger_at.duration_since(now))
+    } else {
+        None
+    }
+}
+
+fn build_overlay_snapshot<'a>(
+    app_state: &'a AppState,
+    now: Instant,
+    active_move: Option<Move>,
+) -> OverlaySnapshot<'a> {
+    match app_state {
+        AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
+            phase: "WaitingToPressStart".to_string(),
+            detail: "Preparing initial level start tap".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            active_move,
+        },
+        AppState::ClickNextLevel { trigger_at } => OverlaySnapshot {
+            phase: "ClickNextLevel".to_string(),
+            detail: "Waiting to advance to the next level".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            active_move,
+        },
+        AppState::CheckForRewards { trigger_at } => OverlaySnapshot {
+            phase: "CheckForRewards".to_string(),
+            detail: "Looking for reward popup".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            active_move,
+        },
+        AppState::DetectAndPlan { trigger_at } => OverlaySnapshot {
+            phase: "DetectAndPlan".to_string(),
+            detail: "Detecting bottle layout and planning".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            active_move,
+        },
+        AppState::MysteryDiscoverColors {
+            trigger_at,
+            max_revealed_bottle_state,
+            current_moves,
+            ..
+        } => OverlaySnapshot {
+            phase: "MysteryDiscoverColors".to_string(),
+            detail: "Scanning bottles to reveal mystery colors".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: Some(count_total_mystery_colors(max_revealed_bottle_state)),
+            discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
+            discovery_depth: Some(current_moves.len()),
+            discovery_queue: Some(0),
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            active_move,
+        },
+        AppState::MysteryExecuteDiscoverMove {
+            trigger_at,
+            moves_to_execute,
+            max_revealed_bottle_state,
+            current_moves,
+            ..
+        } => OverlaySnapshot {
+            phase: "MysteryExecuteDiscoverMove".to_string(),
+            detail: "Executing discovery sequence".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: Some(count_total_mystery_colors(max_revealed_bottle_state)),
+            discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
+            discovery_depth: Some(current_moves.len()),
+            discovery_queue: Some(moves_to_execute.len()),
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            active_move,
+        },
+        AppState::ExecuteFinalSolveMoves {
+            next_move_at,
+            planned_moves,
+            performed_moves,
+        } => OverlaySnapshot {
+            phase: "ExecuteFinalSolveMoves".to_string(),
+            detail: format!(
+                "Running solver move {} of {}",
+                performed_moves.saturating_add(1).min(planned_moves.len()),
+                planned_moves.len()
+            ),
+            until_ready: remaining_until(*next_move_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: planned_moves.as_slice(),
+            solve_performed_moves: *performed_moves,
+            active_move,
+        },
+    }
 }
