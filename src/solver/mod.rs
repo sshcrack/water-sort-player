@@ -1,11 +1,16 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::thread;
+use std::time::Duration;
 
 use crate::{bottles::Bottle, constants::BottleColor};
 
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Move(usize, usize);
+
+#[cfg(feature = "solver-visualization")]
+pub mod visualization;
 
 #[cfg(test)]
 mod tests;
@@ -45,24 +50,67 @@ impl Move {
     }
 }
 
-pub fn run_solver(bottles: &Vec<Bottle>) -> Option<Vec<Move>> {
+struct SolverObserver<'a> {
+    callback: Option<&'a mut dyn FnMut(&[Bottle], Option<Move>)>,
+}
+
+impl<'a> SolverObserver<'a> {
+    fn new(callback: Option<&'a mut dyn FnMut(&[Bottle], Option<Move>)>) -> Self {
+        Self { callback }
+    }
+
+    fn render(&mut self, bottles: &[Bottle], active_move: Option<Move>) {
+        if let Some(callback) = self.callback.as_mut() {
+            (**callback)(bottles, active_move);
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
     println!("Solving puzzle with initial state: {:?}", bottles);
 
     let mut visited_states = HashSet::new();
-    inner_solver(bottles.clone(), Vec::new(), 0, &mut visited_states)
+    let mut observer = SolverObserver::new(None);
+    inner_solver(
+        bottles.to_vec(),
+        Vec::new(),
+        &mut visited_states,
+        &mut observer,
+    )
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "solver-visualization")]
+pub fn run_solver_with_visualization<F>(bottles: &[Bottle], callback: &mut F) -> Option<Vec<Move>>
+where
+    F: FnMut(&[Bottle], Option<Move>),
+{
+    println!("Solving puzzle with initial state: {:?}", bottles);
+
+    let mut visited_states = HashSet::new();
+    let mut observer = SolverObserver::new(Some(callback));
+    inner_solver(
+        bottles.to_vec(),
+        Vec::new(),
+        &mut visited_states,
+        &mut observer,
+    )
 }
 
 fn inner_solver(
     bottles: Vec<Bottle>,
     moves_so_far: Vec<Move>,
-    level: usize,
     visited_states: &mut HashSet<Vec<Bottle>>,
+    observer: &mut SolverObserver<'_>,
 ) -> Option<Vec<Move>> {
+    observer.render(&bottles, None);
+
     if !visited_states.insert(bottles.clone()) {
         return None;
     }
 
-    if bottles.iter().all(|b| b.is_solved()) {
+    if bottles.iter().all(|b| b.is_solved() || b.is_empty()) {
         return Some(moves_so_far);
     }
 
@@ -103,19 +151,21 @@ fn inner_solver(
 
     for (m, new_bottles) in possible_moves {
         let mut new_moves_so_far = moves_so_far.clone();
-        let level_indent = "  ".repeat(level);
-        println!("{}Trying move: {:?}", level_indent, m);
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        #[cfg(feature = "solver-visualization")]
+        thread::sleep(Duration::from_millis(50));
 
         new_moves_so_far.push(m);
+        observer.render(&new_bottles, Some(m));
         if let Some(solution) = inner_solver(
             new_bottles,
             new_moves_so_far,
-            level + 1,
             visited_states,
+            observer,
         ) {
             return Some(solution);
         }
+
+        observer.render(&bottles, None);
     }
 
     None
@@ -123,17 +173,17 @@ fn inner_solver(
 
 fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
     possible_moves.sort_by(|(_, a), (_, b)| {
-    let a_solved = a.iter().filter(|x| x.is_solved()).count();
-    let b_solved = b.iter().filter(|x| x.is_solved()).count();
+        let a_solved = a.iter().filter(|x| x.is_solved()).count();
+        let b_solved = b.iter().filter(|x| x.is_solved()).count();
 
-    match b_solved.cmp(&a_solved) {
-        Ordering::Equal => {
-            let unique_a = get_unique_colors_sum(a);
-            let unique_b = get_unique_colors_sum(b);
-            unique_a.cmp(&unique_b)
+        match b_solved.cmp(&a_solved) {
+            Ordering::Equal => {
+                let unique_a = get_unique_colors_sum(a);
+                let unique_b = get_unique_colors_sum(b);
+                unique_a.cmp(&unique_b)
+            }
+            other => other,
         }
-        other => other,
-    }
     })
 }
 

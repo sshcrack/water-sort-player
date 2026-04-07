@@ -9,3 +9,6 @@ lazy_static = "1.5.0"
 minifb = { git = "https://github.com/emoon/rust_minifb", branch = "wayland-upgrade-2" }
 image = "0.25.8"
 opencv = { version = "0.98.2", features = ["videoio", "imgproc"] }
+
+[features]
+solver-visualization = []

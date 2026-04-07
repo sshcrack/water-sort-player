@@ -65,6 +65,7 @@ impl BottleColor {
         None
     }
 
+    #[allow(dead_code)]
     pub fn values() -> Vec<BottleColor> {
         COLOR_VALUES.iter().map(|(color, _)| *color).collect()
     }

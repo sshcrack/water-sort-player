@@ -99,6 +99,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
 
             moves_to_perform = crate::solver::run_solver(&bottles.unwrap());
+
             if let Some(moves) = &moves_to_perform {
                 println!("Planned moves:");
                 for m in moves {
