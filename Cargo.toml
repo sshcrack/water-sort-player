@@ -10,6 +10,10 @@ minifb = { git = "https://github.com/emoon/rust_minifb", branch = "wayland-upgra
 image = "0.25.8"
 opencv = { version = "0.98.2", features = ["videoio", "imgproc"] }
 paste = "1.0.15"
+serde_json = "1.0.145"
 
 [features]
 discovery-debugging = []
+
+[build-dependencies]
+serde_json = "1.0.145"

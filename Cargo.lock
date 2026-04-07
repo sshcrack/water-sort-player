@@ -1590,6 +1590,7 @@ dependencies = [
  "minifb",
  "opencv",
  "paste",
+ "serde_json",
 ]
 
 [[package]]

@@ -16,7 +16,9 @@ use opencv::{
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
-    capture::{frame_to_window_buffer, save_frame_png},
+    capture::{
+        DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png, start_discovery_capture,
+    },
     constants::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
         VIRTUAL_CAM, is_color_within_tolerance,
@@ -113,6 +115,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
     };
     let mut previous_right_click = false;
     let mut active_layout: Option<BottleLayout> = None;
+    let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
 
     while window.is_open() {
         cam.read(&mut frame_raw)?;
@@ -221,6 +224,21 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 mystery_count
                             );
 
+                            discovery_capture = match start_discovery_capture(
+                                &frame_raw,
+                                &layout,
+                                &detected_bottles,
+                            ) {
+                                Ok(capture_context) => Some(capture_context),
+                                Err(error) => {
+                                    println!(
+                                        "Warning: Failed to start discovery capture: {:?}",
+                                        error
+                                    );
+                                    None
+                                }
+                            };
+
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
                                 max_revealed_bottle_state: detected_bottles.clone(),
@@ -265,6 +283,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     println!("Total mystery colors still hidden: {}", mystery_colors);
                     if mystery_colors == 0 {
                         println!("All mystery colors revealed! Running solver...");
+
+                        if let Some(capture_context) = discovery_capture.as_mut() {
+                            capture_context.set_resolved_bottles(max_revealed_bottle_state);
+                        }
+
+                        finalize_discovery_capture(&mut discovery_capture);
+
                         let solution = run_solver(max_revealed_bottle_state)
                             .expect("Failed to find a solution for the revealed bottle state");
 
@@ -321,6 +346,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 println!(
                                     "While discovering, the puzzle has been solved. Proceeding to next level..."
                                 );
+
+                                if let Some(capture_context) = discovery_capture.as_mut() {
+                                    capture_context.set_resolved_bottles(max_revealed_bottle_state);
+                                }
+                                finalize_discovery_capture(&mut discovery_capture);
+
                                 app_state = AppState::CheckForRewards {
                                     trigger_at: now + NEXT_LEVEL_WAIT,
                                 };
@@ -476,6 +507,19 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
         Some(trigger_at.duration_since(now))
     } else {
         None
+    }
+}
+
+fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureContext>) {
+    let Some(capture_context) = discovery_capture.take() else {
+        return;
+    };
+
+    if let Err(error) = capture_context.finalize() {
+        println!(
+            "Warning: Failed to persist discovery capture manifest entry: {:?}",
+            error
+        );
     }
 }
 
