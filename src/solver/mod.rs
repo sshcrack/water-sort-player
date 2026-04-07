@@ -141,6 +141,16 @@ fn inner_solver(
                 continue;
             }
 
+            let is_bottle_of_one_color = |bottle: &Bottle| {
+                let fills = bottle.get_fills();
+                let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
+                hash_set.len() == 1
+            };
+
+            if is_bottle_of_one_color(source_bottle) && destination_bottle.is_empty() {
+                continue;
+            }
+
             if !destination_bottle.can_fill_from(source_bottle) {
                 continue;
             }
@@ -166,12 +176,9 @@ fn inner_solver(
 
         new_moves_so_far.push(m);
         observer.render(&new_bottles, Some(m));
-        if let Some(solution) = inner_solver(
-            new_bottles,
-            new_moves_so_far,
-            visited_states,
-            observer,
-        ) {
+        if let Some(solution) =
+            inner_solver(new_bottles, new_moves_so_far, visited_states, observer)
+        {
             return Some(solution);
         }
 

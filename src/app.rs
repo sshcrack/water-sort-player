@@ -16,7 +16,8 @@ use crate::{
     bottles::detect_and_draw_bottles,
     capture::{frame_to_window_buffer, save_frame_png},
     constants::{
-        NO_THANK_YOU_REWARDS_POS, START_BUTTON_POS, VIRTUAL_CAM, is_color_within_tolerance,
+        NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, START_BUTTON_POS, VIRTUAL_CAM,
+        is_color_within_tolerance,
     },
     scrcpy::{click_at_position, measure_window_to_mobile_scale, start_scrcpy},
     solver::{Move, run_solver},
@@ -24,6 +25,7 @@ use crate::{
 
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
+const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(3);
 const MOVE_DELAY: Duration = Duration::from_millis(2500);
 const OVERLAY_PANEL_COLOR: u32 = 0x10141a;
 const OVERLAY_BORDER_COLOR: u32 = 0x39414a;
@@ -35,9 +37,9 @@ const PROGRESS_FILL_COLOR: u32 = 0x3ea6ff;
 
 enum AppState {
     WaitingToPressStart { trigger_at: Instant },
-    WaitingForNextLevel { trigger_at: Instant },
+    ClickNextLevel { trigger_at: Instant },
     CheckForRewards { trigger_at: Instant },
-    DetectAndPlan,
+    DetectAndPlan { trigger_at: Instant },
     ExecutingMoves { next_move_at: Instant },
 }
 
@@ -72,8 +74,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut frame_raw = Mat::default();
 
     let mut app_state = if quick_mode {
-        AppState::WaitingForNextLevel {
-            trigger_at: Instant::now() + NEXT_LEVEL_WAIT,
+        AppState::DetectAndPlan {
+            trigger_at: Instant::now() + Duration::from_secs(1),
         }
     } else {
         AppState::WaitingToPressStart {
@@ -112,49 +114,75 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 if now >= *trigger_at {
                     println!("Starting level...");
                     click_at_position(START_BUTTON_POS);
-                    app_state = AppState::WaitingForNextLevel {
+                    app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
                     };
                 }
             }
-            AppState::WaitingForNextLevel { trigger_at } => {
+            AppState::ClickNextLevel { trigger_at } => {
+                if now >= *trigger_at {
+                    println!("Pressing next level button...");
+                    // Check if it is the expected next level button color
+                    let pixel = frame_raw
+                        .at_2d::<Vec3b>(NEXT_LEVEL_BUTTON_POS.1, NEXT_LEVEL_BUTTON_POS.0)
+                        .unwrap();
+
+                    if is_color_within_tolerance(
+                        &pixel,
+                        &*crate::constants::NEXT_LEVEL_BUTTON_COLOR,
+                        15,
+                    ) {
+                        click_at_position(NEXT_LEVEL_BUTTON_POS);
+                    } else {
+                        panic!(
+                            "Error: Next level button color did not match expected value. Clicking anyway..."
+                        );
+                    }
+
+                    app_state = AppState::DetectAndPlan {
+                        trigger_at: now + NEXT_LEVEL_WAIT,
+                    };
+                }
+            }
+            AppState::DetectAndPlan { trigger_at } => {
                 if now >= *trigger_at {
                     println!("Detecting bottles for new level...");
                     planned_moves.clear();
                     performed_moves = 0;
-                    app_state = AppState::DetectAndPlan;
-                }
-            }
-            AppState::DetectAndPlan => {
-                let bottles = detect_and_draw_bottles(&frame_raw, &mut frame_display);
-                if let Err(error) = bottles {
-                    println!("Error detecting bottles: {:?}", error);
-                    app_state = AppState::WaitingForNextLevel {
-                        trigger_at: now + NEXT_LEVEL_WAIT,
-                    };
-                } else {
-                    println!("Running solver...");
-                    if let Some(moves) = run_solver(&bottles?) {
-                        println!("Planned moves:");
-                        for m in &moves {
-                            println!("{:?}", m);
-                        }
+                    let bottles = detect_and_draw_bottles(&frame_raw, &mut frame_display);
+                    if let Err(error) = bottles {
+                        println!("Error detecting bottles: {:?}", error);
+                        app_state = AppState::ClickNextLevel {
+                            trigger_at: now + NEXT_LEVEL_WAIT,
+                        };
+                    } else {
+                        // Redraw window before running solver to show detected bottles
+                        let buffer = frame_to_window_buffer(&frame_display)?;
+                        window.update_with_buffer(&buffer, width, height)?;
 
-                        planned_moves = moves;
-                        performed_moves = 0;
-                        if let Some(first_move) = planned_moves.first().copied() {
-                            active_move = Some(first_move);
-                            app_state = AppState::ExecutingMoves { next_move_at: now };
+                        println!("Running solver...");
+                        if let Some(moves) = run_solver(&bottles?) {
+                            println!("Planned moves:");
+                            for m in &moves {
+                                println!("{:?}", m);
+                            }
+
+                            planned_moves = moves;
+                            performed_moves = 0;
+                            if let Some(first_move) = planned_moves.first().copied() {
+                                active_move = Some(first_move);
+                                app_state = AppState::ExecutingMoves { next_move_at: now };
+                            } else {
+                                app_state = AppState::ClickNextLevel {
+                                    trigger_at: now + NEXT_LEVEL_WAIT,
+                                };
+                            }
                         } else {
-                            app_state = AppState::WaitingForNextLevel {
+                            println!("No solution found!");
+                            app_state = AppState::ClickNextLevel {
                                 trigger_at: now + NEXT_LEVEL_WAIT,
                             };
                         }
-                    } else {
-                        println!("No solution found!");
-                        app_state = AppState::WaitingForNextLevel {
-                            trigger_at: now + NEXT_LEVEL_WAIT,
-                        };
                     }
                 }
             }
@@ -169,7 +197,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
                 } else {
                     app_state = AppState::CheckForRewards {
-                        trigger_at: now + NEXT_LEVEL_WAIT,
+                        trigger_at: now + NO_THANK_YOU_REWARDS_WAIT,
                     };
                 }
             }
@@ -189,7 +217,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         println!("No reward screen detected, proceeding to next level...");
                     }
 
-                    app_state = AppState::WaitingForNextLevel {
+                    app_state = AppState::ClickNextLevel {
                         trigger_at: now + NEXT_LEVEL_WAIT,
                     };
                 }

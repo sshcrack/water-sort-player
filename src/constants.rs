@@ -12,8 +12,11 @@ pub const SECOND_ROW_OFFSET: Pos = Pos(0, 217);
 pub const BOTTLE_SPACING: Pos = Pos(69, 0);
 pub const COLOR_CHECK_OFFSET: Pos = Pos(0, 35);
 
+pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
+
 pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
 lazy_static! {
+    pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#eff6e2");
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");
 }
 
