@@ -20,6 +20,10 @@ fn test_bottle_is_full() {
 #[test]
 fn test_bottle_solved() {
     BottleColor::values().iter().for_each(|&color| {
+        if color == BottleColor::Mystery {
+            return;
+        }
+
         let fills = vec![color; 4];
         let bottle = Bottle { fills };
         assert!(bottle.is_solved());

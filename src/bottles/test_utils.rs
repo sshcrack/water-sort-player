@@ -82,10 +82,11 @@ impl TestUtils {
         fills
     }
 
-    pub fn parse_bottles_sequence(sequence: &str) -> Vec<Vec<BottleColor>> {
+    pub fn parse_bottles_sequence(sequence: &str) -> Vec<Bottle> {
         sequence
             .split_whitespace()
             .map(TestUtils::parse_bottle_string)
+            .map(|fills| Bottle::from_fills(fills))
             .collect()
     }
 }

@@ -22,10 +22,7 @@ macro_rules! create_test_level {
             mod [<level_ $level>] {
                 use super::*;
                 lazy_static::lazy_static! {
-                    static ref PARSED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles)
-                        .into_iter()
-                        .map(|fills| crate::bottles::Bottle::from_fills(fills))
-                        .collect();
+                    static ref PARSED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles);
                 }
 
                 #[test]
@@ -35,10 +32,7 @@ macro_rules! create_test_level {
                     }
 
                     use crate::bottles::Bottle;
-                    let mut bottles_parsed: Vec<Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles)
-                        .into_iter()
-                        .map(|fills| Bottle::from_fills(fills))
-                        .collect();
+                    let mut bottles_parsed: Vec<Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles);
 
                     #[cfg(feature = "solver-visualization")]
                     let solution = {

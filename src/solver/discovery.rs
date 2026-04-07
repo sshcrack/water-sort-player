@@ -15,7 +15,7 @@ pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
                 .filter(|&color| color == &BottleColor::Mystery)
                 .count()
         })
-        .count()
+        .sum()
 }
 
 /// Replaces the mystery colors in the already visited states with the revealed colors from the max revealed bottle state, and checks if any of those states are now solved. If so, it returns the solution to that state.
@@ -68,7 +68,9 @@ pub fn find_best_discovery_move(
         m.perform_move_on_bottles(&mut current_revealed_state);
     }
 
-    let already_solved = current_revealed_state.iter().all(|b| b.is_solved() || b.is_empty());
+    let already_solved = current_revealed_state
+        .iter()
+        .all(|b| b.is_solved() || b.is_empty());
     if already_solved {
         return DiscoverResult::AlreadySolved;
     }
@@ -114,4 +116,26 @@ pub fn improve_best_revealed_state(
                     }
                 });
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{bottles::test_utils::TestUtils, solver::discovery::{count_total_mystery_colors, improve_best_revealed_state}};
+
+    #[test]
+    fn test_count_total_mystery_colors() {
+        let bottles = TestUtils::parse_bottles_sequence("P??? YGBR G???");
+
+        assert_eq!(count_total_mystery_colors(&bottles), 6);
+    }
+
+    #[test]
+    fn test_improve_best_revealed_state() {
+        let mut revealed_state = TestUtils::parse_bottles_sequence("PY?? Y??? G???");
+        let current_bottles = TestUtils::parse_bottles_sequence("P??? YG?? G???");
+        improve_best_revealed_state(&mut revealed_state, &current_bottles);
+
+        let expected_revealed_state = TestUtils::parse_bottles_sequence("PY?? YG?? G???");
+        assert_eq!(revealed_state, expected_revealed_state);
+    }
 }
