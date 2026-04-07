@@ -50,6 +50,7 @@ impl BottleLayout {
 
         for layout in layouts {
             let score = Self::score_layout_fit(image, &layout)?;
+            println!("Layout '{}' fit score: {}", layout.name, score);
             if score > best_score {
                 best_score = score;
                 best_layout = layout;

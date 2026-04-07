@@ -271,6 +271,35 @@ fn test_12_bottle_detection() {
 }
 
 #[test]
+fn test_detect_layout_10_bottles() {
+    let image = match TestUtils::load_test_image("10-bottles.png") {
+        Ok(img) => img,
+        Err(_) => {
+            println!("Warning: Could not load 10-bottles.png, skipping test");
+            return;
+        }
+    };
+
+    let layout = BottleLayout::detect_layout(&image).expect("Failed to detect layout");
+    assert_eq!(layout.name, "10-bottles");
+    assert_eq!(layout.bottle_count(), 10);
+}
+
+#[test]
+fn test_detect_layout_12_bottles() {
+    let image = match TestUtils::load_test_image("12-bottles.png") {
+        Ok(img) => img,
+        Err(_) => {
+            println!("Warning: Could not load 12-bottles.png, skipping test");
+            return;
+        }
+    };
+
+    let layout = BottleLayout::detect_layout(&image).expect("Failed to detect layout");
+    assert_eq!(layout, BottleLayout::twelve_bottle_layout());
+}
+
+#[test]
 fn test_layout_comparison() {
     // Compare different layouts to ensure they produce different results
     let layout_10 = BottleLayout::ten_bottle_layout();

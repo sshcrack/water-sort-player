@@ -1,6 +1,6 @@
 use opencv::{
     core::{Mat, MatTraitConst, Rect, Scalar, Vec3b},
-    imgproc,
+    imgproc, imgcodecs,
 };
 
 mod layout;
@@ -124,6 +124,7 @@ pub fn detect_and_draw_bottles(
     frame_raw: &Mat,
     frame_display: &mut Mat,
 ) -> anyhow::Result<Vec<Bottle>> {
+    
     // Automatically detect the best layout for this image
     let layout = BottleLayout::detect_layout(frame_raw)?;
     detect_bottles_with_layout(frame_raw, frame_display, &layout)
@@ -205,6 +206,10 @@ pub fn detect_bottles_with_layout(
     for bottle in &mut bottles {
         bottle.fills.reverse();
     }
+
+    // Save layout visualization for debugging
+    let _ = imgcodecs::imwrite("layout.png", frame_display, &Default::default());
+    let _ = imgcodecs::imwrite("layout-raw.png", frame_raw, &Default::default());
 
     Ok(bottles)
 }
