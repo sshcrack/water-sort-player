@@ -10,7 +10,6 @@ pub const START_BUTTON_POS: Pos = Pos(186, 605);
 pub const FIRST_ROW_START_POS: Pos = Pos(41, 223);
 pub const SECOND_ROW_OFFSET: Pos = Pos(0, 217);
 pub const BOTTLE_SPACING: Pos = Pos(69, 0);
-pub const COLOR_CHECK_OFFSET: Pos = Pos(0, 35);
 
 pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
 

@@ -14,7 +14,7 @@ use opencv::{
 
 use crate::{
     app_visualization::draw_move_overlay,
-    bottles::detect_and_draw_bottles,
+    bottles::{detect_bottles_with_layout, BottleLayout},
     capture::{frame_to_window_buffer, save_frame_png},
     constants::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, START_BUTTON_POS, VIRTUAL_CAM,
@@ -26,7 +26,7 @@ use crate::{
 
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
-const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(3);
+const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
 const MOVE_DELAY: Duration = Duration::from_millis(2500);
 
 enum AppState {
@@ -79,6 +79,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut previous_right_click = false;
     let mut planned_moves: Vec<Move> = Vec::new();
     let mut performed_moves = 0usize;
+    let mut active_layout: Option<BottleLayout> = None;
 
     while window.is_open() {
         cam.read(&mut frame_raw)?;
@@ -142,13 +143,27 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     println!("Detecting bottles for new level...");
                     planned_moves.clear();
                     performed_moves = 0;
-                    let bottles = detect_and_draw_bottles(&frame_raw, &mut frame_display);
+                    let layout = match BottleLayout::detect_layout(&frame_raw) {
+                        Ok(layout) => layout,
+                        Err(error) => {
+                            println!("Error detecting layout: {:?}", error);
+                            active_layout = None;
+                            app_state = AppState::ClickNextLevel {
+                                trigger_at: now + NEXT_LEVEL_WAIT,
+                            };
+                            continue;
+                        }
+                    };
+                    let bottles = detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
                     if let Err(error) = bottles {
                         println!("Error detecting bottles: {:?}", error);
+                        active_layout = None;
                         app_state = AppState::ClickNextLevel {
                             trigger_at: now + NEXT_LEVEL_WAIT,
                         };
                     } else {
+                        active_layout = Some(layout);
+
                         // Redraw window before running solver to show detected bottles
                         let buffer = frame_to_window_buffer(&frame_display)?;
                         window.update_with_buffer(&buffer, width, height)?;
@@ -184,9 +199,16 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     active_move = Some(next);
                     if now >= *next_move_at {
                         println!("Performing move: {:?}.", next);
-                        next.perform_move_on_device();
-                        performed_moves += 1;
-                        *next_move_at = now + MOVE_DELAY;
+                        if let Some(layout) = active_layout.as_ref() {
+                            next.perform_move_on_device(layout);
+                            performed_moves += 1;
+                            *next_move_at = now + MOVE_DELAY;
+                        } else {
+                            println!("No active layout available for move execution.");
+                            app_state = AppState::ClickNextLevel {
+                                trigger_at: now + NEXT_LEVEL_WAIT,
+                            };
+                        }
                     }
                 } else {
                     app_state = AppState::CheckForRewards {

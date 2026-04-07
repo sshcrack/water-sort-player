@@ -5,7 +5,7 @@ use std::thread;
 #[cfg(feature = "solver-visualization")]
 use std::time::Duration;
 
-use crate::{bottles::Bottle, constants::BottleColor};
+use crate::{bottles::{Bottle, BottleLayout}, constants::BottleColor};
 
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
 #[derive(Debug, Clone, Copy)]
@@ -42,9 +42,9 @@ impl Move {
         self.1
     }
 
-    pub fn perform_move_on_device(&self) {
-        crate::scrcpy::click_at_position(crate::position::get_bottle_position(self.0));
-        crate::scrcpy::click_at_position(crate::position::get_bottle_position(self.1));
+    pub fn perform_move_on_device(&self, layout: &BottleLayout) {
+        crate::scrcpy::click_at_position(crate::position::get_bottle_position(layout, self.0));
+        crate::scrcpy::click_at_position(crate::position::get_bottle_position(layout, self.1));
     }
 
     pub fn perform_move_on_bottles(&self, bottles: &mut [Bottle]) {

@@ -1,4 +1,4 @@
-use crate::constants::BottleColor;
+use crate::constants::{BOTTLE_SPACING, BottleColor, FIRST_ROW_START_POS, SECOND_ROW_OFFSET};
 use crate::position::Pos;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 
@@ -32,6 +32,21 @@ impl BottleLayout {
         let bottle_pos = self.positions.get(bottle_index)?;
         let layer_offset = bottle_pos.layer_offsets.get(layer_index)?;
 
+        Some(Pos(
+            bottle_pos.base_pos.0 + layer_offset.0,
+            bottle_pos.base_pos.1 + layer_offset.1,
+        ))
+    }
+
+    /// Get a safe click position within a bottle (use middle layer by default)
+    pub fn get_click_position(&self, bottle_index: usize) -> Option<Pos> {
+        let bottle_pos = self.positions.get(bottle_index)?;
+        if bottle_pos.layer_offsets.is_empty() {
+            return Some(bottle_pos.base_pos);
+        }
+
+        let mid_index = bottle_pos.layer_offsets.len() / 2;
+        let layer_offset = bottle_pos.layer_offsets.get(mid_index)?;
         Some(Pos(
             bottle_pos.base_pos.0 + layer_offset.0,
             bottle_pos.base_pos.1 + layer_offset.1,
@@ -79,7 +94,6 @@ impl BottleLayout {
 
                         // Check if pixel looks like bottle content (not empty background)
                         if BottleColor::from_pixel_value(*pixel).is_some()
-                            || BottleColor::is_empty_pixel(pixel)
                         {
                             bottle_has_content = true;
                             break;
@@ -122,10 +136,9 @@ impl BottleLayout {
     pub fn ten_bottle_layout() -> Self {
         let mut positions = Vec::new();
 
-        // Constants from the original implementation
-        let first_row_start = Pos(41, 223);
-        let second_row_offset = Pos(0, 217);
-        let bottle_spacing = Pos(69, 0);
+        let first_row_start = FIRST_ROW_START_POS;
+        let second_row_offset = SECOND_ROW_OFFSET;
+        let bottle_spacing = BOTTLE_SPACING;
         let layer_spacing = 35; // COLOR_CHECK_OFFSET.1
 
         // First row (5 bottles)
@@ -153,29 +166,30 @@ impl BottleLayout {
     pub fn twelve_bottle_layout() -> Self {
         let mut positions = Vec::new();
 
-        // Measured from the 12-bottles screenshot.
-        // Top row: 6 bottles
-        let top_row_x = [72, 196, 321, 445, 569, 693];
-        let top_row_y = 521;
-        let top_layer_spacing = 58;
-        for x in top_row_x {
-            positions.push(BottlePosition::vertical(
-                Pos(x, top_row_y),
-                top_layer_spacing,
-                4,
-            ));
+        // Constants from the original implementation
+        let first_row_start = Pos(34, 244);
+        let second_row_offset = Pos(22, 192);
+        let bottle_spacing = Pos(58, 0);
+        let layer_spacing = 31; // COLOR_CHECK_OFFSET.1
+
+        // First row (6 bottles)
+        for col in 0..6 {
+            let base_pos = Pos(
+                first_row_start.0 + col * bottle_spacing.0,
+                first_row_start.1,
+            );
+            positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
         }
 
-        // Bottom row: 5 bottles
-        let bottom_row_x = [119, 251, 383, 514, 646];
-        let bottom_row_y = 936;
-        let bottom_layer_offsets = vec![Pos(0, 0), Pos(0, 57), Pos(0, 114), Pos(0, 160)];
-        for x in bottom_row_x {
-            positions.push(BottlePosition::new(
-                Pos(x, bottom_row_y),
-                bottom_layer_offsets.clone(),
-            ));
+        // Second row (5 bottles)
+        for col in 0..5 {
+            let base_pos = Pos(
+                first_row_start.0 + col * bottle_spacing.0 + second_row_offset.0,
+                first_row_start.1 + second_row_offset.1,
+            );
+            positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
         }
+
 
         Self::new("12-bottles".to_string(), positions)
     }

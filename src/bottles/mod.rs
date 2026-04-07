@@ -120,6 +120,7 @@ impl Bottle {
 }
 
 
+#[allow(dead_code)]
 pub fn detect_and_draw_bottles(
     frame_raw: &Mat,
     frame_display: &mut Mat,
