@@ -18,17 +18,18 @@ use crate::{
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
     capture::{frame_to_window_buffer, save_frame_png},
     constants::{
-        NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS,
-        START_BUTTON_POS, VIRTUAL_CAM, is_color_within_tolerance,
+        NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
+        VIRTUAL_CAM, is_color_within_tolerance,
     },
     scrcpy::{click_at_position, measure_window_to_mobile_scale, start_scrcpy},
     solver::{
         Move,
         discovery::{
-            self, count_total_mystery_colors, find_best_discovery_move,
+            self, count_total_mystery_colors, find_best_discovery_moves,
             improve_best_revealed_state, reveal_mystery_colors_in_already_visited,
         },
-        run_solver, visualization::draw_revealed_fill_markers,
+        run_solver,
+        visualization::draw_revealed_fill_markers,
     },
 };
 
@@ -58,7 +59,8 @@ enum AppState {
         already_visited_states: HashSet<Vec<Bottle>>,
     },
     MysteryExecuteDiscoverMove {
-        move_to_execute: Move,
+        trigger_at: Instant,
+        moves_to_execute: Vec<Move>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         already_visited_states: HashSet<Vec<Bottle>>,
@@ -284,23 +286,20 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         );
 
                         // Find best move to reveal more colors
-                        let best_move = find_best_discovery_move(
+                        let best_move = find_best_discovery_moves(
                             current_moves,
                             max_revealed_bottle_state,
                             already_visited_states,
                         );
 
                         match best_move {
-                            discovery::DiscoverResult::MoveToDiscover(best_move) => {
-                                let mut moves_cloned = current_moves.clone();
-
-                                moves_cloned.push(best_move);
+                            discovery::DiscoverResult::MoveToDiscover(best_moves) => {
                                 app_state = AppState::MysteryExecuteDiscoverMove {
-                                    move_to_execute: best_move,
-                                    max_revealed_bottle_state: max_revealed_bottle_state
-                                        .clone(),
-                                    current_moves: moves_cloned,
+                                    moves_to_execute: best_moves,
+                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                    current_moves: current_moves.clone(),
                                     already_visited_states: already_visited_states.clone(),
+                                    trigger_at: now,
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
@@ -312,14 +311,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                 app_state = AppState::MysteryDiscoverColors {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
-                                    max_revealed_bottle_state: max_revealed_bottle_state
-                                        .clone(),
+                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     current_moves: vec![],
                                     already_visited_states: already_visited_states.clone(),
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
-                                println!("While discovering, the puzzle has been solved. Proceeding to next level...");
+                                println!(
+                                    "While discovering, the puzzle has been solved. Proceeding to next level..."
+                                );
                                 app_state = AppState::CheckForRewards {
                                     trigger_at: now + NEXT_LEVEL_WAIT,
                                 };
@@ -329,28 +329,45 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 }
             }
             AppState::MysteryExecuteDiscoverMove {
-                move_to_execute,
+                trigger_at,
+                moves_to_execute,
                 max_revealed_bottle_state,
                 current_moves,
                 already_visited_states,
             } => {
-                if active_layout.is_none() {
-                    panic!("No active layout available for discovery move execution.");
+                if now >= *trigger_at {
+                    if active_layout.is_none() {
+                        panic!("No active layout available for discovery move execution.");
+                    }
+
+                    draw_revealed_fill_markers(
+                        &mut frame_display,
+                        active_layout.as_ref().unwrap(),
+                        max_revealed_bottle_state,
+                    )?;
+
+                    if moves_to_execute.is_empty() {
+                        app_state = AppState::MysteryDiscoverColors {
+                            trigger_at: now,
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            current_moves: current_moves.clone(),
+                            already_visited_states: already_visited_states.clone(),
+                        };
+                    } else {
+                        let next_move = moves_to_execute[0];
+                        active_move = Some(next_move);
+
+                        println!("Performing discovery move: {:?}.", next_move);
+                        next_move.perform_move_on_device(active_layout.as_ref().unwrap());
+
+                        // Remove the executed move from the list
+                        moves_to_execute.remove(0);
+                        current_moves.push(next_move);
+
+                        // Schedule the next move or go back to discovery state after a delay
+                        *trigger_at = Instant::now() + DISCOVERY_MOVE_DELAY;
+                    }
                 }
-
-                draw_revealed_fill_markers(
-                    &mut frame_display,
-                    active_layout.as_ref().unwrap(),
-                    max_revealed_bottle_state,
-                )?;
-
-                move_to_execute.perform_move_on_device(active_layout.as_ref().unwrap());
-                app_state = AppState::MysteryDiscoverColors {
-                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
-                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                    current_moves: current_moves.clone(),
-                    already_visited_states: already_visited_states.clone(),
-                };
             }
             AppState::ExecuteFinalSolveMoves {
                 planned_moves,
