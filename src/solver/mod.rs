@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 
 use crate::{
     bottles::{Bottle, BottleLayout},
@@ -14,14 +14,6 @@ pub struct Move(usize, usize);
 
 pub mod visualization;
 
-#[derive(Debug)]
-struct SearchNode {
-    state: Vec<Bottle>,
-    parent_index: Option<usize>,
-    move_taken: Option<Move>,
-    depth: usize,
-}
-
 fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bottle, &mut Bottle) {
     assert_ne!(a, b, "source and destination must be different");
 
@@ -35,6 +27,7 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
 }
 
 impl Move {
+
     #[cfg(test)]
     pub fn source_index(&self) -> usize {
         self.0
@@ -63,145 +56,66 @@ impl Move {
     }
 }
 
-#[allow(dead_code)]
 pub type CallbackFn = dyn FnMut(&[Bottle], Option<Move>);
-
-fn is_solved_state(bottles: &[Bottle]) -> bool {
-    bottles.iter().all(|b| b.is_solved() || b.is_empty())
+struct SolverObserver<'a> {
+    callback: Option<&'a mut CallbackFn>,
 }
 
-fn canonicalize_state(bottles: &[Bottle]) -> Vec<Vec<BottleColor>> {
-    let mut normalized: Vec<Vec<BottleColor>> = bottles
-        .iter()
-        .map(|bottle| bottle.get_fills().clone())
-        .collect();
-    normalized.sort();
-    normalized
-}
-
-fn reconstruct_moves(nodes: &[SearchNode], mut node_index: usize) -> Vec<Move> {
-    let mut path = Vec::new();
-
-    while let Some(parent_index) = nodes[node_index].parent_index {
-        if let Some(m) = nodes[node_index].move_taken {
-            path.push(m);
-        }
-        node_index = parent_index;
+impl<'a> SolverObserver<'a> {
+    fn new(callback: Option<&'a mut CallbackFn>) -> Self {
+        Self { callback }
     }
 
-    path.reverse();
-    path
-}
-
-fn solve_shortest_path(bottles: &[Bottle]) -> Option<Vec<Move>> {
-    if is_solved_state(bottles) {
-        return Some(Vec::new());
-    }
-
-    let mut queue = VecDeque::new();
-    let mut nodes = Vec::new();
-    let mut best_depth_by_state: HashMap<Vec<Vec<BottleColor>>, usize> = HashMap::new();
-
-    nodes.push(SearchNode {
-        state: bottles.to_vec(),
-        parent_index: None,
-        move_taken: None,
-        depth: 0,
-    });
-
-    queue.push_back(0);
-    best_depth_by_state.insert(canonicalize_state(bottles), 0);
-
-    while let Some(node_index) = queue.pop_front() {
-        let depth = nodes[node_index].depth;
-        let state = nodes[node_index].state.clone();
-
-        let mut possible_moves = get_possible_moves_unfiltered(&state);
-        sort_moves_by_heuristic(&mut possible_moves);
-
-        for (m, new_state) in possible_moves {
-            let next_depth = depth + 1;
-            let state_key = canonicalize_state(&new_state);
-
-            if best_depth_by_state
-                .get(&state_key)
-                .is_some_and(|best_depth| *best_depth <= next_depth)
-            {
-                continue;
-            }
-
-            best_depth_by_state.insert(state_key, next_depth);
-
-            let next_index = nodes.len();
-            nodes.push(SearchNode {
-                state: new_state,
-                parent_index: Some(node_index),
-                move_taken: Some(m),
-                depth: next_depth,
-            });
-
-            if is_solved_state(&nodes[next_index].state) {
-                return Some(reconstruct_moves(&nodes, next_index));
-            }
-
-            queue.push_back(next_index);
+    fn render(&mut self, bottles: &[Bottle], active_move: Option<Move>) {
+        if let Some(callback) = self.callback.as_mut() {
+            (**callback)(bottles, active_move);
         }
     }
-
-    None
 }
 
+#[allow(dead_code)]
 pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
     println!("Solving puzzle with initial state: {:?}", bottles);
-    solve_shortest_path(bottles)
+
+    let mut visited_states = HashSet::new();
+    let mut observer = SolverObserver::new(None);
+    inner_solver(
+        bottles.to_vec(),
+        Vec::new(),
+        &mut visited_states,
+        &mut observer,
+    )
 }
 
 pub fn get_possible_moves(
     bottles: &[Bottle],
-    visited_states: &HashSet<Vec<Bottle>>,
+    visited_states: &mut HashSet<Vec<Bottle>>,
 ) -> Vec<(Move, Vec<Bottle>)> {
-    get_possible_moves_unfiltered(bottles)
-        .into_iter()
-        .filter(|(_, state)| !visited_states.contains(state))
-        .collect()
-}
-
-pub fn get_possible_moves_unfiltered(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
     let mut possible_moves = Vec::new();
 
     for source_idx in 0..bottles.len() {
-        let source_bottle = &bottles[source_idx];
-        if source_bottle.is_solved() || source_bottle.is_empty() {
-            continue;
-        }
-
-        let source_is_one_color = {
-            let fills = source_bottle.get_fills();
-            let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
-            hash_set.len() == 1
-        };
-
-        let mut saw_empty_destination = false;
-
         for destination_idx in 0..bottles.len() {
             if source_idx == destination_idx {
                 continue;
             }
 
+            let source_bottle = &bottles[source_idx];
             let destination_bottle = &bottles[destination_idx];
 
-            if destination_bottle.is_solved() {
+            if source_bottle.is_solved()
+                || source_bottle.is_empty()
+                || destination_bottle.is_solved()
+            {
                 continue;
             }
 
-            if destination_bottle.is_empty() {
-                if saw_empty_destination {
-                    continue;
-                }
-                saw_empty_destination = true;
-            }
+            let is_bottle_of_one_color = |bottle: &Bottle| {
+                let fills = bottle.get_fills();
+                let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
+                hash_set.len() == 1
+            };
 
-            if source_is_one_color && destination_bottle.is_empty() {
+            if is_bottle_of_one_color(source_bottle) && destination_bottle.is_empty() {
                 continue;
             }
 
@@ -209,15 +123,56 @@ pub fn get_possible_moves_unfiltered(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottl
                 continue;
             }
 
-            let mut new_bottles = bottles.to_vec();
+            let mut new_bottles = bottles.to_owned();
             let move_to_try = Move(source_idx, destination_idx);
             move_to_try.perform_move_on_bottles(&mut new_bottles);
 
-            possible_moves.push((move_to_try, new_bottles));
+            if visited_states.contains(&new_bottles) {
+                continue;
+            }
+
+            possible_moves.push((move_to_try, new_bottles.to_owned()));
         }
     }
 
     possible_moves
+}
+
+fn inner_solver(
+    bottles: Vec<Bottle>,
+    moves_so_far: Vec<Move>,
+    visited_states: &mut HashSet<Vec<Bottle>>,
+    observer: &mut SolverObserver<'_>,
+) -> Option<Vec<Move>> {
+    observer.render(&bottles, None);
+
+    if !visited_states.insert(bottles.clone()) {
+        return None;
+    }
+
+    if bottles.iter().all(|b| b.is_solved() || b.is_empty()) {
+        return Some(moves_so_far);
+    }
+
+    let mut possible_moves = get_possible_moves(&bottles, visited_states);
+
+    sort_moves_by_heuristic(&mut possible_moves);
+
+    for (m, new_bottles) in possible_moves {
+        let mut new_moves_so_far = moves_so_far.clone();
+
+        new_moves_so_far.push(m);
+        observer.render(&new_bottles, Some(m));
+        if let Some(solution) =
+            inner_solver(new_bottles, new_moves_so_far, visited_states, observer)
+        {
+            return Some(solution);
+        }
+
+        observer.render(&bottles, None);
+    }
+
+    None
 }
 
 pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
@@ -245,5 +200,5 @@ fn get_unique_colors_sum(a: &[Bottle]) -> usize {
 
             hash_set.len()
         })
-        .sum()
+        .count()
 }

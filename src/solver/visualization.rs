@@ -9,11 +9,20 @@ const BOTTLE_CAPACITY: usize = 4;
 pub fn draw_revealed_fill_markers(
     frame_display: &mut Mat,
     layout: &BottleLayout,
+    current_bottle_state: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) -> anyhow::Result<()> {
     for (bottle_index, bottle) in max_revealed_bottle_state.iter().enumerate() {
         for (fill_index, color) in bottle.get_fills().iter().enumerate().take(BOTTLE_CAPACITY) {
             if *color == BottleColor::Mystery {
+                continue;
+            }
+
+            let current_color = current_bottle_state
+                .get(bottle_index)
+                .and_then(|current| current.get_fills().get(fill_index));
+
+            if current_color != Some(&BottleColor::Mystery) {
                 continue;
             }
 

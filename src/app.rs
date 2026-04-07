@@ -237,14 +237,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 current_moves,
                 already_visited_states,
             } => {
-                if let Some(layout) = active_layout.as_ref() {
-                    draw_revealed_fill_markers(
-                        &mut frame_display,
-                        layout,
-                        max_revealed_bottle_state,
-                    )?;
-                }
-
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "discovery move execution");
 
@@ -259,6 +251,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
 
                     let current_bottles = current_bottles.unwrap();
+
+                    draw_revealed_fill_markers(
+                        &mut frame_display,
+                        layout,
+                        &current_bottles,
+                        max_revealed_bottle_state,
+                    )?;
+
                     improve_best_revealed_state(max_revealed_bottle_state, &current_bottles);
 
                     let mystery_colors = count_total_mystery_colors(max_revealed_bottle_state);
@@ -291,6 +291,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         match best_move {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
+                                #[cfg(feature = "discovery-debugging")]
+                                {
+                                    println!("Best discovery move sequence found: {:?}", best_moves);
+                                }
                                 app_state = AppState::MysteryExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
@@ -335,9 +339,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "discovery move execution");
 
+                    let current_bottles =
+                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout)?;
+
                     draw_revealed_fill_markers(
                         &mut frame_display,
                         layout,
+                        &current_bottles,
                         max_revealed_bottle_state,
                     )?;
 
@@ -352,6 +360,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let next_move = moves_to_execute[0];
 
                         println!("Performing discovery move: {:?}.", next_move);
+                        #[cfg(feature = "discovery-debugging")]
+                        {
+                            println!("Press enter to perform the next move...");
+                            std::io::stdin().read_line(&mut String::new()).unwrap();
+                        }
                         next_move.perform_move_on_device(layout);
 
                         // Remove the executed move from the list
@@ -466,10 +479,7 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
     }
 }
 
-fn build_overlay_snapshot<'a>(
-    app_state: &'a AppState,
-    now: Instant
-) -> OverlaySnapshot<'a> {
+fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlaySnapshot<'a> {
     match app_state {
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
             phase: "WaitingToPressStart".to_string(),
