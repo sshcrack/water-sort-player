@@ -8,6 +8,7 @@ pub const VIRTUAL_CAM: &str = "/dev/video10";
 pub const START_BUTTON_POS: Pos = Pos(186, 605);
 
 pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
+pub const RETRY_BUTTON_POS: Pos = Pos(324, 57);
 
 pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
 lazy_static! {
@@ -74,8 +75,6 @@ lazy_static! {
 impl BottleColor {
     const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 40 * 40;
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
-        let as_hex = format!("#{:02x}{:02x}{:02x}", pixel[2], pixel[1], pixel[0]);
-        println!("Detecting color for pixel: {:?}", as_hex);
         if Self::is_empty_pixel(&pixel) {
             return None;
         }

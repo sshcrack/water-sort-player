@@ -10,6 +10,8 @@ use crate::{
     constants::BottleColor,
 };
 
+pub mod discovery;
+
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
 #[derive(Debug, Clone, Copy)]
 pub struct Move(usize, usize);
