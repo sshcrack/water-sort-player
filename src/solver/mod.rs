@@ -18,9 +18,6 @@ pub struct Move(usize, usize);
 #[cfg(test)]
 pub mod visualization;
 
-#[cfg(test)]
-mod tests;
-
 fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bottle, &mut Bottle) {
     assert_ne!(a, b, "source and destination must be different");
 

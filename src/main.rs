@@ -3,6 +3,8 @@ mod app_visualization;
 mod bottles;
 mod capture;
 mod constants;
+#[cfg(test)]
+mod level_tests;
 mod position;
 mod scrcpy;
 mod solver;

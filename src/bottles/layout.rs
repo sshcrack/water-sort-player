@@ -54,10 +54,7 @@ impl BottleLayout {
     }
 
     pub fn get_layouts() -> Vec<Self> {
-        vec![
-            Self::ten_bottle_layout(),
-            Self::eleven_bottle_layout(),
-        ]
+        vec![Self::ten_bottle_layout(), Self::eleven_bottle_layout()]
     }
 
     /// Attempt to automatically detect the best layout for an image
