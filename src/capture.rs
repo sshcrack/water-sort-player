@@ -17,8 +17,10 @@ use crate::{
     constants::BottleColor,
 };
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 const DISCOVERY_MANIFEST_PATH: &str = "captures/discovery_levels.json";
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct DiscoveryLevelCapture {
     pub id: u64,
@@ -31,16 +33,19 @@ pub struct DiscoveryLevelCapture {
     pub captured_at_ms: u64,
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 #[derive(Debug, Clone, Default)]
 pub struct DiscoveryCaptureManifest {
     pub levels: Vec<DiscoveryLevelCapture>,
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct DiscoveryCaptureContext {
     pub level: DiscoveryLevelCapture,
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 impl DiscoveryCaptureContext {
     pub fn finalize(self) -> Result<()> {
         upsert_discovery_capture(self.level)
@@ -82,6 +87,7 @@ fn save_png_with_filename(frame: &Mat, filename: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
     bottles
         .iter()
@@ -90,6 +96,7 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
         .join(" ")
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn bottle_to_string(bottle: &Bottle) -> String {
     // Bottle fills are stored bottom->top. Test strings are top->bottom with 'E' for empty slots.
     let fills = bottle.get_fills();
@@ -110,6 +117,7 @@ fn bottle_to_string(bottle: &Bottle) -> String {
     out
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn color_to_char(color: BottleColor) -> char {
     match color {
         BottleColor::Yellow => 'Y',
@@ -126,6 +134,7 @@ fn color_to_char(color: BottleColor) -> char {
     }
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn count_mystery_colors(bottles: &[Bottle]) -> usize {
     bottles
         .iter()
@@ -139,6 +148,7 @@ fn count_mystery_colors(bottles: &[Bottle]) -> usize {
         .sum()
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn read_discovery_manifest() -> Result<DiscoveryCaptureManifest> {
     match fs::read_to_string(DISCOVERY_MANIFEST_PATH) {
         Ok(content) => {
@@ -152,6 +162,7 @@ fn read_discovery_manifest() -> Result<DiscoveryCaptureManifest> {
     }
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn write_discovery_manifest(manifest: &DiscoveryCaptureManifest) -> Result<()> {
     fs::create_dir_all("captures")?;
     let manifest_json = manifest_to_json(manifest);
@@ -160,6 +171,7 @@ fn write_discovery_manifest(manifest: &DiscoveryCaptureManifest) -> Result<()> {
     Ok(())
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn manifest_to_json(manifest: &DiscoveryCaptureManifest) -> Value {
     json!({
         "levels": manifest
@@ -170,6 +182,7 @@ fn manifest_to_json(manifest: &DiscoveryCaptureManifest) -> Value {
     })
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn level_to_json(level: &DiscoveryLevelCapture) -> Value {
     json!({
         "id": level.id,
@@ -183,6 +196,7 @@ fn level_to_json(level: &DiscoveryLevelCapture) -> Value {
     })
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn manifest_from_json(value: &Value) -> DiscoveryCaptureManifest {
     let levels = value
         .get("levels")
@@ -193,6 +207,7 @@ fn manifest_from_json(value: &Value) -> DiscoveryCaptureManifest {
     DiscoveryCaptureManifest { levels }
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn level_from_json(value: &Value) -> Option<DiscoveryLevelCapture> {
     Some(DiscoveryLevelCapture {
         id: value.get("id")?.as_u64()?,
@@ -222,6 +237,7 @@ fn level_from_json(value: &Value) -> Option<DiscoveryLevelCapture> {
     })
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn upsert_discovery_capture(capture: DiscoveryLevelCapture) -> Result<()> {
     let mut manifest = read_discovery_manifest()?;
 
@@ -239,6 +255,7 @@ fn upsert_discovery_capture(capture: DiscoveryLevelCapture) -> Result<()> {
     write_discovery_manifest(&manifest)
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 pub fn start_discovery_capture(
     frame: &Mat,
     layout: &BottleLayout,

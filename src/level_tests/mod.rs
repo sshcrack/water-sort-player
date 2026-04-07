@@ -99,9 +99,9 @@ macro_rules! create_test_level {
 
 #[allow(unused_macros)]
 macro_rules! create_generated_test_level {
-    ($id:literal, $image_filename:expr, $initial_bottles:expr, $resolved_bottles:expr) => {
+    ($module_suffix:literal, $capture_id:expr, $image_filename:expr, $initial_bottles:expr, $resolved_bottles:expr) => {
         paste::paste! {
-            mod [<captured_level_ $id>] {
+            mod [<captured_level_ $module_suffix>] {
                 use super::*;
                 lazy_static::lazy_static! {
                     static ref PARSED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($initial_bottles);
@@ -115,13 +115,13 @@ macro_rules! create_generated_test_level {
                         count_total_mystery_colors(&final_revealed),
                         0,
                         "Discovery simulation should reveal all mystery colors for captured level {}",
-                        $id
+                        $capture_id
                     );
                     assert_eq!(
                         final_revealed,
                         RESOLVED_BOTTLES.as_slice(),
                         "Discovery simulation should match the captured resolved state for level {}",
-                        $id
+                        $capture_id
                     );
 
                     solve_and_assert(final_revealed);
@@ -141,7 +141,7 @@ macro_rules! create_generated_test_level {
                     let detected_layout = crate::bottles::BottleLayout::detect_layout(&image)
                         .expect("Failed to detect bottle layout");
 
-                    assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for captured level {}", $id);
+                    assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for captured level {}", $capture_id);
                 }
 
                 #[test]
@@ -158,10 +158,10 @@ macro_rules! create_generated_test_level {
                     let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(&image, &expected_layout)
                         .expect("Failed to detect bottles from image");
 
-                    assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for captured level {}", $id);
+                    assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for captured level {}", $capture_id);
 
                     for (idx, (detected, expected)) in detected_bottles.iter().zip(PARSED_BOTTLES.iter()).enumerate() {
-                        assert_eq!(detected.get_fills(), expected.get_fills(), "Bottle {} fills do not match expected for captured level {}", idx, $id);
+                        assert_eq!(detected.get_fills(), expected.get_fills(), "Bottle {} fills do not match expected for captured level {}", idx, $capture_id);
                     }
                 }
             }

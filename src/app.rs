@@ -16,9 +16,7 @@ use opencv::{
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
-    capture::{
-        DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png, start_discovery_capture,
-    },
+    capture::{DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png},
     constants::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
         VIRTUAL_CAM, is_color_within_tolerance,
@@ -34,6 +32,9 @@ use crate::{
         visualization::draw_revealed_fill_markers,
     },
 };
+
+#[cfg(feature = "collect-test-data")]
+use crate::capture::start_discovery_capture;
 
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
@@ -78,6 +79,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
     if quick_mode {
         println!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
     }
+    #[cfg(feature = "collect-test-data")]
+    println!("Test data collection enabled (feature: collect-test-data).");
     println!("Loading loopback video device...");
     load_loopback_device();
 
@@ -205,11 +208,21 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         let detected_bottles = bottles?;
 
+                        discovery_capture = maybe_start_discovery_capture(
+                            &frame_raw,
+                            &layout,
+                            &detected_bottles,
+                        );
+
                         // Check if there are any mystery colors
                         let mystery_count =
                             discovery::count_total_mystery_colors(&detected_bottles);
                         if mystery_count == 0 {
                             println!("No mystery colors detected, running solver directly...");
+
+                            maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
+                            finalize_discovery_capture(&mut discovery_capture);
+
                             let solution = run_solver(&detected_bottles)
                                 .expect("Failed to find a solution for the detected bottles");
 
@@ -223,21 +236,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 "Detected {} mystery colors, starting discovery process...",
                                 mystery_count
                             );
-
-                            discovery_capture = match start_discovery_capture(
-                                &frame_raw,
-                                &layout,
-                                &detected_bottles,
-                            ) {
-                                Ok(capture_context) => Some(capture_context),
-                                Err(error) => {
-                                    println!(
-                                        "Warning: Failed to start discovery capture: {:?}",
-                                        error
-                                    );
-                                    None
-                                }
-                            };
 
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
@@ -284,9 +282,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     if mystery_colors == 0 {
                         println!("All mystery colors revealed! Running solver...");
 
-                        if let Some(capture_context) = discovery_capture.as_mut() {
-                            capture_context.set_resolved_bottles(max_revealed_bottle_state);
-                        }
+                        maybe_set_resolved_bottles(
+                            &mut discovery_capture,
+                            max_revealed_bottle_state,
+                        );
 
                         finalize_discovery_capture(&mut discovery_capture);
 
@@ -347,9 +346,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     "While discovering, the puzzle has been solved. Proceeding to next level..."
                                 );
 
-                                if let Some(capture_context) = discovery_capture.as_mut() {
-                                    capture_context.set_resolved_bottles(max_revealed_bottle_state);
-                                }
+                                maybe_set_resolved_bottles(
+                                    &mut discovery_capture,
+                                    max_revealed_bottle_state,
+                                );
                                 finalize_discovery_capture(&mut discovery_capture);
 
                                 app_state = AppState::CheckForRewards {
@@ -389,6 +389,22 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute[0];
+
+                        if !next_move.can_perform_on_bottles(&current_bottles) {
+                            println!(
+                                "Planned discovery move {:?} is not legal in the currently detected state. Replanning.",
+                                next_move
+                            );
+
+                            app_state = AppState::MysteryDiscoverColors {
+                                trigger_at: now,
+                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                current_moves: current_moves.clone(),
+                                already_visited_states: already_visited_states.clone(),
+                            };
+
+                            continue;
+                        }
 
                         println!("Performing discovery move: {:?}.", next_move);
                         #[cfg(feature = "discovery-debugging")]
@@ -510,7 +526,55 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
     }
 }
 
+fn maybe_start_discovery_capture(
+    frame_raw: &Mat,
+    layout: &BottleLayout,
+    detected_bottles: &[Bottle],
+) -> Option<DiscoveryCaptureContext> {
+    #[cfg(feature = "collect-test-data")]
+    {
+        match start_discovery_capture(frame_raw, layout, detected_bottles) {
+            Ok(capture_context) => Some(capture_context),
+            Err(error) => {
+                println!("Warning: Failed to start discovery capture: {:?}", error);
+                None
+            }
+        }
+    }
+
+    #[cfg(not(feature = "collect-test-data"))]
+    {
+        let _ = (frame_raw, layout, detected_bottles);
+        None
+    }
+}
+
+fn maybe_set_resolved_bottles(
+    discovery_capture: &mut Option<DiscoveryCaptureContext>,
+    max_revealed_bottle_state: &[Bottle],
+) {
+    #[cfg(feature = "collect-test-data")]
+    {
+        if let Some(capture_context) = discovery_capture.as_mut() {
+            capture_context.set_resolved_bottles(max_revealed_bottle_state);
+        }
+    }
+
+    #[cfg(not(feature = "collect-test-data"))]
+    {
+        let _ = (discovery_capture, max_revealed_bottle_state);
+    }
+}
+
 fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureContext>) {
+    #[cfg(not(feature = "collect-test-data"))]
+    {
+        let _ = discovery_capture;
+        return;
+    }
+
+    #[cfg(feature = "collect-test-data")]
+    {
     let Some(capture_context) = discovery_capture.take() else {
         return;
     };
@@ -520,6 +584,7 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
             "Warning: Failed to persist discovery capture manifest entry: {:?}",
             error
         );
+    }
     }
 }
 

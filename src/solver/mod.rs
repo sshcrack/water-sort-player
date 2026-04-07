@@ -43,6 +43,22 @@ impl Move {
         crate::scrcpy::click_at_position(crate::position::get_bottle_position(layout, self.1));
     }
 
+    pub fn can_perform_on_bottles(&self, bottles: &[Bottle]) -> bool {
+        if self.0 == self.1 {
+            return false;
+        }
+
+        let Some(source_bottle) = bottles.get(self.0) else {
+            return false;
+        };
+
+        let Some(destination_bottle) = bottles.get(self.1) else {
+            return false;
+        };
+
+        destination_bottle.can_fill_from(source_bottle)
+    }
+
     pub fn perform_move_on_bottles(&self, bottles: &mut [Bottle]) {
         let (source_bottle, destination_bottle) = get_two_mut_from_vec(bottles, self.0, self.1);
         if !destination_bottle.can_fill_from(source_bottle) {

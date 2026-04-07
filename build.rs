@@ -45,10 +45,10 @@ fn generate_level_test_invocations() -> String {
         return output;
     }
 
-    for entry in entries {
+    for (module_index, entry) in entries.into_iter().enumerate() {
         output.push_str(&format!(
-            "create_generated_test_level!({}, {:?}, {:?}, {:?});\n",
-            entry.id, entry.image_filename, entry.expected_bottles, entry.resolved_bottles
+            "create_generated_test_level!({}, {}u64, {:?}, {:?}, {:?});\n",
+            module_index, entry.id, entry.image_filename, entry.expected_bottles, entry.resolved_bottles
         ));
     }
 
