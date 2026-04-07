@@ -26,7 +26,7 @@ fn test_bottle_solved() {
     });
 
     let empty_bottle = Bottle { fills: vec![] };
-    assert!(empty_bottle.is_solved());
+    assert!(!empty_bottle.is_solved());
 
     let unsolved_bottle = Bottle {
         fills: vec![
