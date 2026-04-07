@@ -15,6 +15,7 @@ use crate::{
 pub struct Move(usize, usize);
 
 #[cfg(feature = "solver-visualization")]
+#[cfg(test)]
 pub mod visualization;
 
 #[cfg(test)]
@@ -94,7 +95,7 @@ pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
 #[cfg(feature = "solver-visualization")]
 pub fn run_solver_with_visualization<F>(bottles: &[Bottle], callback: &mut F) -> Option<Vec<Move>>
 where
-    F: FnMut(&[Bottle], Option<Move>),
+    F: FnMut(&[Bottle], Option<Move>) + 'static,
 {
     println!("Solving puzzle with initial state: {:?}", bottles);
 

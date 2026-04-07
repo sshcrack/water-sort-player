@@ -1,3 +1,5 @@
+use crate::{bottles::Bottle, constants::BottleColor};
+
 #[test]
 fn test_bottle_is_full() {
     let fills = vec![

@@ -20,7 +20,7 @@ macro_rules! create_test_level {
                     )
                     .expect("failed to create solver visualization window");
 
-                    let mut render_step = |state: &[Bottle], active_move: Option<crate::solver::Move>| {
+                    let mut render_step = move |state: &[Bottle], active_move: Option<crate::solver::Move>| {
                         let buffer = crate::solver::visualization::render_solver_view(
                             800,
                             540,
