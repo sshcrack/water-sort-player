@@ -2,8 +2,8 @@ use crate::{bottles::Bottle, constants::BottleColor};
 
 #[test]
 pub fn solver_level_213() {
-    // Y = yellow, R = red, G = green, L = light blue, B = blue, P = purple, O = orange, W = pink, E = empty
-    let bottles = "YRGL BPWO OBPG ROPL YRPW LWBG BGRY YLWO EEEE EEEE";
+    // Y = yellow, R = red, G = green, L = light blue, B = blue, P = purple, O = orange, W = pink, E = empty, M = medium blue
+    let bottles = "YRGM BPWO OBPG ROPM YRPW MWBG BGRY YMWO EEEE EEEE";
     let mut bottles_parsed: Vec<Bottle> = bottles
         .split_whitespace()
         .map(|bottle_str| {
@@ -14,6 +14,7 @@ pub fn solver_level_213() {
                     'R' => Some(BottleColor::Red),
                     'G' => Some(BottleColor::Green),
                     'L' => Some(BottleColor::LightBlue),
+                    'M' => Some(BottleColor::MediumBlue),
                     'B' => Some(BottleColor::Blue),
                     'P' => Some(BottleColor::Purple),
                     'O' => Some(BottleColor::Orange),
@@ -35,7 +36,8 @@ pub fn solver_level_213() {
             .expect("failed to create solver visualization window");
 
         let mut render_step = |state: &[Bottle], active_move: Option<crate::solver::Move>| {
-            let buffer = crate::solver::visualization::render_solver_view(800, 540, state, active_move);
+            let buffer =
+                crate::solver::visualization::render_solver_view(800, 540, state, active_move);
             window
                 .update_with_buffer(&buffer, 800, 540)
                 .expect("failed to update solver visualization window");

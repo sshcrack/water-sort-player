@@ -3,12 +3,15 @@ use opencv::{
     imgproc,
 };
 
+mod layout;
+#[cfg(test)]
+pub mod test_utils;
 #[cfg(test)]
 mod tests;
 
-use crate::constants::{
-    BOTTLE_SPACING, BottleColor, COLOR_CHECK_OFFSET, FIRST_ROW_START_POS, SECOND_ROW_OFFSET,
-};
+pub use layout::{BottleLayout, BottlePosition};
+
+use crate::constants::BottleColor;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Bottle {
@@ -16,9 +19,7 @@ pub struct Bottle {
     fills: Vec<BottleColor>,
 }
 
-const ROW_COUNT: usize = 2;
-const COL_COUNT: usize = 5;
-
+// Remove hardcoded constants - using layouts now
 const FULL_BOTTLE_COUNT: usize = 4;
 
 impl Bottle {
@@ -127,23 +128,32 @@ pub fn detect_and_draw_bottles(
     frame_raw: &Mat,
     frame_display: &mut Mat,
 ) -> anyhow::Result<Vec<Bottle>> {
+    // Automatically detect the best layout for this image
+    let layout = BottleLayout::detect_layout(frame_raw)?;
+    detect_bottles_with_layout(frame_raw, frame_display, &layout)
+}
+
+pub fn detect_bottles_with_layout(
+    frame_raw: &Mat,
+    frame_display: &mut Mat,
+    layout: &BottleLayout,
+) -> anyhow::Result<Vec<Bottle>> {
     let mut bottles = Vec::new();
 
-    for _ in 0..ROW_COUNT * COL_COUNT {
+    // Initialize bottles for this layout
+    for _ in 0..layout.bottle_count() {
         bottles.push(Bottle::default());
     }
 
-    for row in 0..ROW_COUNT {
-        for col in 0..COL_COUNT {
-            let mut x = FIRST_ROW_START_POS.0 + col as i32 * BOTTLE_SPACING.0;
-            let mut y = FIRST_ROW_START_POS.1 + row as i32 * BOTTLE_SPACING.1;
+    // Detect colors for each bottle
+    for bottle_idx in 0..layout.bottle_count() {
+        // Try to find 4 layers for each bottle (standard bottle capacity)
+        for layer_idx in 0..4 {
+            if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
+                let x = sample_pos.0;
+                let y = sample_pos.1;
 
-            if row == 1 {
-                x += SECOND_ROW_OFFSET.0;
-                y += SECOND_ROW_OFFSET.1;
-            }
-
-            for _ in 0..4 {
+                // Draw detection rectangle for visualization
                 imgproc::rectangle(
                     frame_display,
                     Rect::new(x - 20, y - 20, 40, 40),
@@ -155,7 +165,9 @@ pub fn detect_and_draw_bottles(
                 .unwrap();
 
                 let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
+
                 if BottleColor::is_empty_pixel(pixel) {
+                    // Empty pixel - draw white marker
                     imgproc::rectangle(
                         frame_display,
                         Rect::new(x - 5, y - 5, 10, 10),
@@ -166,6 +178,7 @@ pub fn detect_and_draw_bottles(
                     )
                     .unwrap();
                 } else if let Some(color) = BottleColor::from_pixel_value(*pixel) {
+                    // Detected color - draw colored marker
                     imgproc::rectangle(
                         frame_display,
                         Rect::new(x - 5, y - 5, 10, 10),
@@ -175,8 +188,9 @@ pub fn detect_and_draw_bottles(
                         0,
                     )
                     .unwrap();
-                    bottles[row * COL_COUNT + col].fills.push(color);
+                    bottles[bottle_idx].fills.push(color);
                 } else {
+                    // Unknown color - draw black marker
                     imgproc::rectangle(
                         frame_display,
                         Rect::new(x - 5, y - 5, 10, 10),
@@ -187,15 +201,13 @@ pub fn detect_and_draw_bottles(
                     )
                     .unwrap();
                 }
-
-                x += COLOR_CHECK_OFFSET.0;
-                y += COLOR_CHECK_OFFSET.1;
             }
         }
     }
 
-    for ele in &mut bottles {
-        ele.fills.reverse();
+    // Reverse fills so bottom colors are at index 0
+    for bottle in &mut bottles {
+        bottle.fills.reverse();
     }
 
     Ok(bottles)

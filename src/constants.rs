@@ -27,6 +27,7 @@ pub enum BottleColor {
     Red,
     Green,
     LightBlue,
+    MediumBlue,
     Blue,
     Purple,
     Pink,
@@ -41,6 +42,14 @@ pub fn is_color_within_tolerance(pixel: &Vec3b, target: &Vec3b, tolerance: u8) -
     b_diff <= tolerance && g_diff <= tolerance && r_diff <= tolerance
 }
 
+pub fn color_distance_sq(pixel: &Vec3b, target: &Vec3b) -> u32 {
+    let b_diff = pixel[0] as i32 - target[0] as i32;
+    let g_diff = pixel[1] as i32 - target[1] as i32;
+    let r_diff = pixel[2] as i32 - target[2] as i32;
+
+    (b_diff * b_diff + g_diff * g_diff + r_diff * r_diff) as u32
+}
+
 pub fn vec3_from_hex(hex: &str) -> Vec3b {
     let r = u8::from_str_radix(&hex[1..3], 16).unwrap();
     let g = u8::from_str_radix(&hex[3..5], 16).unwrap();
@@ -53,7 +62,8 @@ lazy_static! {
         (BottleColor::Yellow, vec3_from_hex("#fbdf20")),
         (BottleColor::Red, vec3_from_hex("#df1a24")),
         (BottleColor::Green, vec3_from_hex("#46de1e")),
-        (BottleColor::LightBlue, vec3_from_hex("#52b7fb")),
+        (BottleColor::LightBlue, vec3_from_hex("#2cf8fe")),
+        (BottleColor::MediumBlue, vec3_from_hex("#52b7fb")),
         (BottleColor::Blue, vec3_from_hex("#194af9")),
         (BottleColor::Purple, vec3_from_hex("#8c00d9")),
         (BottleColor::Pink, vec3_from_hex("#d212cc")),
@@ -64,13 +74,20 @@ lazy_static! {
 
 impl BottleColor {
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
+        const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
+
+        let mut best_match = None;
         for (color, target_pixel) in COLOR_VALUES.iter() {
-            if is_color_within_tolerance(&pixel, &*target_pixel, 30) {
-                return Some(*color);
+            let dist = color_distance_sq(&pixel, target_pixel);
+            if best_match.map_or(true, |(_, best_dist)| dist < best_dist) {
+                best_match = Some((*color, dist));
             }
         }
 
-        None
+        match best_match {
+            Some((color, dist)) if dist <= COLOR_DISTANCE_THRESHOLD_SQ => Some(color),
+            _ => None,
+        }
     }
 
     #[allow(dead_code)]

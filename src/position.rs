@@ -1,6 +1,6 @@
 use crate::constants::{BOTTLE_SPACING, FIRST_ROW_START_POS, SECOND_ROW_OFFSET};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pos(pub i32, pub i32);
 
 pub fn get_bottle_position(index: usize) -> Pos {

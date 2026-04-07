@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use image::{ImageBuffer, Rgba};
 use opencv::{
     core::{Mat, MatTraitConst, MatTraitConstManual},

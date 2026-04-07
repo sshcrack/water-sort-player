@@ -148,7 +148,7 @@ pub fn render_solver_view(
     width: usize,
     height: usize,
     bottles: &[Bottle],
-    active_move: Option<Move>
+    active_move: Option<Move>,
 ) -> Vec<u32> {
     let mut buffer = vec![BACKGROUND; width * height];
     draw_background(&mut buffer, width, height);
@@ -166,8 +166,10 @@ pub fn render_solver_view(
 
         let source_x = origin_x + source_col * (BOTTLE_WIDTH + BOTTLE_COL_GAP) + BOTTLE_WIDTH / 2;
         let source_y = origin_y + source_row * (BOTTLE_HEIGHT + BOTTLE_ROW_GAP) + BOTTLE_HEIGHT / 2;
-        let destination_x = origin_x + destination_col * (BOTTLE_WIDTH + BOTTLE_COL_GAP) + BOTTLE_WIDTH / 2;
-        let destination_y = origin_y + destination_row * (BOTTLE_HEIGHT + BOTTLE_ROW_GAP) + BOTTLE_HEIGHT / 2;
+        let destination_x =
+            origin_x + destination_col * (BOTTLE_WIDTH + BOTTLE_COL_GAP) + BOTTLE_WIDTH / 2;
+        let destination_y =
+            origin_y + destination_row * (BOTTLE_HEIGHT + BOTTLE_ROW_GAP) + BOTTLE_HEIGHT / 2;
 
         draw_line(
             &mut buffer,
