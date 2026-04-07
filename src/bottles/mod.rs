@@ -146,7 +146,11 @@ pub fn detect_bottles_with_layout(
     }
 
     // Detect colors for each bottle
-    for bottle_idx in 0..layout.bottle_count() {
+    for (bottle_idx, bottle) in bottles
+        .iter_mut()
+        .enumerate()
+        .take(layout.bottle_count())
+    {
         // Try to find 4 layers for each bottle (standard bottle capacity)
         for layer_idx in 0..4 {
             if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
@@ -188,7 +192,7 @@ pub fn detect_bottles_with_layout(
                         0,
                     )
                     .unwrap();
-                    bottles[bottle_idx].fills.push(color);
+                    bottle.fills.push(color);
                 } else {
                     // Unknown color - draw black marker
                     imgproc::rectangle(
