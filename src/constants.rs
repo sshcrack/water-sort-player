@@ -35,9 +35,9 @@ pub enum BottleColor {
 }
 
 pub fn is_color_within_tolerance(pixel: &Vec3b, target: &Vec3b, tolerance: u8) -> bool {
-    let b_diff = (pixel[0] as i16 - target[0] as i16).abs() as u8;
-    let g_diff = (pixel[1] as i16 - target[1] as i16).abs() as u8;
-    let r_diff = (pixel[2] as i16 - target[2] as i16).abs() as u8;
+    let b_diff = (pixel[0] as i16 - target[0] as i16).unsigned_abs() as u8;
+    let g_diff = (pixel[1] as i16 - target[1] as i16).unsigned_abs() as u8;
+    let r_diff = (pixel[2] as i16 - target[2] as i16).unsigned_abs() as u8;
 
     b_diff <= tolerance && g_diff <= tolerance && r_diff <= tolerance
 }
@@ -79,7 +79,7 @@ impl BottleColor {
         let mut best_match = None;
         for (color, target_pixel) in COLOR_VALUES.iter() {
             let dist = color_distance_sq(&pixel, target_pixel);
-            if best_match.map_or(true, |(_, best_dist)| dist < best_dist) {
+            if best_match.is_none_or(|(_, best_dist)| dist < best_dist) {
                 best_match = Some((*color, dist));
             }
         }
@@ -96,7 +96,7 @@ impl BottleColor {
     }
 
     pub fn is_empty_pixel(pixel: &Vec3b) -> bool {
-        is_color_within_tolerance(&pixel, &*EMPTY_COLOR, 30)
+        is_color_within_tolerance(pixel, &EMPTY_COLOR, 30)
     }
 
     pub fn to_pixel_value(self) -> Vec3b {

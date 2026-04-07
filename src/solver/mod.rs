@@ -17,11 +17,11 @@ pub mod visualization;
 #[cfg(test)]
 mod tests;
 
-fn get_two_mut_from_vec<'a>(
-    bottles: &'a mut [Bottle],
+fn get_two_mut_from_vec(
+    bottles: &mut [Bottle],
     a: usize,
     b: usize,
-) -> (&'a mut Bottle, &'a mut Bottle) {
+) -> (&mut Bottle, &mut Bottle) {
     assert_ne!(a, b, "source and destination must be different");
 
     if a < b {

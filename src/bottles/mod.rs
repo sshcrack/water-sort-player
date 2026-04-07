@@ -9,11 +9,12 @@ pub mod test_utils;
 #[cfg(test)]
 mod tests;
 
-pub use layout::{BottleLayout, BottlePosition};
+pub use layout::BottleLayout;
 
 use crate::constants::BottleColor;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Default)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     fills: Vec<BottleColor>,
@@ -118,11 +119,6 @@ impl Bottle {
     }
 }
 
-impl Default for Bottle {
-    fn default() -> Self {
-        Bottle { fills: Vec::new() }
-    }
-}
 
 pub fn detect_and_draw_bottles(
     frame_raw: &Mat,

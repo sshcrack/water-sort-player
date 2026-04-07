@@ -86,11 +86,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
             continue;
         }
 
-        if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp) {
-            if window.get_mouse_down(MouseButton::Left) {
+        if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
+            && window.get_mouse_down(MouseButton::Left) {
                 println!("Clicked at: ({}, {})", x, y);
             }
-        }
 
         let right_click = window.get_mouse_down(MouseButton::Right);
         if right_click && !previous_right_click {
@@ -122,8 +121,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         .unwrap();
 
                     if is_color_within_tolerance(
-                        &pixel,
-                        &*crate::constants::NEXT_LEVEL_BUTTON_COLOR,
+                        pixel,
+                        &crate::constants::NEXT_LEVEL_BUTTON_COLOR,
                         15,
                     ) {
                         click_at_position(NEXT_LEVEL_BUTTON_POS);
@@ -201,8 +200,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         .at_2d::<Vec3b>(NO_THANK_YOU_REWARDS_POS.1, NO_THANK_YOU_REWARDS_POS.0)?;
 
                     if is_color_within_tolerance(
-                        &pixel,
-                        &*crate::constants::NO_THANK_YOU_REWARDS_COLOR,
+                        pixel,
+                        &crate::constants::NO_THANK_YOU_REWARDS_COLOR,
                         10,
                     ) {
                         println!("Reward screen detected, clicking 'No, thank you'...");
