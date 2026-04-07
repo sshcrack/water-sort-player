@@ -1,4 +1,5 @@
 mod app;
+mod app_visualization;
 mod bottles;
 mod capture;
 mod constants;
