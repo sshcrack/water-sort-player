@@ -155,7 +155,7 @@ pub fn detect_and_draw_bottles(
                 .unwrap();
 
                 let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
-                if BottleColor::is_empty_pixel(*pixel) {
+                if BottleColor::is_empty_pixel(pixel) {
                     imgproc::rectangle(
                         frame_display,
                         Rect::new(x - 5, y - 5, 10, 10),

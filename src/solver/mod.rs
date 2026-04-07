@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
+#[cfg(feature = "solver-visualization")]
 use std::thread;
+#[cfg(feature = "solver-visualization")]
 use std::time::Duration;
 
 use crate::{bottles::Bottle, constants::BottleColor};
@@ -32,6 +34,14 @@ fn get_two_mut_from_vec<'a>(
 }
 
 impl Move {
+    pub fn source_index(&self) -> usize {
+        self.0
+    }
+
+    pub fn destination_index(&self) -> usize {
+        self.1
+    }
+
     pub fn perform_move_on_device(&self) {
         crate::scrcpy::click_at_position(crate::position::get_bottle_position(self.0));
         crate::scrcpy::click_at_position(crate::position::get_bottle_position(self.1));

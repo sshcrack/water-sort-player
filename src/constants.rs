@@ -12,6 +12,11 @@ pub const SECOND_ROW_OFFSET: Pos = Pos(0, 217);
 pub const BOTTLE_SPACING: Pos = Pos(69, 0);
 pub const COLOR_CHECK_OFFSET: Pos = Pos(0, 35);
 
+pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
+lazy_static! {
+    pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BottleColor {
@@ -25,7 +30,7 @@ pub enum BottleColor {
     Orange,
 }
 
-fn is_color_within_tolerance(pixel: Vec3b, target: Vec3b, tolerance: u8) -> bool {
+pub fn is_color_within_tolerance(pixel: &Vec3b, target: &Vec3b, tolerance: u8) -> bool {
     let b_diff = (pixel[0] as i16 - target[0] as i16).abs() as u8;
     let g_diff = (pixel[1] as i16 - target[1] as i16).abs() as u8;
     let r_diff = (pixel[2] as i16 - target[2] as i16).abs() as u8;
@@ -33,7 +38,7 @@ fn is_color_within_tolerance(pixel: Vec3b, target: Vec3b, tolerance: u8) -> bool
     b_diff <= tolerance && g_diff <= tolerance && r_diff <= tolerance
 }
 
-fn vec3_from_hex(hex: &str) -> Vec3b {
+pub fn vec3_from_hex(hex: &str) -> Vec3b {
     let r = u8::from_str_radix(&hex[1..3], 16).unwrap();
     let g = u8::from_str_radix(&hex[3..5], 16).unwrap();
     let b = u8::from_str_radix(&hex[5..7], 16).unwrap();
@@ -57,7 +62,7 @@ lazy_static! {
 impl BottleColor {
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
         for (color, target_pixel) in COLOR_VALUES.iter() {
-            if is_color_within_tolerance(pixel, *target_pixel, 30) {
+            if is_color_within_tolerance(&pixel, &*target_pixel, 30) {
                 return Some(*color);
             }
         }
@@ -70,8 +75,8 @@ impl BottleColor {
         COLOR_VALUES.iter().map(|(color, _)| *color).collect()
     }
 
-    pub fn is_empty_pixel(pixel: Vec3b) -> bool {
-        is_color_within_tolerance(pixel, *EMPTY_COLOR, 30)
+    pub fn is_empty_pixel(pixel: &Vec3b) -> bool {
+        is_color_within_tolerance(&pixel, &*EMPTY_COLOR, 30)
     }
 
     pub fn to_pixel_value(self) -> Vec3b {
