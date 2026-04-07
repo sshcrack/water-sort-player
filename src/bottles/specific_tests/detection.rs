@@ -3,6 +3,12 @@ use crate::bottles::{
     test_utils::{ExpectedBottles, TestUtils},
 };
 
+macro_rules! impl_test_bottle_detection {
+    () => {
+        
+    };
+}
+
 #[test]
 fn test_10_bottle_detection() {
     // Test bottle detection on the 10-bottle layout

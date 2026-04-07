@@ -1,0 +1,47 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - master
+    pull_request:
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install apt dependencies (cached)
+              uses: awalsh128/cache-apt-pkgs-action@latest
+              with:
+                  packages: libopencv-dev clang libclang-dev
+                  version: 1.0
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Cache Rust dependencies
+              uses: Swatinem/rust-cache@v2
+
+            - name: Cache cargo-nextest
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cargo/bin/cargo-nextest
+                  key: cargo-nextest-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+                  restore-keys: |
+                      cargo-nextest-${{ runner.os }}-
+
+            - name: Install cargo-nextest
+              run: |
+                  if ! command -v cargo-nextest >/dev/null 2>&1; then
+                    cargo install cargo-nextest --locked
+                  fi
+
+            - name: Build
+              run: cargo build --locked
+
+            - name: Test
+              run: cargo nextest run --locked
