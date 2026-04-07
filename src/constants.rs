@@ -7,10 +7,6 @@ pub const VIRTUAL_CAM: &str = "/dev/video10";
 
 pub const START_BUTTON_POS: Pos = Pos(186, 605);
 
-pub const FIRST_ROW_START_POS: Pos = Pos(41, 223);
-pub const SECOND_ROW_OFFSET: Pos = Pos(0, 217);
-pub const BOTTLE_SPACING: Pos = Pos(69, 0);
-
 pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
 
 pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
@@ -25,6 +21,7 @@ pub enum BottleColor {
     Yellow,
     Red,
     Green,
+    Lime,
     LightBlue,
     MediumBlue,
     Blue,
@@ -62,6 +59,7 @@ lazy_static! {
         (BottleColor::Yellow, vec3_from_hex("#fbdf20")),
         (BottleColor::Red, vec3_from_hex("#df1a24")),
         (BottleColor::Green, vec3_from_hex("#46de1e")),
+        (BottleColor::Lime, vec3_from_hex("#a3ed33")),
         (BottleColor::LightBlue, vec3_from_hex("#2cf8fe")),
         (BottleColor::MediumBlue, vec3_from_hex("#52b7fb")),
         (BottleColor::Blue, vec3_from_hex("#194af9")),
@@ -74,12 +72,13 @@ lazy_static! {
 }
 
 impl BottleColor {
+    const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 40 * 40;
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
+        let as_hex = format!("#{:02x}{:02x}{:02x}", pixel[2], pixel[1], pixel[0]);
+        println!("Detecting color for pixel: {:?}", as_hex);
         if Self::is_empty_pixel(&pixel) {
             return None;
         }
-
-        const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
 
         let mut best_match = None;
         for (color, target_pixel) in COLOR_VALUES.iter() {
@@ -90,7 +89,7 @@ impl BottleColor {
         }
 
         match best_match {
-            Some((color, dist)) if dist <= COLOR_DISTANCE_THRESHOLD_SQ => Some(color),
+            Some((color, dist)) if dist <= Self::COLOR_DISTANCE_THRESHOLD_SQ => Some(color),
             _ => None,
         }
     }
@@ -101,7 +100,7 @@ impl BottleColor {
     }
 
     pub fn is_empty_pixel(pixel: &Vec3b) -> bool {
-        is_color_within_tolerance(pixel, &EMPTY_COLOR, 30)
+        color_distance_sq(pixel, &EMPTY_COLOR) <= Self::COLOR_DISTANCE_THRESHOLD_SQ
     }
 
     pub fn to_pixel_value(self) -> Vec3b {

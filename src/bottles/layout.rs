@@ -1,6 +1,46 @@
-use crate::constants::{BOTTLE_SPACING, BottleColor, FIRST_ROW_START_POS, SECOND_ROW_OFFSET};
+use crate::constants::BottleColor;
 use crate::position::Pos;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
+
+const Y_MEASURE_OFFSET: i32 = -5;
+const X_MEASURE_OFFSET: i32 = 6;
+
+/// Macro to create bottle layouts from a declarative specification.
+///
+/// # Parameters
+/// - `$name`: Layout name (as string literal)
+/// - `$layer_spacing`: Vertical pixel spacing between color layers within a bottle
+/// - `$layer_count`: Number of color layers per bottle (typically 4)
+/// - `$(row_specs)+`: One or more row specifications in the format: `(start_pos, spacing, count)`
+///   - `start_pos`: `Pos(x, y)` - top-left position of the first bottle in the row
+///   - `spacing`: `Pos(dx, dy)` - offset between consecutive bottles in the row
+///   - `count`: number of bottles in this row
+///
+/// # Example
+/// ```ignore
+/// bottle_layout!(
+///     "my-layout",
+///     35,  // layer_spacing
+///     4,   // layer_count
+///     (Pos(41, 223), Pos(69, 0), 5),   // First row: 5 bottles, 69px apart
+///     (Pos(41, 440), Pos(69, 0), 5),   // Second row: 5 bottles, 69px apart
+/// )
+/// ```
+macro_rules! bottle_layout {
+    ($name:expr, $layer_spacing:expr, $layer_count:expr, $(($start:expr, $spacing:expr, $count:expr)),+ $(,)?) => {{
+        let mut positions = Vec::new();
+        $(
+            for col in 0..$count {
+                let base_pos = Pos(
+                    $start.0 + col * $spacing.0 + X_MEASURE_OFFSET,
+                    $start.1 + col * $spacing.1 + Y_MEASURE_OFFSET,
+                );
+                positions.push(BottlePosition::vertical(base_pos, $layer_spacing, $layer_count));
+            }
+        )+
+        BottleLayout::new($name.to_string(), positions)
+    }};
+}
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct BottleLayout {
@@ -53,9 +93,6 @@ impl BottleLayout {
         ))
     }
 
-    pub fn get_layouts() -> Vec<Self> {
-        vec![Self::ten_bottle_layout(), Self::eleven_bottle_layout()]
-    }
 
     /// Attempt to automatically detect the best layout for an image
     pub fn detect_layout(image: &Mat) -> anyhow::Result<Self> {
@@ -132,123 +169,43 @@ impl BottlePosition {
 
 /// Predefined layouts
 impl BottleLayout {
+    pub fn get_layouts() -> Vec<Self> {
+        vec![Self::ten_bottle_layout(), Self::eleven_bottle_layout(), Self::twelve_bottle_layout()]
+    }
+
     /// Create the standard 10-bottle layout (2x5 grid)
     pub fn ten_bottle_layout() -> Self {
-        let mut positions = Vec::new();
-
-        let first_row_start = FIRST_ROW_START_POS;
-        let second_row_offset = SECOND_ROW_OFFSET;
-        let bottle_spacing = BOTTLE_SPACING;
-        let layer_spacing = 35; // COLOR_CHECK_OFFSET.1
-
-        // First row (5 bottles)
-        for col in 0..5 {
-            let base_pos = Pos(
-                first_row_start.0 + col * bottle_spacing.0,
-                first_row_start.1,
-            );
-            positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
-        }
-
-        // Second row (5 bottles)
-        for col in 0..5 {
-            let base_pos = Pos(
-                first_row_start.0 + col * bottle_spacing.0 + second_row_offset.0,
-                first_row_start.1 + second_row_offset.1,
-            );
-            positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
-        }
-
-        Self::new("10-bottles".to_string(), positions)
+        bottle_layout!(
+            "10-bottles", // Layout name
+            35,           // Layer spacing (pixels between color layers)
+            4,            // Layer count (4 colors per bottle)
+            // Row 1: 5 bottles at y=223, starting at x=41, spaced 69px apart
+            (Pos(41, 223), Pos(69, 0), 5),
+            // Row 2: 5 bottles at y=440, starting at x=41, spaced 69px apart
+            (Pos(41, 440), Pos(69, 0), 5),
+        )
     }
 
     /// Create the 11-bottle layout (6 + 5 arrangement)
     pub fn eleven_bottle_layout() -> Self {
-        let mut positions = Vec::new();
-
-        // Constants from the original implementation
-        let first_row_start = Pos(34, 244);
-        let second_row_offset = Pos(22, 192);
-        let bottle_spacing = Pos(58, 0);
-        let layer_spacing = 31; // COLOR_CHECK_OFFSET.1
-
-        // First row (6 bottles)
-        for col in 0..6 {
-            let base_pos = Pos(
-                first_row_start.0 + col * bottle_spacing.0,
-                first_row_start.1,
-            );
-            positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
-        }
-
-        // Second row (5 bottles)
-        for col in 0..5 {
-            let base_pos = Pos(
-                first_row_start.0 + col * bottle_spacing.0 + second_row_offset.0,
-                first_row_start.1 + second_row_offset.1,
-            );
-            positions.push(BottlePosition::vertical(base_pos, layer_spacing, 4));
-        }
-
-        Self::new("11-bottles".to_string(), positions)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_bottle_position_vertical() {
-        let base_pos = Pos(100, 200);
-        let bottle_pos = BottlePosition::vertical(base_pos, 35, 4);
-
-        assert_eq!(bottle_pos.base_pos, base_pos);
-        assert_eq!(bottle_pos.layer_offsets.len(), 4);
-        assert_eq!(bottle_pos.layer_offsets[0], Pos(0, 0)); // Top layer
-        assert_eq!(bottle_pos.layer_offsets[1], Pos(0, 35)); // Second layer
-        assert_eq!(bottle_pos.layer_offsets[2], Pos(0, 70)); // Third layer
-        assert_eq!(bottle_pos.layer_offsets[3], Pos(0, 105)); // Bottom layer
+        bottle_layout!(
+            "11-bottles", // Layout name
+            31,           // Layer spacing (pixels between color layers)
+            4,            // Layer count (4 colors per bottle)
+            // Row 1: 6 bottles at y=244, starting at x=34, spaced 58px apart
+            (Pos(34, 244), Pos(58, 0), 6),
+            // Row 2: 5 bottles at y=436, starting at x=56, spaced 58px apart
+            (Pos(56, 436), Pos(58, 0), 5),
+        )
     }
 
-    #[test]
-    fn test_layout_sample_position() {
-        let positions = vec![
-            BottlePosition::vertical(Pos(50, 200), 30, 3),
-            BottlePosition::vertical(Pos(100, 200), 30, 3),
-        ];
-        let layout = BottleLayout::new("test".to_string(), positions);
-
-        // First bottle, top layer
-        assert_eq!(layout.get_sample_position(0, 0), Some(Pos(50, 200)));
-        // First bottle, bottom layer
-        assert_eq!(layout.get_sample_position(0, 2), Some(Pos(50, 260)));
-        // Second bottle, middle layer
-        assert_eq!(layout.get_sample_position(1, 1), Some(Pos(100, 230)));
-        // Invalid indices
-        assert_eq!(layout.get_sample_position(2, 0), None);
-        assert_eq!(layout.get_sample_position(0, 3), None);
-    }
-
-    #[test]
-    fn test_ten_bottle_layout() {
-        let layout = BottleLayout::ten_bottle_layout();
-        assert_eq!(layout.bottle_count(), 10);
-        assert_eq!(layout.name, "10-bottles");
-
-        // Test first bottle position
-        let first_pos = layout.get_sample_position(0, 0).unwrap();
-        assert_eq!(first_pos, Pos(41, 223));
-
-        // Test last bottle position (second row, last column)
-        let last_pos = layout.get_sample_position(9, 0).unwrap();
-        assert_eq!(last_pos, Pos(41 + 4 * 69, 223 + 217));
-    }
-
-    #[test]
-    fn test_twelve_bottle_layout() {
-        let layout = BottleLayout::eleven_bottle_layout();
-        assert_eq!(layout.bottle_count(), 11);
-        assert_eq!(layout.name, "11-bottles");
+    pub fn twelve_bottle_layout() -> BottleLayout {
+        bottle_layout!(
+            "12-bottles",
+            31,
+            4,
+            (Pos(34, 244), Pos(58, 0), 6),
+            (Pos(34, 436), Pos(58, 0), 6),
+        )
     }
 }

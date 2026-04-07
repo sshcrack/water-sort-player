@@ -1,15 +1,23 @@
 use crate::bottles::BottleLayout;
 
 fn get_layout_from_bottle_count(count: usize) -> BottleLayout {
-    match count {
-        10 => BottleLayout::ten_bottle_layout(),
-        11 => BottleLayout::eleven_bottle_layout(),
-        _ => panic!("Unsupported bottle count: {}", count),
+    for ele in BottleLayout::get_layouts() {
+        if ele.bottle_count() == count {
+            return ele;
+        }
     }
+
+    panic!("No layout found for bottle count: {}", count);
 }
 
 macro_rules! create_test_level {
     ($level:literal, $bottles:expr) => {
+        create_test_level!(false, $level, $bottles);
+    };
+    (NO_SOLVE, $level:literal, $bottles:expr) => {
+        create_test_level!(true, $level, $bottles);
+    };
+    ($no_solve:expr, $level:literal, $bottles:expr) => {
         paste::paste! {
             mod [<level_ $level>] {
                 use super::*;
@@ -22,6 +30,10 @@ macro_rules! create_test_level {
 
                 #[test]
                 fn solve() {
+                    if $no_solve {
+                        return;
+                    }
+
                     use crate::bottles::Bottle;
                     let mut bottles_parsed: Vec<Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles)
                         .into_iter()
@@ -111,4 +123,9 @@ create_test_level!(213, "YRGM BPWO OBPG ROPM YRPW MWBG BGRY YMWO EEEE EEEE");
 create_test_level!(
     214,
     "POGR LMOR GYPO GYGB WBRL MLRY WMLP POMW BWBY EEEE EEEE"
+);
+create_test_level!(
+    NO_SOLVE,
+    215,
+    "W??? B??? G??? P??? O??? G??? g??? O??? O??? L??? EEEE EEEE"
 );

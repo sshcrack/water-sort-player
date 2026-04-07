@@ -64,6 +64,7 @@ impl TestUtils {
                 'Y' => Some(BottleColor::Yellow),
                 'R' => Some(BottleColor::Red),
                 'G' => Some(BottleColor::Green),
+                'g' => Some(BottleColor::Lime),
                 'L' => Some(BottleColor::LightBlue),
                 'M' => Some(BottleColor::MediumBlue),
                 'B' => Some(BottleColor::Blue),
