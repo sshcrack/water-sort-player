@@ -273,6 +273,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let solution = run_solver(max_revealed_bottle_state)
                             .expect("Failed to find a solution for the revealed bottle state");
 
+                        println!("Resetting level for the solver...");
+                        click_at_position(RETRY_BUTTON_POS);
                         app_state = AppState::ExecuteFinalSolveMoves {
                             planned_moves: solution,
                             performed_moves: 0,
