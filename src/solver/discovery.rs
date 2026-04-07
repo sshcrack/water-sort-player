@@ -1,9 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use crate::{
     bottles::Bottle,
     constants::BottleColor,
-    solver::{Move, get_possible_moves},
+    solver::{Move, get_possible_moves_unfiltered, sort_moves_by_heuristic},
 };
 
 pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
@@ -60,43 +60,41 @@ pub enum DiscoverResult {
 
 fn inner_discovery_mode(
     current_state: Vec<Bottle>,
-    current_moves: Vec<Move>,
-    max_revealed_bottle_state: &[Bottle],
     already_visited_states: &mut HashSet<Vec<Bottle>>,
 ) -> Option<Vec<Move>> {
-    let possible_moves = get_possible_moves(&current_state, already_visited_states);
+    let mut queue = VecDeque::new();
+    let mut local_visited = HashSet::new();
 
-    for (m, new_state) in &possible_moves {
-        let has_any_mystery_on_top = new_state.iter().any(|b| {
-            if let Some((_, top_color)) = b.get_top_fill() {
-                top_color == BottleColor::Mystery
-            } else {
-                false
+    local_visited.insert(current_state.clone());
+    already_visited_states.insert(current_state.clone());
+    queue.push_back((current_state, Vec::<Move>::new()));
+
+    while let Some((state, moves)) = queue.pop_front() {
+        let mut possible_moves = get_possible_moves_unfiltered(&state);
+        sort_moves_by_heuristic(&mut possible_moves);
+
+        for (m, new_state) in possible_moves {
+            if already_visited_states.contains(&new_state) || !local_visited.insert(new_state.clone()) {
+                continue;
             }
-        });
+            already_visited_states.insert(new_state.clone());
 
-        if has_any_mystery_on_top {
-            let mut new_moves = current_moves.clone();
-            new_moves.push(*m);
-            return Some(new_moves);
-        }
-    }
+            let mut new_moves = moves.clone();
+            new_moves.push(m);
 
-    for (m, new_state) in possible_moves {
-        if already_visited_states.contains(&new_state) {
-            continue;
-        }
+            let has_any_mystery_on_top = new_state.iter().any(|b| {
+                if let Some((_, top_color)) = b.get_top_fill() {
+                    top_color == BottleColor::Mystery
+                } else {
+                    false
+                }
+            });
 
-        let mut new_moves = current_moves.clone();
-        new_moves.push(m);
+            if has_any_mystery_on_top {
+                return Some(new_moves);
+            }
 
-        if let Some(result) = inner_discovery_mode(
-            new_state,
-            new_moves,
-            max_revealed_bottle_state,
-            already_visited_states,
-        ) {
-            return Some(result);
+            queue.push_back((new_state, new_moves));
         }
     }
 
@@ -122,18 +120,10 @@ pub fn find_best_discovery_moves(
 
     match inner_discovery_mode(
         current_revealed_state,
-        current_moves.clone(),
-        max_revealed_bottle_state,
         already_visited_states,
     ) {
         Some(moves) => {
-            // Strip the already executed moves from the result, so that only the new moves to discover are returned
-            DiscoverResult::MoveToDiscover(
-                moves
-                    .into_iter()
-                    .skip(current_moves.len())
-                    .collect::<Vec<Move>>(),
-            )
+            DiscoverResult::MoveToDiscover(moves)
         }
         None => DiscoverResult::NoMove,
     }

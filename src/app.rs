@@ -415,16 +415,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
         draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
 
-        let mut buffer = frame_to_window_buffer(&frame_display)?;
-        draw_move_overlay(
-            &mut buffer,
-            width,
-            height,
-            overlay_snapshot.solve_moves,
-            overlay_snapshot.solve_performed_moves,
-            overlay_snapshot.active_move,
-        );
-
+        let buffer = frame_to_window_buffer(&frame_display)?;
         window.update_with_buffer(&buffer, width, height)?;
     }
 
