@@ -35,7 +35,8 @@ pub fn solver_level_213() {
             .expect("failed to create solver visualization window");
 
         let mut render_step = |state: &[Bottle], active_move: Option<crate::solver::Move>| {
-            let buffer = crate::solver::visualization::render_solver_view(800, 540, state, active_move);
+            let buffer =
+                crate::solver::visualization::render_solver_view(800, 540, state, active_move);
             window
                 .update_with_buffer(&buffer, 800, 540)
                 .expect("failed to update solver visualization window");
@@ -52,4 +53,12 @@ pub fn solver_level_213() {
         println!("Move from bottle {} to bottle {}", m.0, m.1);
         m.perform_move_on_bottles(&mut bottles_parsed);
     }
+
+    let all_solved_or_empty = bottles_parsed
+        .iter()
+        .all(|bottle| bottle.is_solved() || bottle.is_empty());
+    assert!(
+        all_solved_or_empty,
+        "Not all bottles are solved or empty at the end of the solution"
+    );
 }
