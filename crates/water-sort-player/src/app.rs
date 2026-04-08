@@ -1,11 +1,17 @@
 use std::{
-    collections::HashSet, io::BufReader, sync::atomic::Ordering, thread, time::{Duration, Instant}
+    collections::HashSet,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::{core::{Mat, MatTraitConst, Vec3b}, videoio::{VideoCapture, VideoCaptureTrait}};
-use water_sort_device::{click_at_position, load_loopback_device, start_capture, start_scrcpy, wait_for_video_stream};
+use opencv::{
+    core::{Mat, MatTraitConst, Vec3b},
+    videoio::VideoCaptureTrait,
+};
+use water_sort_device::{
+    click_at_position, start_capture,
+};
 
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
@@ -486,7 +492,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
     Ok(())
 }
 
-
 fn require_active_layout<'a>(
     active_layout: &'a Option<BottleLayout>,
     context: &str,
@@ -548,7 +553,6 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
     #[cfg(not(feature = "collect-test-data"))]
     {
         let _ = discovery_capture;
-        return;
     }
 
     #[cfg(feature = "collect-test-data")]

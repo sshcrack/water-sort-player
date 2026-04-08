@@ -37,8 +37,12 @@ impl Move {
     }
 
     pub fn perform_move_on_device(&self, layout: &BottleLayout) {
-        click_at_position(water_sort_core::position::get_bottle_position(layout, self.0));
-        click_at_position(water_sort_core::position::get_bottle_position(layout, self.1));
+        click_at_position(water_sort_core::position::get_bottle_position(
+            layout, self.0,
+        ));
+        click_at_position(water_sort_core::position::get_bottle_position(
+            layout, self.1,
+        ));
     }
 
     pub fn can_perform_on_bottles(&self, bottles: &[Bottle]) -> bool {
