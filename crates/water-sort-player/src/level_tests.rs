@@ -7,7 +7,7 @@ use crate::{
     solver::{
         discovery::{
             DiscoverResult, count_total_mystery_colors, find_best_discovery_moves,
-            improve_best_revealed_state, reveal_mystery_colors_in_already_visited,
+            improve_best_revealed_state,
         },
         run_solver,
     },
@@ -196,7 +196,6 @@ fn solve_and_assert(mut bottles: Vec<Bottle>) {
     );
 }
 
-#[allow(dead_code)]
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
     if count_total_mystery_colors(initial) == 0 {
         return initial.to_vec();
@@ -205,16 +204,13 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
     let mut max_revealed = initial.to_vec();
     let mut current_state = initial.to_vec();
     let mut current_moves = Vec::new();
-    let mut visited_states = HashSet::new();
 
     for _ in 0..300 {
         if count_total_mystery_colors(&max_revealed) == 0 {
             break;
         }
 
-        reveal_mystery_colors_in_already_visited(&max_revealed, &mut visited_states);
-
-        match find_best_discovery_moves(&current_state, &max_revealed, &mut visited_states) {
+        match find_best_discovery_moves(&current_state, &max_revealed) {
             DiscoverResult::MoveToDiscover(moves_to_apply) => {
                 if moves_to_apply.is_empty() {
                     break;

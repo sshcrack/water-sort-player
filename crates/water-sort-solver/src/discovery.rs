@@ -15,40 +15,6 @@ pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
         .sum()
 }
 
-/// Replaces the mystery colors in the already visited states with the revealed colors from the max revealed bottle state, and checks if any of those states are now solved. If so, it returns the solution to that state.
-pub fn reveal_mystery_colors_in_already_visited(
-    max_revealed_bottle_state: &[Bottle],
-    already_visited_states: &mut HashSet<Vec<Bottle>>,
-) {
-    let mut new_visited_states = HashSet::new();
-
-    for state in already_visited_states.iter() {
-        let zipped = state.iter().zip(max_revealed_bottle_state.iter());
-        let new_state: Vec<Bottle> = zipped
-            .map(|(current_state_bottle, bottle_with_revealed_colors)| {
-                let fills = current_state_bottle
-                    .get_fills()
-                    .iter()
-                    .zip(bottle_with_revealed_colors.get_fills().iter())
-                    .map(|(color_in_state, revealed_color)| {
-                        if color_in_state == &BottleColor::Mystery {
-                            *revealed_color
-                        } else {
-                            *color_in_state
-                        }
-                    })
-                    .collect();
-
-                Bottle::from_fills(fills)
-            })
-            .collect();
-
-        new_visited_states.insert(new_state);
-    }
-
-    *already_visited_states = new_visited_states;
-}
-
 pub enum DiscoverResult {
     NoMove,
     MoveToDiscover(Vec<Move>),
@@ -97,7 +63,6 @@ fn inner_discovery_mode(
 pub fn find_best_discovery_moves(
     current_bottles: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
-    already_visited_states: &mut HashSet<Vec<Bottle>>,
 ) -> DiscoverResult {
     let already_solved = max_revealed_bottle_state
         .iter()
@@ -106,7 +71,7 @@ pub fn find_best_discovery_moves(
         return DiscoverResult::AlreadySolved;
     }
 
-    match inner_discovery_mode(current_bottles.to_vec(), Vec::new(), already_visited_states) {
+    match inner_discovery_mode(current_bottles.to_vec(), Vec::new(), &mut HashSet::new()) {
         Some(moves) => DiscoverResult::MoveToDiscover(moves),
         None => DiscoverResult::NoMove,
     }

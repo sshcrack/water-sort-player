@@ -1,11 +1,9 @@
-use std::{
-    collections::HashSet, io::BufReader, sync::atomic::Ordering, thread, time::{Duration, Instant}
-};
+use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::{core::{Mat, MatTraitConst, Vec3b}, videoio::{VideoCapture, VideoCaptureTrait}};
-use water_sort_device::{click_at_position, load_loopback_device, start_capture, start_scrcpy, wait_for_video_stream};
+use opencv::{core::{Mat, MatTraitConst, Vec3b}, videoio::VideoCaptureTrait};
+use water_sort_device::{click_at_position, start_capture};
 
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
@@ -19,8 +17,7 @@ use crate::{
         Move,
         discovery::{
             self, count_total_mystery_colors, find_best_discovery_moves,
-            improve_best_revealed_state, improve_current_bottles_with_revealed_state,
-            reveal_mystery_colors_in_already_visited,
+            improve_best_revealed_state, improve_current_bottles_with_revealed_state
         },
         run_solver,
         visualization::draw_revealed_fill_markers,
@@ -33,9 +30,8 @@ use crate::capture::start_discovery_capture;
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
 const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
-const MOVE_DELAY: Duration = Duration::from_millis(2500);
+const MOVE_DELAY: Duration = Duration::from_millis(2600);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(2500);
-const PRE_SOLVER_VISUALIZATION_DELAY: Duration = Duration::from_millis(150);
 
 enum AppState {
     WaitingToPressStart {
@@ -53,15 +49,13 @@ enum AppState {
     MysteryDiscoverColors {
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
-        current_moves: Vec<Move>,
-        already_visited_states: HashSet<Vec<Bottle>>,
+        current_moves: Vec<Move>
     },
     MysteryExecuteDiscoverMove {
         trigger_at: Instant,
         moves_to_execute: Vec<Move>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
-        already_visited_states: HashSet<Vec<Bottle>>,
     },
     ExecuteFinalSolveMoves {
         next_move_at: Instant,
@@ -211,8 +205,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
                                 max_revealed_bottle_state: detected_bottles.clone(),
-                                current_moves: vec![],
-                                already_visited_states: HashSet::new(),
+                                current_moves: vec![]
                             };
                         }
                     }
@@ -222,7 +215,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 trigger_at,
                 max_revealed_bottle_state,
                 current_moves,
-                already_visited_states,
             } => {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "discovery move execution")?;
@@ -297,17 +289,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
 
-                        // First update already visited state
-                        reveal_mystery_colors_in_already_visited(
-                            max_revealed_bottle_state,
-                            already_visited_states,
-                        );
-
                         // Find best move to reveal more colors
                         let best_move = find_best_discovery_moves(
                             &current_bottles,
-                            max_revealed_bottle_state,
-                            already_visited_states,
+                            max_revealed_bottle_state
                         );
 
                         match best_move {
@@ -317,7 +302,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     moves_to_execute: best_moves,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     current_moves: current_moves.clone(),
-                                    already_visited_states: already_visited_states.clone(),
                                     trigger_at: now,
                                 };
                             }
@@ -331,8 +315,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 app_state = AppState::MysteryDiscoverColors {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                                    current_moves: vec![],
-                                    already_visited_states: already_visited_states.clone(),
+                                    current_moves: vec![]
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
@@ -359,7 +342,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 moves_to_execute,
                 max_revealed_bottle_state,
                 current_moves,
-                already_visited_states,
             } => {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "discovery move execution")?;
@@ -402,8 +384,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                            current_moves: current_moves.clone(),
-                            already_visited_states: already_visited_states.clone(),
+                            current_moves: current_moves.clone()
                         };
                     } else {
                         let next_move = moves_to_execute[0];
