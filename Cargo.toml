@@ -4,9 +4,11 @@ members = [
 	"crates/water-sort-device",
 	"crates/water-sort-solver",
 	"crates/water-sort-capture",
-	"crates/water-sort-player"
+	"crates/water-sort-player",
+	"crates/fps-measure"
 ]
 resolver = "2"
+default-members = ["crates/water-sort-player"]
 
 [workspace.dependencies]
 anyhow = "1.0.102"

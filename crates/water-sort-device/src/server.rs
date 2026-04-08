@@ -1,20 +1,20 @@
 use std::{
     io::Read,
     net::{TcpListener, TcpStream},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
     thread,
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Result, anyhow, Context};
+use anyhow::{Context, Result, anyhow};
 
 const SC_DEVICE_SERVER_PATH: &str = "/data/local/tmp/scrcpy-server.jar";
-const SCRCPY_VERSION: &str = "3.1.1";
+const SCRCPY_VERSION: &str = "3.3.4";
 
 pub struct ScrcpyServer {
     server_process: Child,
@@ -25,12 +25,14 @@ pub struct ScrcpyServer {
 
 impl ScrcpyServer {
     pub fn start(quick_mode: bool) -> Result<Self> {
+        let scid = generate_scid();
+
         // Get paths
         let current_executable = std::env::current_exe()?;
         let current_dir = current_executable
             .parent()
             .ok_or_else(|| anyhow!("failed to get parent directory of executable"))?;
-        
+
         let server_path = current_dir.join("scrcpy-server");
         if !server_path.exists() {
             return Err(anyhow!(
@@ -52,26 +54,69 @@ impl ScrcpyServer {
 
         // Set up adb forward
         println!("Setting up adb forward on port {}...", local_port);
-        setup_adb_forward(&adb_path, local_port)?;
+        setup_adb_forward(&adb_path, local_port, scid)?;
 
         // Start server process
         println!("Starting scrcpy server...");
-        let mut server_process = start_server_process(&adb_path, quick_mode)?;
+        let mut server_process = start_server_process(&adb_path, quick_mode, scid)?;
 
         // Wait a bit for server to initialize
         thread::sleep(Duration::from_millis(500));
 
         // Check if process is still running
-        match server_process.try_wait()? {
-            Some(status) => {
-                return Err(anyhow!("Server process exited prematurely with status: {}", status));
-            }
-            None => {}
+        if let Some(status) = server_process.try_wait()? {
+            let output = server_process
+                .wait_with_output()
+                .context("Failed to collect scrcpy server output")?;
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+            let details = if !stderr.is_empty() {
+                format!("stderr: {}", stderr)
+            } else if !stdout.is_empty() {
+                format!("stdout: {}", stdout)
+            } else {
+                "no output".to_string()
+            };
+
+            return Err(anyhow!(
+                "Server process exited prematurely with status: {} ({})",
+                status,
+                details
+            ));
         }
 
         // Connect to the forwarded port
         println!("Connecting to server...");
-        let video_socket = connect_to_server(local_port)?;
+        let video_socket = match connect_to_server(local_port) {
+            Ok(socket) => socket,
+            Err(connect_error) => {
+                if let Some(status) = server_process.try_wait()? {
+                    let output = server_process.wait_with_output().context(
+                        "Failed to collect scrcpy server output after connection failure",
+                    )?;
+                    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+                    let details = if !stderr.is_empty() {
+                        format!("stderr: {}", stderr)
+                    } else if !stdout.is_empty() {
+                        format!("stdout: {}", stdout)
+                    } else {
+                        "no output".to_string()
+                    };
+
+                    return Err(anyhow!(
+                        "Failed to connect to scrcpy stream ({}) and server exited with status: {} ({})",
+                        connect_error,
+                        status,
+                        details
+                    ));
+                }
+
+                return Err(connect_error).context("Failed to connect to scrcpy stream");
+            }
+        };
 
         let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -86,16 +131,12 @@ impl ScrcpyServer {
     pub fn take_video_socket(&mut self) -> Option<TcpStream> {
         self.video_socket.take()
     }
-
-    pub fn get_local_port(&self) -> u16 {
-        self.local_port
-    }
 }
 
 impl Drop for ScrcpyServer {
     fn drop(&mut self) {
         self.stop_flag.store(true, Ordering::SeqCst);
-        
+
         // Close socket first
         drop(self.video_socket.take());
 
@@ -119,13 +160,16 @@ fn get_adb_path() -> Result<PathBuf> {
     let adb_path = current_dir.join("adb");
 
     if !adb_path.exists() {
-        return Err(anyhow!("adb executable not found at: {}", adb_path.display()));
+        return Err(anyhow!(
+            "adb executable not found at: {}",
+            adb_path.display()
+        ));
     }
 
     Ok(adb_path)
 }
 
-fn push_server(adb_path: &PathBuf, server_path: &PathBuf) -> Result<()> {
+fn push_server(adb_path: &PathBuf, server_path: &Path) -> Result<()> {
     let output = Command::new(adb_path)
         .args(["push", server_path.to_str().unwrap(), SC_DEVICE_SERVER_PATH])
         .output()
@@ -141,15 +185,11 @@ fn push_server(adb_path: &PathBuf, server_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn setup_adb_forward(adb_path: &PathBuf, local_port: u16) -> Result<()> {
-    let device_socket = format!("localabstract:scrcpy_{:08x}", 0x12345678u32);
-    
+fn setup_adb_forward(adb_path: &PathBuf, local_port: u16, scid: u32) -> Result<()> {
+    let device_socket = format!("localabstract:scrcpy_{:08x}", scid);
+
     let output = Command::new(adb_path)
-        .args([
-            "forward",
-            &format!("tcp:{}", local_port),
-            &device_socket,
-        ])
+        .args(["forward", &format!("tcp:{}", local_port), &device_socket])
         .output()
         .context("Failed to set up adb forward")?;
 
@@ -163,9 +203,7 @@ fn setup_adb_forward(adb_path: &PathBuf, local_port: u16) -> Result<()> {
     Ok(())
 }
 
-fn start_server_process(adb_path: &PathBuf, quick_mode: bool) -> Result<Child> {
-    let _device_socket = format!("scrcpy_{:08x}", 0x12345678u32);
-    
+fn start_server_process(adb_path: &PathBuf, quick_mode: bool, scid: u32) -> Result<Child> {
     let mut cmd = Command::new(adb_path);
     cmd.args([
         "shell",
@@ -175,9 +213,9 @@ fn start_server_process(adb_path: &PathBuf, quick_mode: bool) -> Result<Child> {
         "com.genymobile.scrcpy.Server",
         SCRCPY_VERSION,
     ]);
-    
+
     // Add parameters
-    cmd.arg(format!("scid={:08x}", 0x12345678u32));
+    cmd.arg(format!("scid={:08x}", scid));
     cmd.arg("log_level=info");
     cmd.arg("video_bit_rate=2000000");
     cmd.arg("max_size=800");
@@ -185,6 +223,8 @@ fn start_server_process(adb_path: &PathBuf, quick_mode: bool) -> Result<Child> {
     cmd.arg("video_codec=h264");
     cmd.arg("audio=false");
     cmd.arg("control=false");
+    cmd.arg("tunnel_forward=true");
+    cmd.arg("send_device_meta=false");
     cmd.arg("cleanup=true");
     cmd.arg("power_off_on_close=false");
     cmd.arg("clipboard_autosync=false");
@@ -194,7 +234,7 @@ fn start_server_process(adb_path: &PathBuf, quick_mode: bool) -> Result<Child> {
     if !quick_mode {
         cmd.arg("start_app=com.no1ornothing.color.water.sort.woody.puzzle");
     }
-    
+
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -204,8 +244,17 @@ fn start_server_process(adb_path: &PathBuf, quick_mode: bool) -> Result<Child> {
     Ok(child)
 }
 
+fn generate_scid() -> u32 {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let pid = std::process::id();
+    let seed = now.subsec_nanos() ^ pid;
+    seed & 0x7fff_ffff
+}
+
 fn connect_to_server(local_port: u16) -> Result<TcpStream> {
-    let max_attempts = 50;
+    let max_attempts = 200;
     let retry_delay = Duration::from_millis(100);
 
     for attempt in 0..max_attempts {
@@ -214,18 +263,32 @@ fn connect_to_server(local_port: u16) -> Result<TcpStream> {
                 // Try to read one byte to ensure connection is ready
                 stream.set_read_timeout(Some(Duration::from_millis(500)))?;
                 stream.set_nodelay(true)?;
-                
+
                 let mut buf = [0u8; 1];
                 match stream.read_exact(&mut buf) {
                     Ok(_) => {
                         // Success! Server sent the dummy byte
                         println!("Connected to scrcpy server");
-                        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+                        // Switch back to blocking reads for the streaming phase.
+                        stream.set_read_timeout(None)?;
                         return Ok(stream);
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock || 
-                              e.kind() == std::io::ErrorKind::TimedOut => {
+                    Err(e)
+                        if e.kind() == std::io::ErrorKind::WouldBlock
+                            || e.kind() == std::io::ErrorKind::TimedOut =>
+                    {
                         // Server not ready yet, retry
+                        if attempt < max_attempts - 1 {
+                            thread::sleep(retry_delay);
+                            continue;
+                        }
+                    }
+                    Err(e)
+                        if e.kind() == std::io::ErrorKind::UnexpectedEof
+                            || e.kind() == std::io::ErrorKind::ConnectionReset
+                            || e.kind() == std::io::ErrorKind::BrokenPipe =>
+                    {
+                        // The server may drop early sockets while still initializing.
                         if attempt < max_attempts - 1 {
                             thread::sleep(retry_delay);
                             continue;
