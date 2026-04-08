@@ -5,7 +5,7 @@ use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,
 };
-use water_sort_device::scrcpy::click_at_position;
+use water_sort_device::click_at_position;
 
 pub mod discovery;
 

@@ -5,7 +5,6 @@ mod level_tests;
 
 pub use water_sort_capture as capture;
 pub use water_sort_core::{bottles, constants, position};
-pub use water_sort_device::{scrcpy, shutdown};
 pub use water_sort_solver as solver;
 
 fn main() {

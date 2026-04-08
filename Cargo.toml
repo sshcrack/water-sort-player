@@ -4,8 +4,7 @@ members = [
 	"crates/water-sort-device",
 	"crates/water-sort-solver",
 	"crates/water-sort-capture",
-	"crates/water-sort-player",
-	"crates/water-sort-measure",
+	"crates/water-sort-player"
 ]
 resolver = "2"
 

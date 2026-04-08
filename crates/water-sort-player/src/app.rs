@@ -1,15 +1,11 @@
 use std::{
-    collections::HashSet,
-    sync::{
-        atomic::Ordering,
-    },
-    thread,
-    time::{Duration, Instant},
+    collections::HashSet, io::BufReader, sync::atomic::Ordering, thread, time::{Duration, Instant}
 };
 
 use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::core::{Mat, MatTraitConst, Vec3b};
+use opencv::{core::{Mat, MatTraitConst, Vec3b}, videoio::{VideoCapture, VideoCaptureTrait}};
+use water_sort_device::{click_at_position, load_loopback_device, start_capture, start_scrcpy, wait_for_video_stream};
 
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
@@ -19,10 +15,6 @@ use crate::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
         is_color_within_tolerance,
     },
-    scrcpy::{
-        click_at_position, emergency_cleanup, measure_window_to_mobile_scale, start_direct_capture,
-    },
-    shutdown::{SHUTDOWN_REQUESTED, install_signal_handler},
     solver::{
         Move,
         discovery::{
@@ -79,28 +71,14 @@ enum AppState {
 }
 
 pub fn run(quick_mode: bool) -> Result<()> {
-    install_signal_handler();
-    SHUTDOWN_REQUESTED.store(false, Ordering::Relaxed);
-
     if quick_mode {
-        println!("Quick start mode enabled: skipping start-button automation.");
+        println!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
     }
     #[cfg(feature = "collect-test-data")]
     println!("Test data collection enabled (feature: collect-test-data).");
-    println!("Starting direct scrcpy-server capture...");
-    let mut capture = start_direct_capture(quick_mode)?;
 
-    thread::sleep(Duration::from_secs(2));
-
-    let dimensions = capture.dimensions();
-    let width = dimensions.width;
-    let height = dimensions.height;
-
-    measure_window_to_mobile_scale(width, height);
-
-    println!("Video stream dimensions: {}x{}", width, height);
+    let (mut cam, width, height) = start_capture(quick_mode)?;
     let mut window = Window::new("AutoPlayer", width, height, WindowOptions::default())?;
-
     let mut frame_raw = Mat::default();
 
     let mut app_state = if quick_mode {
@@ -117,16 +95,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
 
     while window.is_open() {
-        if SHUTDOWN_REQUESTED.load(Ordering::Relaxed) {
-            println!("Shutdown requested, exiting main loop...");
-            break;
-        }
-
-        if let Err(error) = capture.read_frame_mat(&mut frame_raw) {
-            emergency_cleanup();
-            return Err(anyhow!(
-                "Failed to read frame from direct capture stream: {error:?}"
-            ));
+        cam.read(&mut frame_raw)?;
+        if frame_raw.empty() {
+            continue;
         }
 
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
@@ -207,8 +178,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let buffer = frame_to_window_buffer(&frame_display)?;
                         window.update_with_buffer(&buffer, width, height)?;
 
-                        // Keep a short pause for visibility without throttling the whole solve loop.
-                        std::thread::sleep(PRE_SOLVER_VISUALIZATION_DELAY);
+                        std::thread::sleep(Duration::from_secs(1)); // Brief pause to show detected bottles before solver runs
 
                         let detected_bottles = bottles?;
 
@@ -515,6 +485,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
     Ok(())
 }
+
 
 fn require_active_layout<'a>(
     active_layout: &'a Option<BottleLayout>,

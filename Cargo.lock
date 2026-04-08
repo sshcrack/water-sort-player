@@ -1678,17 +1678,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "water-sort-measure"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "minifb",
- "opencv",
- "water-sort-capture",
- "water-sort-device",
-]
-
-[[package]]
 name = "water-sort-player"
 version = "0.1.0"
 dependencies = [
