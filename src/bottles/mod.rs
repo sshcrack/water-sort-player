@@ -157,16 +157,6 @@ impl Bottle {
     }
 }
 
-#[allow(dead_code)]
-pub fn detect_and_draw_bottles(
-    frame_raw: &Mat,
-    frame_display: &mut Mat,
-) -> anyhow::Result<Vec<Bottle>> {
-    // Automatically detect the best layout for this image
-    let layout = BottleLayout::detect_layout(frame_raw)?;
-    detect_bottles_with_layout(frame_raw, frame_display, &layout)
-}
-
 pub fn detect_bottles_with_layout(
     frame_raw: &Mat,
     frame_display: &mut Mat,
@@ -179,12 +169,12 @@ pub fn detect_bottles_with_layout(
         bottles.push(Bottle::default());
     }
 
+    let failed_color = frame_raw.at_2d::<Vec3b>(crate::constants::FAILED_LEVEL_TEXT.1, crate::constants::FAILED_LEVEL_TEXT.0)?;
+    let has_failed_level = crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR) <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ;
+
+    let mut any_unknown = false;
     // Detect colors for each bottle
-    for (bottle_idx, bottle) in bottles
-        .iter_mut()
-        .enumerate()
-        .take(layout.bottle_count())
-    {
+    for (bottle_idx, bottle) in bottles.iter_mut().enumerate().take(layout.bottle_count()) {
         // Try to find 4 layers for each bottle (standard bottle capacity)
         for layer_idx in 0..4 {
             if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
@@ -204,7 +194,7 @@ pub fn detect_bottles_with_layout(
 
                 let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 4)?;
 
-                if BottleColor::is_empty_pixel(&best_pixel) {
+                if BottleColor::is_empty_pixel(&best_pixel, has_failed_level) {
                     // Empty pixel - draw white marker
                     imgproc::rectangle(
                         frame_display,
@@ -215,7 +205,7 @@ pub fn detect_bottles_with_layout(
                         0,
                     )
                     .unwrap();
-                } else if let Some(color) = BottleColor::from_pixel_value(best_pixel) {
+                } else if let Some(color) = BottleColor::from_pixel_value(best_pixel, has_failed_level) {
                     // Detected color - draw colored marker
                     imgproc::rectangle(
                         frame_display,
@@ -228,11 +218,15 @@ pub fn detect_bottles_with_layout(
                     .unwrap();
                     bottle.fills.push(color);
                 } else {
+                    any_unknown = true;
                     let best_pixel_hex = format!(
                         "#{:02x}{:02x}{:02x}",
                         best_pixel[2], best_pixel[1], best_pixel[0]
                     );
-                    println!("WARN: Pixel at ({}, {}) did not match any known color: {:?}. Assuming empty.", x, y, best_pixel_hex);
+                    println!(
+                        "WARN: Pixel at ({}, {}) did not match any known color: {:?}. Assuming empty.",
+                        x, y, best_pixel_hex
+                    );
                     // Unknown color - draw black marker
                     imgproc::rectangle(
                         frame_display,
@@ -246,6 +240,28 @@ pub fn detect_bottles_with_layout(
                 }
             }
         }
+    }
+
+    if any_unknown {
+        // Write out mat to file for debugging with timestamp
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let _ = imgcodecs::imwrite(
+            format!("target/unknown_color_detection_{}_raw.png", timestamp).as_str(),
+            frame_raw,
+            &opencv::core::Vector::new(),
+        );
+        let _ = imgcodecs::imwrite(
+            format!("target/unknown_color_detection_{}.png", timestamp).as_str(),
+            frame_display,
+            &opencv::core::Vector::new(),
+        );
+
+        return Err(anyhow::anyhow!(
+            "One or more pixels could not be matched to known colors"
+        ));
     }
 
     // Reverse fills so bottom colors are at index 0

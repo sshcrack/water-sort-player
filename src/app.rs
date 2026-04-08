@@ -392,8 +392,32 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let layout = require_active_layout(&active_layout, "discovery move execution")?;
 
                     let current_bottles =
-                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout)?;
+                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
+                    if let Err(error) = current_bottles {
+                        {
+                            // Saving current state for debugging
+                            let timestamp = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs();
+                            // Save current moves, visisted states everything to a string for me to debug
+                            let debug_info = format!(
+                                "Error: {:?}\nCurrent Moves: {:#?}\nMax Revealed Bottle State: {:#?}",
+                                error, current_moves, max_revealed_bottle_state
+                            );
+                            std::fs::write(
+                                format!("target/discovery_move_error_{}.txt", timestamp),
+                                debug_info,
+                            )?;
+                        }
+                        return Err(anyhow!(
+                            "Error detecting bottles during discovery move execution: {:?}",
+                            error
+                        ));
+                    }
+
+                    let current_bottles = current_bottles.unwrap();
                     draw_revealed_fill_markers(
                         &mut frame_display,
                         layout,

@@ -127,7 +127,7 @@ impl BottleLayout {
                         let pixel = image.at_2d::<Vec3b>(y, x)?;
 
                         // Check if pixel looks like bottle content (not empty background)
-                        if BottleColor::from_pixel_value(*pixel).is_some() {
+                        if BottleColor::from_pixel_value(*pixel, false).is_some() {
                             bottle_has_content = true;
                             break;
                         }

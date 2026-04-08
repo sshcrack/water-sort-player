@@ -1,8 +1,6 @@
 use opencv::core::MatTraitConst;
 
-use crate::bottles::{
-    BottleLayout, detect_and_draw_bottles, test_utils::TestUtils,
-};
+use crate::bottles::{BottleLayout, detect_bottles_with_layout, test_utils::TestUtils};
 
 #[test]
 fn test_layout_comparison() {
@@ -34,15 +32,45 @@ fn test_mystery_detection() {
     let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
 
     let mut out_mat = image.try_clone().unwrap();
-    let detected_bottles = detect_and_draw_bottles(&image, &mut out_mat)
+    let layout = BottleLayout::eleven_bottle_layout();
+    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout)
         .expect("Failed to detect bottles with layout");
 
-    // Write out mat to file
-    opencv::imgcodecs::imwrite(
-        "target/mystery_detection_result.png",
-        &out_mat,
-        &opencv::core::Vector::new(),
-    ).unwrap();
+    assert_eq!(
+        detected_bottles.len(),
+        expected_bottles.len(),
+        "Detected bottle count does not match expected"
+    );
+
+    for (idx, (detected, expected)) in detected_bottles
+        .iter()
+        .zip(expected_bottles.iter())
+        .enumerate()
+    {
+        assert_eq!(
+            detected.get_fills(),
+            expected.get_fills(),
+            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
+            idx,
+            detected.get_fills(),
+            expected.get_fills()
+        );
+    }
+}
+
+#[test]
+fn test_failed_level_detection() {
+    let image = TestUtils::load_test_image("detection/failed-level.png")
+        .expect("Failed to load failed level detection image");
+
+    let expected_bottles = "RRRR LLL? YYYY EEL? G??? EMMM EOOO EPP? GG?? EEBB EWWW";
+    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
+
+    let mut out_mat = image.try_clone().unwrap();
+    let layout = BottleLayout::eleven_bottle_layout();
+    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout)
+        .expect("Failed to detect bottles with layout");
+
     assert_eq!(
         detected_bottles.len(),
         expected_bottles.len(),

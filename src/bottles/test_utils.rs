@@ -40,7 +40,7 @@ impl TestUtils {
                     if y >= 0 && y < image.rows() && x >= 0 && x < image.cols() {
                         let pixel = image.at_2d::<opencv::core::Vec3b>(y, x)?;
 
-                        if let Some(color) = BottleColor::from_pixel_value(*pixel) {
+                        if let Some(color) = BottleColor::from_pixel_value(*pixel, false) {
                             bottles[bottle_idx].fills.push(color);
                         }
                         // Skip empty pixels and unknown colors

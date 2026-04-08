@@ -10,10 +10,13 @@ pub const START_BUTTON_POS: Pos = Pos(186, 605);
 pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
 pub const RETRY_BUTTON_POS: Pos = Pos(324, 57);
 
+pub const FAILED_LEVEL_TEXT: Pos = Pos(170, 647);
+
 pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
 pub const Y_MEASURE_OFFSET: i32 = 0;
 pub const X_MEASURE_OFFSET: i32 = 0;
 lazy_static! {
+    pub static ref FAILED_LEVEL_COLOR: Vec3b = vec3_from_hex("#f8d224");
     pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#eff6e2");
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");
 }
@@ -70,13 +73,14 @@ lazy_static! {
         (BottleColor::Pink, vec3_from_hex("#d212cc")),
         (BottleColor::Orange, vec3_from_hex("#f37c1c"))
     ];
+    pub static ref FAILED_LEVEL_EMPTY_COLOR: Vec3b = vec3_from_hex("#331c14");
     pub static ref EMPTY_COLOR: Vec3b = vec3_from_hex("#713d2c");
 }
 
+pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
 impl BottleColor {
-    const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
-    pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
-        if Self::is_empty_pixel(&pixel) {
+    pub fn from_pixel_value(pixel: Vec3b, has_failed_level: bool) -> Option<Self> {
+        if Self::is_empty_pixel(&pixel, has_failed_level) {
             return None;
         }
 
@@ -93,7 +97,11 @@ impl BottleColor {
         }
 
         match best_match {
-            Some((color, dist)) if dist <= Self::COLOR_DISTANCE_THRESHOLD_SQ => Some(color),
+            Some((color, dist))
+                if dist <= COLOR_DISTANCE_THRESHOLD_SQ || has_failed_level =>
+            {
+                Some(color)
+            }
             _ => None,
         }
     }
@@ -103,8 +111,13 @@ impl BottleColor {
         COLOR_VALUES.iter().map(|(color, _)| *color).collect()
     }
 
-    pub fn is_empty_pixel(pixel: &Vec3b) -> bool {
-        color_distance_sq(pixel, &EMPTY_COLOR) <= Self::COLOR_DISTANCE_THRESHOLD_SQ
+    pub fn is_empty_pixel(pixel: &Vec3b, has_failed_level: bool) -> bool {
+        let mut distance = color_distance_sq(pixel, &EMPTY_COLOR);
+        if has_failed_level {
+            distance = distance.min(color_distance_sq(pixel, &FAILED_LEVEL_EMPTY_COLOR));
+        }
+
+        distance <= COLOR_DISTANCE_THRESHOLD_SQ
     }
 
     fn is_mystery_pixel(pixel: &Vec3b) -> bool {
