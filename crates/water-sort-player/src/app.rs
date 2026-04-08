@@ -41,7 +41,6 @@ const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
 const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
 const MOVE_DELAY: Duration = Duration::from_millis(2500);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(2500);
-const PRE_SOLVER_VISUALIZATION_DELAY: Duration = Duration::from_millis(150);
 
 enum AppState {
     WaitingToPressStart {
