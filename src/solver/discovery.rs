@@ -117,19 +117,45 @@ pub fn find_best_discovery_moves(
 
 pub fn improve_best_revealed_state(
     initial_revealed_bottle_state: &mut [Bottle],
+    previous_bottles: &[Bottle],
     current_bottles: &[Bottle],
 ) {
     initial_revealed_bottle_state
         .iter_mut()
         .zip(current_bottles.iter())
-        .for_each(|(revealed_bottle, current_bottle)| {
+        .zip(previous_bottles.iter())
+        .for_each(|((revealed_bottle, current_bottle), previous_bottle)| {
             revealed_bottle
                 .get_fills_mut()
                 .iter_mut()
                 .zip(current_bottle.get_fills().iter())
-                .for_each(|(revealed_color, current_color)| {
-                    if *revealed_color == BottleColor::Mystery {
+                .zip(previous_bottle.get_fills().iter())
+                .for_each(|((revealed_color, current_color), previous_color)| {
+                    if *revealed_color == BottleColor::Mystery
+                        && previous_color == &BottleColor::Mystery
+                        && current_color != &BottleColor::Mystery
+                    {
                         *revealed_color = *current_color;
+                    }
+                });
+        });
+}
+
+pub fn improve_current_bottles_with_revealed_state(
+    current_bottles: &mut [Bottle],
+    max_revealed_bottle_state: &[Bottle],
+) {
+    current_bottles
+        .iter_mut()
+        .zip(max_revealed_bottle_state.iter())
+        .for_each(|(current_bottle, revealed_bottle)| {
+            current_bottle
+                .get_fills_mut()
+                .iter_mut()
+                .zip(revealed_bottle.get_fills().iter())
+                .for_each(|(current_color, revealed_color)| {
+                    if *current_color == BottleColor::Mystery {
+                        *current_color = *revealed_color;
                     }
                 });
         });
@@ -152,8 +178,9 @@ mod tests {
     #[test]
     fn test_improve_best_revealed_state() {
         let mut revealed_state = TestUtils::parse_bottles_sequence("PY?? Y??? G???");
+        let previous_bottles = TestUtils::parse_bottles_sequence("PY?? Y??? G???");
         let current_bottles = TestUtils::parse_bottles_sequence("P??? YG?? G???");
-        improve_best_revealed_state(&mut revealed_state, &current_bottles);
+        improve_best_revealed_state(&mut revealed_state, &previous_bottles, &current_bottles);
 
         let expected_revealed_state = TestUtils::parse_bottles_sequence("PY?? YG?? G???");
         assert_eq!(revealed_state, expected_revealed_state);

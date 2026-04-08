@@ -202,7 +202,7 @@ pub fn detect_bottles_with_layout(
                 )
                 .unwrap();
 
-                let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 2)?;
+                let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 4)?;
 
                 if BottleColor::is_empty_pixel(&best_pixel) {
                     // Empty pixel - draw white marker

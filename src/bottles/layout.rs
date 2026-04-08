@@ -195,7 +195,7 @@ impl BottleLayout {
             // Row 1: 6 bottles at y=244, starting at x=34, spaced 58px apart
             (Pos(34, 244), Pos(58, 0), 6),
             // Row 2: 5 bottles at y=436, starting at x=56, spaced 58px apart
-            (Pos(56, 436), Pos(58, 0), 5),
+            (Pos(56, 436), Pos(61, 0), 5),
         )
     }
 

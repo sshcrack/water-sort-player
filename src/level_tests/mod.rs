@@ -89,7 +89,14 @@ macro_rules! create_test_level {
                     assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for level {}", $level);
 
                     for (idx, (detected, expected)) in detected_bottles.iter().zip(PARSED_BOTTLES.iter()).enumerate() {
-                        assert_eq!(detected.get_fills(), expected.get_fills(), "Bottle {} fills do not match expected for level {}", idx, $level);
+                        assert_eq!(
+                            detected.get_fills(),
+                            expected.get_fills(),
+                            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
+                            idx,
+                            detected.get_fills(),
+                            expected.get_fills()
+                        );
                     }
                 }
             }
@@ -161,7 +168,14 @@ macro_rules! create_generated_test_level {
                     assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for captured level {}", $capture_id);
 
                     for (idx, (detected, expected)) in detected_bottles.iter().zip(PARSED_BOTTLES.iter()).enumerate() {
-                        assert_eq!(detected.get_fills(), expected.get_fills(), "Bottle {} fills do not match expected for captured level {}", idx, $capture_id);
+                        assert_eq!(
+                            detected.get_fills(),
+                            expected.get_fills(),
+                            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
+                            idx,
+                            detected.get_fills(),
+                            expected.get_fills()
+                        );
                     }
                 }
             }
@@ -207,11 +221,16 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                 }
 
                 for mv in moves_to_apply {
+                    let previous_state = current_state.clone();
                     mv.perform_move_on_bottles(&mut current_state);
                     current_moves.push(mv);
 
                     let simulated_detection = simulate_observed_reveal(&current_state, resolved);
-                    improve_best_revealed_state(&mut max_revealed, &simulated_detection);
+                    improve_best_revealed_state(
+                        &mut max_revealed,
+                        &previous_state,
+                        &simulated_detection,
+                    );
                 }
             }
             DiscoverResult::NoMove => {

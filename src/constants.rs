@@ -11,8 +11,8 @@ pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
 pub const RETRY_BUTTON_POS: Pos = Pos(324, 57);
 
 pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
-pub const Y_MEASURE_OFFSET: i32 = -5;
-pub const X_MEASURE_OFFSET: i32 = 6;
+pub const Y_MEASURE_OFFSET: i32 = 0;
+pub const X_MEASURE_OFFSET: i32 = 0;
 lazy_static! {
     pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#eff6e2");
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");
@@ -68,17 +68,20 @@ lazy_static! {
         (BottleColor::Blue, vec3_from_hex("#194af9")),
         (BottleColor::Purple, vec3_from_hex("#8c00d9")),
         (BottleColor::Pink, vec3_from_hex("#d212cc")),
-        (BottleColor::Orange, vec3_from_hex("#f37c1c")),
-        (BottleColor::Mystery, vec3_from_hex("#363636")),
+        (BottleColor::Orange, vec3_from_hex("#f37c1c"))
     ];
     pub static ref EMPTY_COLOR: Vec3b = vec3_from_hex("#713d2c");
 }
 
 impl BottleColor {
-    const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 40 * 40;
+    const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
     pub fn from_pixel_value(pixel: Vec3b) -> Option<Self> {
         if Self::is_empty_pixel(&pixel) {
             return None;
+        }
+
+        if Self::is_mystery_pixel(&pixel) {
+            return Some(BottleColor::Mystery);
         }
 
         let mut best_match = None;
@@ -95,7 +98,7 @@ impl BottleColor {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn values() -> Vec<BottleColor> {
         COLOR_VALUES.iter().map(|(color, _)| *color).collect()
     }
@@ -104,7 +107,26 @@ impl BottleColor {
         color_distance_sq(pixel, &EMPTY_COLOR) <= Self::COLOR_DISTANCE_THRESHOLD_SQ
     }
 
+    fn is_mystery_pixel(pixel: &Vec3b) -> bool {
+        let b = pixel[0] as i32;
+        let g = pixel[1] as i32;
+        let r = pixel[2] as i32;
+
+        let max_channel = b.max(g).max(r);
+        let min_channel = b.min(g).min(r);
+        let channel_spread = max_channel - min_channel;
+        let average_brightness = (b + g + r) / 3;
+
+        // Mystery liquid appears as medium/bright neutral gray in screenshots.
+        channel_spread <= 20 && average_brightness >= 85
+    }
+
     pub fn to_pixel_value(self) -> Vec3b {
+        if self == BottleColor::Mystery {
+            // Mystery color is a medium gray - not an actual color in the game, but useful for testing
+            return vec3_from_hex("#4f4f4f");
+        }
+
         COLOR_VALUES
             .iter()
             .find(|(color, _)| *color == self)

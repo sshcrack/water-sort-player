@@ -26,7 +26,8 @@ use crate::{
         Move,
         discovery::{
             self, count_total_mystery_colors, find_best_discovery_moves,
-            improve_best_revealed_state, reveal_mystery_colors_in_already_visited,
+            improve_best_revealed_state, improve_current_bottles_with_revealed_state,
+            reveal_mystery_colors_in_already_visited,
         },
         run_solver,
         visualization::draw_revealed_fill_markers,
@@ -184,19 +185,19 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let layout = match BottleLayout::detect_layout(&frame_raw) {
                         Ok(layout) => layout,
                         Err(error) => {
-                            panic!(
+                            return Err(anyhow!(
                                 "Layout detection failed with error: {:?}. Cannot proceed without layout.",
                                 error
-                            );
+                            ));
                         }
                     };
                     let bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
                     if let Err(error) = bottles {
-                        panic!(
+                        return Err(anyhow!(
                             "Could not detect bottles. Error: {:?}. Cannot proceed without bottle detection.",
                             error
-                        );
+                        ));
                     } else {
                         active_layout = Some(layout.clone());
 
@@ -251,19 +252,28 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 already_visited_states,
             } => {
                 if now >= *trigger_at {
-                    let layout = require_active_layout(&active_layout, "discovery move execution");
+                    let layout = require_active_layout(&active_layout, "discovery move execution")?;
 
                     let current_bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
-                    if let Err(error) = current_bottles {
-                        panic!(
-                            "Error detecting bottles during discovery process: {:?}",
-                            error
-                        );
+                    let mut previous_bottles = max_revealed_bottle_state.clone();
+                    for (i, m) in current_moves.iter().enumerate() {
+                        if i == current_moves.len() - 1 {
+                            break;
+                        }
+
+                        m.perform_move_on_bottles(&mut previous_bottles);
                     }
 
-                    let current_bottles = current_bottles.unwrap();
+                    if let Err(error) = current_bottles {
+                        return Err(anyhow!(
+                            "Error detecting bottles during discovery process: {:?}",
+                            error
+                        ));
+                    }
+
+                    let mut current_bottles = current_bottles.unwrap();
 
                     draw_revealed_fill_markers(
                         &mut frame_display,
@@ -272,7 +282,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         max_revealed_bottle_state,
                     )?;
 
-                    improve_best_revealed_state(max_revealed_bottle_state, &current_bottles);
+                    improve_best_revealed_state(
+                        max_revealed_bottle_state,
+                        &previous_bottles,
+                        &current_bottles,
+                    );
+                    improve_current_bottles_with_revealed_state(
+                        &mut current_bottles,
+                        max_revealed_bottle_state,
+                    );
 
                     let mystery_colors = count_total_mystery_colors(max_revealed_bottle_state);
                     println!("Total mystery colors still hidden: {}", mystery_colors);
@@ -321,13 +339,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         match best_move {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
-                                #[cfg(feature = "discovery-debugging")]
-                                {
-                                    println!(
-                                        "Best discovery move sequence found: {:?}",
-                                        best_moves
-                                    );
-                                }
+                                println!("Best discovery move sequence found: {:?}", best_moves);
                                 app_state = AppState::MysteryExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
@@ -377,7 +389,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 already_visited_states,
             } => {
                 if now >= *trigger_at {
-                    let layout = require_active_layout(&active_layout, "discovery move execution");
+                    let layout = require_active_layout(&active_layout, "discovery move execution")?;
 
                     let current_bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout)?;
@@ -400,30 +412,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let next_move = moves_to_execute[0];
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
-                            println!(
-                                "Planned discovery move {:?} is not legal in the currently detected state. Replanning.",
-                                next_move
-                            );
-
-                            // Re-sync planner state to the live detected board so we don't keep
-                            // proposing the same stale move sequence.
-                            let mut resynced_revealed_state = current_bottles.clone();
-                            improve_best_revealed_state(
-                                &mut resynced_revealed_state,
-                                max_revealed_bottle_state,
-                            );
-                            *max_revealed_bottle_state = resynced_revealed_state;
-                            current_moves.clear();
-                            already_visited_states.clear();
-
-                            app_state = AppState::MysteryDiscoverColors {
-                                trigger_at: now,
-                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                                current_moves: current_moves.clone(),
-                                already_visited_states: already_visited_states.clone(),
-                            };
-
-                            continue;
+                            return Err(anyhow!(
+                                "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {:?}",
+                                next_move,
+                                current_bottles
+                            ));
                         }
 
                         println!("Performing discovery move: {:?}.", next_move);
@@ -451,7 +444,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 if let Some(next) = planned_moves.get(*performed_moves).copied() {
                     if now >= *next_move_at {
                         println!("Performing move: {:?}.", next);
-                        let layout = require_active_layout(&active_layout, "solve move execution");
+                        let layout = require_active_layout(&active_layout, "solve move execution")?;
                         next.perform_move_on_device(layout);
                         *performed_moves += 1;
                         *next_move_at = now + MOVE_DELAY;
@@ -532,10 +525,10 @@ fn wait_for_video_stream<R: BufRead>(mut reader: R) -> Result<()> {
 fn require_active_layout<'a>(
     active_layout: &'a Option<BottleLayout>,
     context: &str,
-) -> &'a BottleLayout {
+) -> Result<&'a BottleLayout> {
     active_layout
         .as_ref()
-        .unwrap_or_else(|| panic!("No active layout available for {}.", context))
+        .ok_or_else(|| anyhow!("No active layout available for {}.", context))
 }
 
 fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {

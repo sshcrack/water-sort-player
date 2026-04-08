@@ -27,7 +27,6 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
 }
 
 impl Move {
-
     #[cfg(test)]
     pub fn source_index(&self) -> usize {
         self.0
@@ -128,7 +127,7 @@ pub fn get_possible_moves(
             let is_bottle_of_one_color = |bottle: &Bottle| {
                 let fills = bottle.get_fills();
                 let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
-                hash_set.len() == 1
+                hash_set.len() == 1 && hash_set.iter().next() != Some(&&BottleColor::Mystery)
             };
 
             if is_bottle_of_one_color(source_bottle) && destination_bottle.is_empty() {
