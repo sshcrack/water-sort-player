@@ -200,7 +200,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
 
         reveal_mystery_colors_in_already_visited(&max_revealed, &mut visited_states);
 
-        match find_best_discovery_moves(&current_moves, &max_revealed, &mut visited_states) {
+        match find_best_discovery_moves(&current_state, &max_revealed, &mut visited_states) {
             DiscoverResult::MoveToDiscover(moves_to_apply) => {
                 if moves_to_apply.is_empty() {
                     break;

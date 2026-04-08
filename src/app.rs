@@ -208,11 +208,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         let detected_bottles = bottles?;
 
-                        discovery_capture = maybe_start_discovery_capture(
-                            &frame_raw,
-                            &layout,
-                            &detected_bottles,
-                        );
+                        discovery_capture =
+                            maybe_start_discovery_capture(&frame_raw, &layout, &detected_bottles);
 
                         // Check if there are any mystery colors
                         let mystery_count =
@@ -300,6 +297,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             next_move_at: Instant::now() + MOVE_DELAY,
                         };
                     } else {
+                        #[cfg(feature = "discovery-debugging")]
+                        {
+                            let buffer = frame_to_window_buffer(&frame_display)?;
+                            window.update_with_buffer(&buffer, width, height)?;
+
+                            println!("Press enter to continue discovery...");
+                            std::io::stdin().read_line(&mut String::new()).unwrap();
+                        }
+
                         // First update already visited state
                         reveal_mystery_colors_in_already_visited(
                             max_revealed_bottle_state,
@@ -308,7 +314,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         // Find best move to reveal more colors
                         let best_move = find_best_discovery_moves(
-                            current_moves,
+                            &current_bottles,
                             max_revealed_bottle_state,
                             already_visited_states,
                         );
@@ -317,7 +323,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
                                 #[cfg(feature = "discovery-debugging")]
                                 {
-                                    println!("Best discovery move sequence found: {:?}", best_moves);
+                                    println!(
+                                        "Best discovery move sequence found: {:?}",
+                                        best_moves
+                                    );
                                 }
                                 app_state = AppState::MysteryExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
@@ -395,6 +404,17 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 "Planned discovery move {:?} is not legal in the currently detected state. Replanning.",
                                 next_move
                             );
+
+                            // Re-sync planner state to the live detected board so we don't keep
+                            // proposing the same stale move sequence.
+                            let mut resynced_revealed_state = current_bottles.clone();
+                            improve_best_revealed_state(
+                                &mut resynced_revealed_state,
+                                max_revealed_bottle_state,
+                            );
+                            *max_revealed_bottle_state = resynced_revealed_state;
+                            current_moves.clear();
+                            already_visited_states.clear();
 
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
@@ -575,16 +595,16 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
 
     #[cfg(feature = "collect-test-data")]
     {
-    let Some(capture_context) = discovery_capture.take() else {
-        return;
-    };
+        let Some(capture_context) = discovery_capture.take() else {
+            return;
+        };
 
-    if let Err(error) = capture_context.finalize() {
-        println!(
-            "Warning: Failed to persist discovery capture manifest entry: {:?}",
-            error
-        );
-    }
+        if let Err(error) = capture_context.finalize() {
+            println!(
+                "Warning: Failed to persist discovery capture manifest entry: {:?}",
+                error
+            );
+        }
     }
 }
 

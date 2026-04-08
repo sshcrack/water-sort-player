@@ -63,6 +63,10 @@ fn inner_discovery_mode(
     current_moves: Vec<Move>,
     already_visited_states: &mut HashSet<Vec<Bottle>>,
 ) -> Option<Vec<Move>> {
+    if !already_visited_states.insert(current_state.clone()) {
+        return None;
+    }
+
     let possible_moves = get_possible_moves(&current_state, already_visited_states);
 
     for (m, new_state) in &possible_moves {
@@ -82,10 +86,6 @@ fn inner_discovery_mode(
     }
 
     for (m, new_state) in possible_moves {
-        if already_visited_states.contains(&new_state) {
-            continue;
-        }
-
         let mut new_moves = current_moves.clone();
         new_moves.push(m);
 
@@ -98,36 +98,19 @@ fn inner_discovery_mode(
 }
 
 pub fn find_best_discovery_moves(
-    current_moves: &Vec<Move>,
+    current_bottles: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
     already_visited_states: &mut HashSet<Vec<Bottle>>,
 ) -> DiscoverResult {
-    let mut current_revealed_state = max_revealed_bottle_state.to_vec();
-    for m in current_moves {
-        m.perform_move_on_bottles(&mut current_revealed_state);
-    }
-
-    let already_solved = current_revealed_state
+    let already_solved = max_revealed_bottle_state
         .iter()
         .all(|b| b.is_solved() || b.is_empty());
     if already_solved {
         return DiscoverResult::AlreadySolved;
     }
 
-    match inner_discovery_mode(
-        current_revealed_state,
-        current_moves.clone(),
-        already_visited_states,
-    ) {
-        Some(moves) => {
-            // Strip the already executed moves from the result, so that only the new moves to discover are returned
-            DiscoverResult::MoveToDiscover(
-                moves
-                    .into_iter()
-                    .skip(current_moves.len())
-                    .collect::<Vec<Move>>(),
-            )
-        }
+    match inner_discovery_mode(current_bottles.to_vec(), Vec::new(), already_visited_states) {
+        Some(moves) => DiscoverResult::MoveToDiscover(moves),
         None => DiscoverResult::NoMove,
     }
 }

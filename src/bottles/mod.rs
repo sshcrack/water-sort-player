@@ -11,7 +11,41 @@ pub mod test_utils;
 
 pub use layout::BottleLayout;
 
-use crate::constants::BottleColor;
+use crate::constants::{BottleColor, COLOR_VALUES, color_distance_sq};
+
+fn best_matching_surrounding_pixel(
+    frame_raw: &Mat,
+    center_x: i32,
+    center_y: i32,
+    radius: i32,
+) -> anyhow::Result<Vec3b> {
+    let min_x = (center_x - radius).max(0);
+    let max_x = (center_x + radius).min(frame_raw.cols() - 1);
+    let min_y = (center_y - radius).max(0);
+    let max_y = (center_y + radius).min(frame_raw.rows() - 1);
+
+    let mut best_pixel = *frame_raw.at_2d::<Vec3b>(center_y, center_x)?;
+    let mut best_dist = u32::MAX;
+
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
+
+            let pixel_best_dist = COLOR_VALUES
+                .iter()
+                .map(|(_, target_pixel)| color_distance_sq(pixel, target_pixel))
+                .min()
+                .unwrap_or(u32::MAX);
+
+            if pixel_best_dist < best_dist {
+                best_dist = pixel_best_dist;
+                best_pixel = *pixel;
+            }
+        }
+    }
+
+    Ok(best_pixel)
+}
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct Bottle {
@@ -168,9 +202,9 @@ pub fn detect_bottles_with_layout(
                 )
                 .unwrap();
 
-                let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
+                let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 2)?;
 
-                if BottleColor::is_empty_pixel(pixel) {
+                if BottleColor::is_empty_pixel(&best_pixel) {
                     // Empty pixel - draw white marker
                     imgproc::rectangle(
                         frame_display,
@@ -181,7 +215,7 @@ pub fn detect_bottles_with_layout(
                         0,
                     )
                     .unwrap();
-                } else if let Some(color) = BottleColor::from_pixel_value(*pixel) {
+                } else if let Some(color) = BottleColor::from_pixel_value(best_pixel) {
                     // Detected color - draw colored marker
                     imgproc::rectangle(
                         frame_display,
@@ -199,7 +233,7 @@ pub fn detect_bottles_with_layout(
                         frame_display,
                         Rect::new(x - 5, y - 5, 10, 10),
                         Scalar::new(0.0, 0.0, 0.0, 255.0),
-                        2,
+                        5,
                         imgproc::LINE_8,
                         0,
                     )

@@ -11,6 +11,8 @@ pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
 pub const RETRY_BUTTON_POS: Pos = Pos(324, 57);
 
 pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
+pub const Y_MEASURE_OFFSET: i32 = -5;
+pub const X_MEASURE_OFFSET: i32 = 6;
 lazy_static! {
     pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#eff6e2");
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");

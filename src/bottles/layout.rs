@@ -2,9 +2,6 @@ use crate::constants::BottleColor;
 use crate::position::Pos;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 
-const Y_MEASURE_OFFSET: i32 = -5;
-const X_MEASURE_OFFSET: i32 = 6;
-
 /// Macro to create bottle layouts from a declarative specification.
 ///
 /// # Parameters
@@ -32,8 +29,8 @@ macro_rules! bottle_layout {
         $(
             for col in 0..$count {
                 let base_pos = Pos(
-                    $start.0 + col * $spacing.0 + X_MEASURE_OFFSET,
-                    $start.1 + col * $spacing.1 + Y_MEASURE_OFFSET,
+                    $start.0 + col * $spacing.0 + crate::constants::X_MEASURE_OFFSET,
+                    $start.1 + col * $spacing.1 + crate::constants::Y_MEASURE_OFFSET,
                 );
                 positions.push(BottlePosition::vertical(base_pos, $layer_spacing, $layer_count));
             }
