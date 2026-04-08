@@ -1,0 +1,13 @@
+[package]
+name = "fps-measure"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "fps-measure"
+path = "src/main.rs"
+
+[dependencies]
+water-sort-device = { path = "../water-sort-device" }
+anyhow = { workspace = true }
+opencv = { workspace = true }
