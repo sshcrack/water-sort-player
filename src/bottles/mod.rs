@@ -228,6 +228,11 @@ pub fn detect_bottles_with_layout(
                     .unwrap();
                     bottle.fills.push(color);
                 } else {
+                    let best_pixel_hex = format!(
+                        "#{:02x}{:02x}{:02x}",
+                        best_pixel[2], best_pixel[1], best_pixel[0]
+                    );
+                    println!("WARN: Pixel at ({}, {}) did not match any known color: {:?}. Assuming empty.", x, y, best_pixel_hex);
                     // Unknown color - draw black marker
                     imgproc::rectangle(
                         frame_display,
