@@ -201,7 +201,12 @@ fn manifest_from_json(value: &Value) -> DiscoveryCaptureManifest {
     let levels = value
         .get("levels")
         .and_then(|levels| levels.as_array())
-        .map(|entries| entries.iter().filter_map(level_from_json).collect::<Vec<_>>())
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(level_from_json)
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
 
     DiscoveryCaptureManifest { levels }

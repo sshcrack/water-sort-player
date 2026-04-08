@@ -28,10 +28,7 @@ fn generate_level_test_invocations() -> String {
             return "// No discovery captures yet.\n".to_string();
         }
         Err(error) => {
-            panic!(
-                "Failed to read {}: {:?}",
-                DISCOVERY_MANIFEST_PATH, error
-            );
+            panic!("Failed to read {}: {:?}", DISCOVERY_MANIFEST_PATH, error);
         }
     };
 
@@ -48,7 +45,11 @@ fn generate_level_test_invocations() -> String {
     for (module_index, entry) in entries.into_iter().enumerate() {
         output.push_str(&format!(
             "create_generated_test_level!({}, {}u64, {:?}, {:?}, {:?});\n",
-            module_index, entry.id, entry.image_filename, entry.expected_bottles, entry.resolved_bottles
+            module_index,
+            entry.id,
+            entry.image_filename,
+            entry.expected_bottles,
+            entry.resolved_bottles
         ));
     }
 

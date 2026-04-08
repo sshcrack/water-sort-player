@@ -10,9 +10,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::{
-    core::{Mat, MatTraitConst, Vec3b},
-};
+use opencv::core::{Mat, MatTraitConst, Vec3b};
 
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
@@ -22,7 +20,10 @@ use crate::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
         is_color_within_tolerance,
     },
-    scrcpy::{click_at_position, emergency_cleanup, measure_window_to_mobile_scale, start_direct_capture},
+    scrcpy::{
+        click_at_position, emergency_cleanup, measure_window_to_mobile_scale, start_direct_capture,
+    },
+    shutdown::{SHUTDOWN_REQUESTED, install_signal_handler},
     solver::{
         Move,
         discovery::{
@@ -44,9 +45,6 @@ const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
 const MOVE_DELAY: Duration = Duration::from_millis(2500);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(2500);
 const PRE_SOLVER_VISUALIZATION_DELAY: Duration = Duration::from_millis(150);
-
-static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
-static SIGNAL_HANDLER_ONCE: Once = Once::new();
 
 enum AppState {
     WaitingToPressStart {
@@ -127,7 +125,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
         if let Err(error) = capture.read_frame_mat(&mut frame_raw) {
             emergency_cleanup();
-            return Err(anyhow!("Failed to read frame from direct capture stream: {error:?}"));
+            return Err(anyhow!(
+                "Failed to read frame from direct capture stream: {error:?}"
+            ));
         }
 
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
@@ -515,18 +515,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn install_signal_handler() {
-    SIGNAL_HANDLER_ONCE.call_once(|| {
-        if let Err(error) = ctrlc::set_handler(|| {
-            eprintln!("Ctrl+C received, cleaning up...");
-            emergency_cleanup();
-            std::process::exit(130);
-        }) {
-            eprintln!("Failed to install Ctrl+C handler: {error}");
-        }
-    });
 }
 
 fn require_active_layout<'a>(

@@ -102,9 +102,7 @@ impl BottleColor {
         }
 
         match best_match {
-            Some((color, dist))
-                if dist <= COLOR_DISTANCE_THRESHOLD_SQ || has_failed_level =>
-            {
+            Some((color, dist)) if dist <= COLOR_DISTANCE_THRESHOLD_SQ || has_failed_level => {
                 Some(color)
             }
             _ => None,

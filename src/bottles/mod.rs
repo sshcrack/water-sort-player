@@ -169,8 +169,13 @@ pub fn detect_bottles_with_layout(
         bottles.push(Bottle::default());
     }
 
-    let failed_color = frame_raw.at_2d::<Vec3b>(crate::constants::FAILED_LEVEL_TEXT.1, crate::constants::FAILED_LEVEL_TEXT.0)?;
-    let has_failed_level = crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR) <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ;
+    let failed_color = frame_raw.at_2d::<Vec3b>(
+        crate::constants::FAILED_LEVEL_TEXT.1,
+        crate::constants::FAILED_LEVEL_TEXT.0,
+    )?;
+    let has_failed_level =
+        crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR)
+            <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ;
 
     let mut any_unknown = false;
     // Detect colors for each bottle
@@ -205,7 +210,9 @@ pub fn detect_bottles_with_layout(
                         0,
                     )
                     .unwrap();
-                } else if let Some(color) = BottleColor::from_pixel_value(best_pixel, has_failed_level) {
+                } else if let Some(color) =
+                    BottleColor::from_pixel_value(best_pixel, has_failed_level)
+                {
                     // Detected color - draw colored marker
                     imgproc::rectangle(
                         frame_display,

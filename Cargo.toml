@@ -16,6 +16,7 @@ ctrlc = "3.5.1"
 [features]
 discovery-debugging = []
 collect-test-data = []
+fps-measure = []
 
 [build-dependencies]
 serde_json = "1.0.145"
