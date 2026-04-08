@@ -1,7 +1,9 @@
 use std::{
     collections::HashSet,
-    io::{BufRead, BufReader, Write},
-    process::Command,
+    sync::{
+        Once,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -10,7 +12,6 @@ use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::{
     core::{Mat, MatTraitConst, Vec3b},
-    videoio::{self, VideoCapture, VideoCaptureTrait, VideoCaptureTraitConst},
 };
 
 use crate::{
@@ -19,9 +20,9 @@ use crate::{
     capture::{DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png},
     constants::{
         NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
-        VIRTUAL_CAM, is_color_within_tolerance,
+        is_color_within_tolerance,
     },
-    scrcpy::{click_at_position, measure_window_to_mobile_scale, start_scrcpy},
+    scrcpy::{click_at_position, emergency_cleanup, measure_window_to_mobile_scale, start_direct_capture},
     solver::{
         Move,
         discovery::{
@@ -42,6 +43,10 @@ const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
 const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
 const MOVE_DELAY: Duration = Duration::from_millis(2500);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(2500);
+const PRE_SOLVER_VISUALIZATION_DELAY: Duration = Duration::from_millis(150);
+
+static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
+static SIGNAL_HANDLER_ONCE: Once = Once::new();
 
 enum AppState {
     WaitingToPressStart {
@@ -77,29 +82,22 @@ enum AppState {
 }
 
 pub fn run(quick_mode: bool) -> Result<()> {
+    install_signal_handler();
+    SHUTDOWN_REQUESTED.store(false, Ordering::Relaxed);
+
     if quick_mode {
-        println!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
+        println!("Quick start mode enabled: skipping start-button automation.");
     }
     #[cfg(feature = "collect-test-data")]
     println!("Test data collection enabled (feature: collect-test-data).");
-    println!("Loading loopback video device...");
-    load_loopback_device();
-
-    let mut scrcpy = start_scrcpy(quick_mode)?;
-    println!("scrcpy started successfully.");
-
-    let child_stdout = scrcpy
-        .take_stdout()
-        .ok_or_else(|| anyhow!("failed to capture scrcpy stdout"))?;
-
-    wait_for_video_stream(BufReader::new(child_stdout))?;
+    println!("Starting direct scrcpy-server capture...");
+    let mut capture = start_direct_capture(quick_mode)?;
 
     thread::sleep(Duration::from_secs(2));
 
-    let mut cam = VideoCapture::from_file(VIRTUAL_CAM, videoio::CAP_V4L2)?;
-
-    let width = cam.get(videoio::CAP_PROP_FRAME_WIDTH)? as usize;
-    let height = cam.get(videoio::CAP_PROP_FRAME_HEIGHT)? as usize;
+    let dimensions = capture.dimensions();
+    let width = dimensions.width;
+    let height = dimensions.height;
 
     measure_window_to_mobile_scale(width, height);
 
@@ -122,9 +120,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
 
     while window.is_open() {
-        cam.read(&mut frame_raw)?;
-        if frame_raw.empty() {
-            continue;
+        if SHUTDOWN_REQUESTED.load(Ordering::Relaxed) {
+            println!("Shutdown requested, exiting main loop...");
+            break;
+        }
+
+        if let Err(error) = capture.read_frame_mat(&mut frame_raw) {
+            emergency_cleanup();
+            return Err(anyhow!("Failed to read frame from direct capture stream: {error:?}"));
         }
 
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
@@ -205,7 +208,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let buffer = frame_to_window_buffer(&frame_display)?;
                         window.update_with_buffer(&buffer, width, height)?;
 
-                        std::thread::sleep(Duration::from_secs(1)); // Brief pause to show detected bottles before solver runs
+                        // Keep a short pause for visibility without throttling the whole solve loop.
+                        std::thread::sleep(PRE_SOLVER_VISUALIZATION_DELAY);
 
                         let detected_bottles = bottles?;
 
@@ -513,37 +517,16 @@ pub fn run(quick_mode: bool) -> Result<()> {
     Ok(())
 }
 
-fn load_loopback_device() {
-    Command::new("sudo")
-        .args(["modprobe", "v4l2loopback", "video_nr=10"])
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap();
-}
-
-fn wait_for_video_stream<R: BufRead>(mut reader: R) -> Result<()> {
-    let mut line = String::new();
-    print!("Waiting for scrcpy to initialize video stream...");
-
-    loop {
-        let bytes_read = reader.read_line(&mut line)?;
-        print!(".");
-        std::io::stdout().flush().unwrap();
-
-        if bytes_read == 0 {
-            return Err(anyhow!("scrcpy process ended unexpectedly"));
+fn install_signal_handler() {
+    SIGNAL_HANDLER_ONCE.call_once(|| {
+        if let Err(error) = ctrlc::set_handler(|| {
+            eprintln!("Ctrl+C received, cleaning up...");
+            emergency_cleanup();
+            std::process::exit(130);
+        }) {
+            eprintln!("Failed to install Ctrl+C handler: {error}");
         }
-
-        if line.contains("v4l2 sink started to device:") {
-            println!("\nscrcpy is ready, starting video capture...");
-            break;
-        }
-
-        line.clear();
-    }
-
-    Ok(())
+    });
 }
 
 fn require_active_layout<'a>(

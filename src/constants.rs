@@ -3,7 +3,12 @@ use opencv::core::Vec3b;
 
 use crate::position::Pos;
 
-pub const VIRTUAL_CAM: &str = "/dev/video10";
+pub const SCRCPY_SERVER_VERSION: &str = "3.3.4";
+pub const SCRCPY_CONTROL_PORT: u16 = 27183;
+pub const SCRCPY_DEVICE_SOCKET_NAME: &str = "scrcpy";
+pub const SCRCPY_MAX_SIZE: u32 = 800;
+pub const SCRCPY_MAX_FPS: u32 = 15;
+pub const SCRCPY_VIDEO_BIT_RATE: u32 = 2_000_000;
 
 pub const START_BUTTON_POS: Pos = Pos(186, 605);
 
