@@ -1646,17 +1646,72 @@ dependencies = [
 ]
 
 [[package]]
-name = "water-sort-player"
+name = "water-sort-capture"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "image",
+ "opencv",
+ "serde_json",
+ "water-sort-core",
+]
+
+[[package]]
+name = "water-sort-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lazy_static",
+ "opencv",
+ "paste",
+]
+
+[[package]]
+name = "water-sort-device"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "ctrlc",
- "image",
+ "lazy_static",
+ "opencv",
+ "water-sort-core",
+]
+
+[[package]]
+name = "water-sort-measure"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "minifb",
+ "opencv",
+ "water-sort-capture",
+ "water-sort-device",
+]
+
+[[package]]
+name = "water-sort-player"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "lazy_static",
  "minifb",
  "opencv",
  "paste",
  "serde_json",
+ "water-sort-capture",
+ "water-sort-core",
+ "water-sort-device",
+ "water-sort-solver",
+]
+
+[[package]]
+name = "water-sort-solver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "opencv",
+ "water-sort-core",
+ "water-sort-device",
 ]
 
 [[package]]

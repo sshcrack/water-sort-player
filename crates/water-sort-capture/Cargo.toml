@@ -1,0 +1,14 @@
+[package]
+name = "water-sort-capture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+water-sort-core = { path = "../water-sort-core" }
+anyhow = { workspace = true }
+image = { workspace = true }
+opencv = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+collect-test-data = []

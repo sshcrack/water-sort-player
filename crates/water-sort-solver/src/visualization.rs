@@ -1,6 +1,6 @@
 use opencv::{core::Mat, imgproc};
 
-use crate::{
+use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,
 };

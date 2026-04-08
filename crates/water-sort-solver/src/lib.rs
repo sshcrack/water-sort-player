@@ -1,10 +1,11 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-use crate::{
+use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,
 };
+use water_sort_device::scrcpy::click_at_position;
 
 pub mod discovery;
 
@@ -27,19 +28,17 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
 }
 
 impl Move {
-    #[cfg(test)]
     pub fn source_index(&self) -> usize {
         self.0
     }
 
-    #[cfg(test)]
     pub fn destination_index(&self) -> usize {
         self.1
     }
 
     pub fn perform_move_on_device(&self, layout: &BottleLayout) {
-        crate::scrcpy::click_at_position(crate::position::get_bottle_position(layout, self.0));
-        crate::scrcpy::click_at_position(crate::position::get_bottle_position(layout, self.1));
+        click_at_position(water_sort_core::position::get_bottle_position(layout, self.0));
+        click_at_position(water_sort_core::position::get_bottle_position(layout, self.1));
     }
 
     pub fn can_perform_on_bottles(&self, bottles: &[Bottle]) -> bool {

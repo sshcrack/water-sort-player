@@ -1,9 +1,15 @@
-[package]
-name = "water-sort-player"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [
+	"crates/water-sort-core",
+	"crates/water-sort-device",
+	"crates/water-sort-solver",
+	"crates/water-sort-capture",
+	"crates/water-sort-player",
+	"crates/water-sort-measure",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.102"
 lazy_static = "1.5.0"
 minifb = { git = "https://github.com/emoon/rust_minifb", branch = "wayland-upgrade-2" }
@@ -12,11 +18,3 @@ opencv = { version = "0.98.2", features = ["videoio", "imgproc"] }
 paste = "1.0.15"
 serde_json = "1.0.145"
 ctrlc = "3.5.1"
-
-[features]
-discovery-debugging = []
-collect-test-data = []
-fps-measure = []
-
-[build-dependencies]
-serde_json = "1.0.145"

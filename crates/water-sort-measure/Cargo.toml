@@ -1,0 +1,11 @@
+[package]
+name = "water-sort-measure"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+minifb = { workspace = true }
+opencv = { workspace = true }
+water-sort-capture = { path = "../water-sort-capture" }
+water-sort-device = { path = "../water-sort-device" }

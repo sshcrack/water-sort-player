@@ -19,7 +19,7 @@ use opencv::{
     prelude::{MatTraitConst, MatTraitManual},
 };
 
-use crate::{
+use water_sort_core::{
     constants::{
         SCRCPY_CONTROL_PORT, SCRCPY_DEVICE_SOCKET_NAME, SCRCPY_MAX_FPS, SCRCPY_MAX_SIZE,
         SCRCPY_SERVER_VERSION, SCRCPY_VIDEO_BIT_RATE,

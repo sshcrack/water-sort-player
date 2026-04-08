@@ -1,8 +1,7 @@
 use std::{
     collections::HashSet,
     sync::{
-        Once,
-        atomic::{AtomicBool, Ordering},
+        atomic::Ordering,
     },
     thread,
     time::{Duration, Instant},

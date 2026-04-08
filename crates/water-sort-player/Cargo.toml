@@ -1,0 +1,23 @@
+[package]
+name = "water-sort-player"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+lazy_static = { workspace = true }
+minifb = { workspace = true }
+opencv = { workspace = true }
+paste = { workspace = true }
+water-sort-core = { path = "../water-sort-core" }
+water-sort-device = { path = "../water-sort-device" }
+water-sort-solver = { path = "../water-sort-solver" }
+water-sort-capture = { path = "../water-sort-capture" }
+
+[features]
+discovery-debugging = []
+collect-test-data = ["water-sort-capture/collect-test-data"]
+
+[build-dependencies]
+serde_json = { workspace = true }

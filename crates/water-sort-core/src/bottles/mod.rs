@@ -6,7 +6,6 @@ use opencv::{
 mod layout;
 #[cfg(test)]
 mod specific_tests;
-#[cfg(test)]
 pub mod test_utils;
 
 pub use layout::BottleLayout;

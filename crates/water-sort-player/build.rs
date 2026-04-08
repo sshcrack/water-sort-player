@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf};
 
-const DISCOVERY_MANIFEST_PATH: &str = "captures/discovery_levels.json";
+const DISCOVERY_MANIFEST_PATH: &str = "../../captures/discovery_levels.json";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");

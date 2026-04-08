@@ -1,0 +1,10 @@
+[package]
+name = "water-sort-solver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+water-sort-core = { path = "../water-sort-core" }
+water-sort-device = { path = "../water-sort-device" }
+opencv = { workspace = true }
+anyhow = { workspace = true }

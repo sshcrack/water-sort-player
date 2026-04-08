@@ -1,10 +1,7 @@
 use std::collections::HashSet;
 
-use crate::{
-    bottles::Bottle,
-    constants::BottleColor,
-    solver::{Move, get_possible_moves},
-};
+use crate::{Move, get_possible_moves};
+use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
 pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
     bottles
@@ -163,10 +160,8 @@ pub fn improve_current_bottles_with_revealed_state(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        bottles::test_utils::TestUtils,
-        solver::discovery::{count_total_mystery_colors, improve_best_revealed_state},
-    };
+    use crate::discovery::{count_total_mystery_colors, improve_best_revealed_state};
+    use water_sort_core::bottles::test_utils::TestUtils;
 
     #[test]
     fn test_count_total_mystery_colors() {

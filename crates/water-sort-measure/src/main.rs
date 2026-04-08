@@ -3,13 +3,16 @@ use std::{sync::atomic::Ordering, thread, time::{Duration, Instant}};
 use anyhow::anyhow;
 use minifb::{Window, WindowOptions};
 use opencv::core::Mat;
-
-use crate::{capture::frame_to_window_buffer, scrcpy::{emergency_cleanup, start_direct_capture}, shutdown::{SHUTDOWN_REQUESTED, install_signal_handler}};
+use water_sort_capture::frame_to_window_buffer;
+use water_sort_device::{
+    scrcpy::{emergency_cleanup, start_direct_capture},
+    shutdown::{SHUTDOWN_REQUESTED, install_signal_handler},
+};
 
 const FPS_MEASURE_TARGET: u32 = 15;
 const FPS_MEASURE_FRAME_TIME: Duration = Duration::from_millis(1000 / FPS_MEASURE_TARGET as u64);
 
-pub fn run(_quick_mode: bool) -> anyhow::Result<()> {
+fn run(_quick_mode: bool) -> anyhow::Result<()> {
     install_signal_handler();
     SHUTDOWN_REQUESTED.store(false, Ordering::Relaxed);
 
@@ -74,4 +77,12 @@ pub fn run(_quick_mode: bool) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn main() {
+    let quick_mode = std::env::args().any(|arg| arg == "--quick");
+
+    if let Err(error) = run(quick_mode) {
+        eprintln!("Error: {}", error);
+    }
 }

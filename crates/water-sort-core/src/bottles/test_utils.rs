@@ -8,7 +8,7 @@ pub struct TestUtils;
 impl TestUtils {
     /// Load an image from the captures directory
     pub fn load_test_image(filename: &str) -> anyhow::Result<Mat> {
-        let path = format!("captures/{}", filename);
+        let path = format!("../../captures/{}", filename);
         let img = imgcodecs::imread(&path, imgcodecs::IMREAD_COLOR)?;
         if img.empty() {
             return Err(anyhow::anyhow!("Failed to load image: {}", path));

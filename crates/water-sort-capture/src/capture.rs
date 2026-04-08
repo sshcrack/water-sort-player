@@ -12,7 +12,7 @@ use opencv::{
 };
 use serde_json::{Value, json};
 
-use crate::{
+use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,
 };
