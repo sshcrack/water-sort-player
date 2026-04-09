@@ -80,6 +80,7 @@ lazy_static! {
     ];
     pub static ref FAILED_LEVEL_EMPTY_COLOR: Vec3b = vec3_from_hex("#331c14");
     pub static ref EMPTY_COLOR: Vec3b = vec3_from_hex("#713d2c");
+    pub static ref OTHER_EMPTY_COLOR: Vec3b = vec3_from_hex("#a9674e");
 }
 
 pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
@@ -120,7 +121,9 @@ impl BottleColor {
             distance = distance.min(color_distance_sq(pixel, &FAILED_LEVEL_EMPTY_COLOR));
         }
 
-        distance <= 60 * 60
+        distance = distance.min(color_distance_sq(pixel, &OTHER_EMPTY_COLOR));
+
+        distance <= COLOR_DISTANCE_THRESHOLD_SQ
     }
 
     fn is_mystery_pixel(pixel: &Vec3b) -> bool {

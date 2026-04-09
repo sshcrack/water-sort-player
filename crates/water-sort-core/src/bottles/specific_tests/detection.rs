@@ -59,6 +59,50 @@ fn test_mystery_detection() {
 }
 
 #[test]
+fn test_empty_detection() {
+    let image = TestUtils::load_test_image("detection/empty-detection.png")
+        .expect("Failed to load empty detection image");
+
+    let expected_bottles = "EOOO Y??? EEEE ggg? BB?? EB?? MMM? LLLL W??? RRR? EGGG EPPP";
+    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
+
+    let mut out_mat = image.try_clone().unwrap();
+    let layout = BottleLayout::twelve_bottle_layout();
+    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout);
+
+    if let Err(e) = &detected_bottles {
+        // write to disk for easier debugging
+        let debug_image_path = "debug_failed_detection.png";
+        opencv::imgcodecs::imwrite(debug_image_path, &out_mat, &opencv::core::Vector::new())
+            .expect("Failed to write debug image to disk");
+        println!("Wrote debug image to {}", debug_image_path);
+        panic!("Failed to detect bottles with layout: {:?}", e);
+    }
+
+    let detected_bottles = detected_bottles.unwrap();
+    assert_eq!(
+        detected_bottles.len(),
+        expected_bottles.len(),
+        "Detected bottle count does not match expected"
+    );
+
+    for (idx, (detected, expected)) in detected_bottles
+        .iter()
+        .zip(expected_bottles.iter())
+        .enumerate()
+    {
+        assert_eq!(
+            detected.get_fills(),
+            expected.get_fills(),
+            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
+            idx,
+            detected.get_fills(),
+            expected.get_fills()
+        );
+    }
+}
+
+#[test]
 fn test_failed_level_detection() {
     let image = TestUtils::load_test_image("detection/failed-level.png")
         .expect("Failed to load failed level detection image");
