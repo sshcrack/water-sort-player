@@ -35,6 +35,18 @@ macro_rules! create_test_level {
         paste::paste! {
             mod [<level_ $level>] {
                 use super::*;
+                macro_rules! load_level_image {
+                    () => {{
+                        match crate::bottles::test_utils::TestUtils::load_test_image(&format!("level-{}.png", $level)) {
+                            Ok(img) => img,
+                            Err(_) => {
+                                println!("Warning: Could not load level-{}.png, skipping test", $level);
+                                return;
+                            }
+                        }
+                    }};
+                }
+
                 lazy_static::lazy_static! {
                     static ref PARSED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles);
                 }
@@ -58,13 +70,7 @@ macro_rules! create_test_level {
 
                 #[test]
                 fn layout_detection() {
-                    let image = match crate::bottles::test_utils::TestUtils::load_test_image(&format!("level-{}.png", $level)) {
-                        Ok(img) => img,
-                        Err(_) => {
-                            println!("Warning: Could not load level-{}.png, skipping test", $level);
-                            return;
-                        }
-                    };
+                    let image = load_level_image!();
 
                     let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
                     let detected_layout = crate::bottles::BottleLayout::detect_layout(&image)
@@ -75,16 +81,14 @@ macro_rules! create_test_level {
 
                 #[test]
                 fn bottle_detection() {
-                    let image = match crate::bottles::test_utils::TestUtils::load_test_image(&format!("level-{}.png", $level)) {
-                        Ok(img) => img,
-                        Err(_) => {
-                            println!("Warning: Could not load level-{}.png, skipping test", $level);
-                            return;
-                        }
-                    };
+                    let image = load_level_image!();
 
                     let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
-                    let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(&image, &expected_layout)
+                    let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(
+                        &image,
+                        &expected_layout,
+                        &format!("level-{}-bottle-detection", $level),
+                    )
                         .expect("Failed to detect bottles from image");
 
                     assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for level {}", $level);
@@ -111,6 +115,18 @@ macro_rules! create_generated_test_level {
         paste::paste! {
             mod [<captured_level_ $module_suffix>] {
                 use super::*;
+                macro_rules! load_capture_image {
+                    () => {{
+                        match crate::bottles::test_utils::TestUtils::load_test_image($image_filename) {
+                            Ok(img) => img,
+                            Err(_) => {
+                                println!("Warning: Could not load {}, skipping test", $image_filename);
+                                return;
+                            }
+                        }
+                    }};
+                }
+
                 lazy_static::lazy_static! {
                     static ref PARSED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($initial_bottles);
                     static ref RESOLVED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($resolved_bottles);
@@ -137,13 +153,7 @@ macro_rules! create_generated_test_level {
 
                 #[test]
                 fn layout_detection() {
-                    let image = match crate::bottles::test_utils::TestUtils::load_test_image($image_filename) {
-                        Ok(img) => img,
-                        Err(_) => {
-                            println!("Warning: Could not load {}, skipping test", $image_filename);
-                            return;
-                        }
-                    };
+                    let image = load_capture_image!();
 
                     let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
                     let detected_layout = crate::bottles::BottleLayout::detect_layout(&image)
@@ -154,17 +164,15 @@ macro_rules! create_generated_test_level {
 
                 #[test]
                 fn bottle_detection() {
-                    let image = match crate::bottles::test_utils::TestUtils::load_test_image($image_filename) {
-                        Ok(img) => img,
-                        Err(_) => {
-                            println!("Warning: Could not load {}, skipping test", $image_filename);
-                            return;
-                        }
-                    };
+                    let image = load_capture_image!();
 
                     let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
                     println!("Expected layout for captured level {}: {:?}", $capture_id, expected_layout.name);
-                    let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(&image, &expected_layout)
+                    let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(
+                        &image,
+                        &expected_layout,
+                        &format!("captured-level-{}-bottle-detection", $capture_id),
+                    )
                         .expect("Failed to detect bottles from image");
 
                     assert_eq!(detected_bottles.len(), PARSED_BOTTLES.len(), "Detected bottle count does not match expected for captured level {}", $capture_id);

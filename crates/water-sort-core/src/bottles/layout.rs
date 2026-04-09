@@ -1,5 +1,5 @@
 use crate::{bottles::has_failed_level, position::Pos};
-use opencv::core::{Mat, MatTraitConst, Vec3b};
+use opencv::core::{Mat, MatTraitConst};
 
 use super::{LayerSample, best_matching_surrounding_pixel, classify_bottle_layer};
 
@@ -188,6 +188,7 @@ impl BottleLayout {
             Self::eleven_bottle_layout(),
             Self::twelve_bottle_layout(),
             Self::five_bottle_layout(),
+            Self::six_bottle_layout()
         ]
     }
 
@@ -229,5 +230,9 @@ impl BottleLayout {
 
     pub fn five_bottle_layout() -> BottleLayout {
         bottle_layout!("5-bottles", 35, 4, (Pos(39, 336), Pos(70, 0), 5),)
+    }
+    
+    pub fn six_bottle_layout() -> BottleLayout {
+        bottle_layout!("6-bottles", 31, 4, (Pos(32, 340), Pos(59, 0), 6),)
     }
 }

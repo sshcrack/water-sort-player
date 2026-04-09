@@ -1,3 +1,5 @@
+use std::{env, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+
 use crate::bottles::{Bottle, BottleLayout};
 use crate::constants::BottleColor;
 use crate::detect_bottles_with_layout;
@@ -21,9 +23,41 @@ impl TestUtils {
     pub fn detect_bottles_from_image(
         image: &Mat,
         layout: &BottleLayout,
+        debug_filename_prefix: &str,
     ) -> anyhow::Result<Vec<Bottle>> {
         let mut frame_display = image.try_clone()?;
-        detect_bottles_with_layout(image, &mut frame_display, layout)
+        let detection_result = detect_bottles_with_layout(image, &mut frame_display, layout);
+        let saved_path = Self::save_test_debug_image(&frame_display, debug_filename_prefix)?;
+        println!(
+            "Saved bottle detection debug image to {}",
+            saved_path.display()
+        );
+
+        detection_result
+    }
+
+    pub fn save_test_debug_image(
+        image: &Mat,
+        debug_filename_prefix: &str,
+    ) -> anyhow::Result<PathBuf> {
+        let parent_dir = env::current_exe()?
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("test executable has no parent directory"))?
+            .to_path_buf();
+
+        fs::create_dir_all(&parent_dir)?;
+
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+        let filename = format!("{debug_filename_prefix}-{timestamp}.png");
+        let path = parent_dir.join(filename);
+
+        imgcodecs::imwrite(
+            path.to_string_lossy().as_ref(),
+            image,
+            &opencv::core::Vector::new(),
+        )?;
+
+        Ok(path)
     }
 
     pub fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {

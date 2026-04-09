@@ -1,6 +1,68 @@
-use opencv::core::MatTraitConst;
+use crate::bottles::{BottleLayout, test_utils::TestUtils};
 
-use crate::bottles::{BottleLayout, detect_bottles_with_layout, test_utils::TestUtils};
+macro_rules! detect_bottles_with_saved_frame {
+    ($image:expr, $layout:expr, $debug_prefix:expr) => {{ TestUtils::detect_bottles_from_image(&$image, &$layout, $debug_prefix) }};
+}
+
+macro_rules! create_bottle_detection_test {
+    ($test_name:ident, $image_filename:expr, $layout:expr, $expected_bottles:expr) => {
+        paste::paste! {
+            #[test]
+            fn $test_name() {
+                let image = TestUtils::load_test_image($image_filename)
+                    .expect(concat!("Failed to load ", $image_filename));
+
+                let expected_bottles = TestUtils::parse_bottles_sequence($expected_bottles);
+                let layout = $layout;
+                let detected_bottles = detect_bottles_with_saved_frame!(
+                    image,
+                    layout,
+                    stringify!($test_name)
+                )
+                .expect("Failed to detect bottles with layout");
+
+                assert_eq!(
+                    detected_bottles.len(),
+                    expected_bottles.len(),
+                    "Detected bottle count does not match expected"
+                );
+
+                for (idx, (detected, expected)) in detected_bottles
+                    .iter()
+                    .zip(expected_bottles.iter())
+                    .enumerate()
+                {
+                    assert_eq!(
+                        detected.get_fills(),
+                        expected.get_fills(),
+                        "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
+                        idx,
+                        detected.get_fills(),
+                        expected.get_fills()
+                    );
+                }
+            }
+
+
+            #[test]
+            fn [<$test_name _layout>]() {
+                let image = TestUtils::load_test_image($image_filename)
+                    .expect(concat!("Failed to load ", $image_filename));
+
+                let detected_layout = BottleLayout::detect_layout(&image)
+                    .expect("Failed to detect layout for test image");
+
+                assert_eq!(
+                    detected_layout,
+                    $layout,
+                    "Expected to detect layout '{}' but detected '{}'",
+                    $layout.name,
+                    detected_layout.name
+                );
+            }
+        }
+    };
+}
 
 #[test]
 fn test_layout_comparison() {
@@ -23,166 +85,30 @@ fn test_layout_comparison() {
     }
 }
 
-#[test]
-fn test_mystery_detection() {
-    let image = TestUtils::load_test_image("detection/mystery-detection-1.png")
-        .expect("Failed to load mystery detection image");
+create_bottle_detection_test!(
+    test_mystery_detection,
+    "detection/mystery-detection-1.png",
+    BottleLayout::eleven_bottle_layout(),
+    "ERRR LLL? EYYY OO?? G??? EMMM ER?? EPP? GG?? EEBB EWWW"
+);
 
-    let expected_bottles = "ERRR LLL? EYYY OO?? G??? EMMM ER?? EPP? GG?? EEBB EWWW";
-    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
+create_bottle_detection_test!(
+    test_empty_detection,
+    "detection/empty-detection.png",
+    BottleLayout::twelve_bottle_layout(),
+    "EOOO Y??? EEEE ggg? BB?? EB?? MMM? LLLL W??? RRR? EGGG EPPP"
+);
 
-    let mut out_mat = image.try_clone().unwrap();
-    let layout = BottleLayout::eleven_bottle_layout();
-    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout)
-        .expect("Failed to detect bottles with layout");
+create_bottle_detection_test!(
+    test_failed_level_detection,
+    "detection/failed-level.png",
+    BottleLayout::eleven_bottle_layout(),
+    "RRRR LLL? YYYY EEL? G??? EMMM EOOO EPP? GG?? EEBB EWWW"
+);
 
-    assert_eq!(
-        detected_bottles.len(),
-        expected_bottles.len(),
-        "Detected bottle count does not match expected"
-    );
-
-    for (idx, (detected, expected)) in detected_bottles
-        .iter()
-        .zip(expected_bottles.iter())
-        .enumerate()
-    {
-        assert_eq!(
-            detected.get_fills(),
-            expected.get_fills(),
-            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
-            idx,
-            detected.get_fills(),
-            expected.get_fills()
-        );
-    }
-}
-
-#[test]
-fn test_empty_detection() {
-    let image = TestUtils::load_test_image("detection/empty-detection.png")
-        .expect("Failed to load empty detection image");
-
-    let expected_bottles = "EOOO Y??? EEEE ggg? BB?? EB?? MMM? LLLL W??? RRR? EGGG EPPP";
-    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
-
-    let mut out_mat = image.try_clone().unwrap();
-    let layout = BottleLayout::twelve_bottle_layout();
-    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout);
-
-    if let Err(e) = &detected_bottles {
-        // write to disk for easier debugging
-        let debug_image_path = "debug_failed_detection.png";
-        opencv::imgcodecs::imwrite(debug_image_path, &out_mat, &opencv::core::Vector::new())
-            .expect("Failed to write debug image to disk");
-        println!("Wrote debug image to {}", debug_image_path);
-        panic!("Failed to detect bottles with layout: {:?}", e);
-    }
-
-    let detected_bottles = detected_bottles.unwrap();
-    assert_eq!(
-        detected_bottles.len(),
-        expected_bottles.len(),
-        "Detected bottle count does not match expected"
-    );
-
-    for (idx, (detected, expected)) in detected_bottles
-        .iter()
-        .zip(expected_bottles.iter())
-        .enumerate()
-    {
-        assert_eq!(
-            detected.get_fills(),
-            expected.get_fills(),
-            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
-            idx,
-            detected.get_fills(),
-            expected.get_fills()
-        );
-    }
-}
-
-#[test]
-fn test_failed_level_detection() {
-    let image = TestUtils::load_test_image("detection/failed-level.png")
-        .expect("Failed to load failed level detection image");
-
-    let expected_bottles = "RRRR LLL? YYYY EEL? G??? EMMM EOOO EPP? GG?? EEBB EWWW";
-    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
-
-    let mut out_mat = image.try_clone().unwrap();
-    let layout = BottleLayout::eleven_bottle_layout();
-    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout)
-        .expect("Failed to detect bottles with layout");
-
-    assert_eq!(
-        detected_bottles.len(),
-        expected_bottles.len(),
-        "Detected bottle count does not match expected"
-    );
-
-    for (idx, (detected, expected)) in detected_bottles
-        .iter()
-        .zip(expected_bottles.iter())
-        .enumerate()
-    {
-        assert_eq!(
-            detected.get_fills(),
-            expected.get_fills(),
-            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
-            idx,
-            detected.get_fills(),
-            expected.get_fills()
-        );
-    }
-}
-
-#[test]
-fn test_five_bottle_detection() {
-    let image = TestUtils::load_test_image("detection/five-bottle-detection.png")
-        .expect("Failed to load five-bottle detection image");
-
-    let expected_bottles = "BGBO GGOO BGBO EEEE EEEE";
-    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
-
-    let mut out_mat = image.try_clone().unwrap();
-    let layout = BottleLayout::five_bottle_layout();
-    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout)
-        .expect("Failed to detect bottles with layout");
-
-    assert_eq!(
-        detected_bottles.len(),
-        expected_bottles.len(),
-        "Detected bottle count does not match expected"
-    );
-
-    for (idx, (detected, expected)) in detected_bottles
-        .iter()
-        .zip(expected_bottles.iter())
-        .enumerate()
-    {
-        assert_eq!(
-            detected.get_fills(),
-            expected.get_fills(),
-            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
-            idx,
-            detected.get_fills(),
-            expected.get_fills()
-        );
-    }
-}
-
-#[test]
-fn test_five_bottle_layout_detection() {
-    let image = TestUtils::load_test_image("detection/five-bottle-detection.png")
-        .expect("Failed to load five-bottle detection image");
-
-    let detected_layout = BottleLayout::detect_layout(&image)
-        .expect("Failed to detect layout for five-bottle image");
-
-    assert_eq!(
-        detected_layout.name, "5-bottles",
-        "Expected to detect '5-bottles' layout but detected '{}'",
-        detected_layout.name
-    );
-}
+create_bottle_detection_test!(
+    test_five_bottle_detection,
+    "detection/five-bottle-detection.png",
+    BottleLayout::five_bottle_layout(),
+    "BGBO GGOO BGBO EEEE EEEE"
+);
