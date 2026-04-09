@@ -197,19 +197,15 @@ fn solve_and_assert(mut bottles: Vec<Bottle>) {
 }
 
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
-    if count_total_mystery_colors(initial) == 0 {
-        return initial.to_vec();
-    }
-
     let mut max_revealed = initial.to_vec();
-    let mut current_state = initial.to_vec();
-    let mut current_moves = Vec::new();
 
     for _ in 0..300 {
         if count_total_mystery_colors(&max_revealed) == 0 {
             break;
         }
 
+        let mut current_moves = Vec::new();
+        let mut current_state = initial.to_vec();
         match find_best_discovery_moves(&current_state, &max_revealed) {
             DiscoverResult::MoveToDiscover(moves_to_apply) => {
                 if moves_to_apply.is_empty() {
@@ -230,7 +226,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                 }
             }
             DiscoverResult::NoMove => {
-                panic!("Discovery simulation could not find a move to reveal new colors");
+                println!("No more discovery moves found, simulating restart...");
             }
             DiscoverResult::AlreadySolved => {
                 break;

@@ -99,6 +99,26 @@
       "layout_name": "11-bottles",
       "mystery_count_at_start": 0,
       "resolved_bottles": "MBLW WMGY BGPL YMOB OGBP GLYR MPRP WOWO RYLR EEEE EEEE"
+    },
+    {
+      "bottle_count": 12,
+      "captured_at_ms": 1775695613604,
+      "expected_bottles": "P??? Y??? B??? g??? O??? R??? O??? G??? W??? P??? EEEE EEEE",
+      "id": 1775695613604,
+      "image_filename": "discovery-level-1775695613604.png",
+      "layout_name": "12-bottles",
+      "mystery_count_at_start": 30,
+      "resolved_bottles": "PMLO YOMY BRgG gLgP OBgW RBRW OLMG GPGL WBWY PMRY EEEE EEEE"
+    },
+    {
+      "bottle_count": 10,
+      "captured_at_ms": 1775695926056,
+      "expected_bottles": "BYOP WMPG WBMB MGMR OPGY OGRP ORYW RYWB EEEE EEEE",
+      "id": 1775695926056,
+      "image_filename": "discovery-level-1775695926056.png",
+      "layout_name": "10-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "BYOP WMPG WBMB MGMR OPGY OGRP ORYW RYWB EEEE EEEE"
     }
   ]
 }
