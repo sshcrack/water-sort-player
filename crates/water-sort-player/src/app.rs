@@ -33,7 +33,7 @@ use crate::capture::start_discovery_capture;
 
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
-const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(12);
+const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(15);
 const MOVE_DELAY: Duration = Duration::from_millis(3000);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(3000);
 

@@ -89,6 +89,16 @@
       "layout_name": "10-bottles",
       "mystery_count_at_start": 0,
       "resolved_bottles": "MYRP RGOG YWBW YBYB RPRO OGBG MPWM MPWO EEEE EEEE"
+    },
+    {
+      "bottle_count": 11,
+      "captured_at_ms": 1775694510598,
+      "expected_bottles": "MBLW WMGY BGPL YMOB OGBP GLYR MPRP WOWO RYLR EEEE EEEE",
+      "id": 1775694510598,
+      "image_filename": "discovery-level-1775694510598.png",
+      "layout_name": "11-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "MBLW WMGY BGPL YMOB OGBP GLYR MPRP WOWO RYLR EEEE EEEE"
     }
   ]
 }
