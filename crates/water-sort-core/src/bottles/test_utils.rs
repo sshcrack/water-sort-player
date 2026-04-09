@@ -1,5 +1,6 @@
 use crate::bottles::{Bottle, BottleLayout};
 use crate::constants::BottleColor;
+use crate::detect_bottles_with_layout;
 use opencv::{core::Mat, imgcodecs, prelude::*};
 
 /// Test utilities for bottle detection validation
@@ -21,40 +22,8 @@ impl TestUtils {
         image: &Mat,
         layout: &BottleLayout,
     ) -> anyhow::Result<Vec<Bottle>> {
-        let mut bottles = Vec::new();
-
-        // Initialize bottles for this layout
-        for _ in 0..layout.bottle_count() {
-            bottles.push(Bottle::default());
-        }
-
-        // Detect colors for each bottle
-        for bottle_idx in 0..layout.bottle_count() {
-            // Try to find 4 layers for each bottle (standard bottle capacity)
-            for layer_idx in 0..4 {
-                if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
-                    let x = sample_pos.0;
-                    let y = sample_pos.1;
-
-                    // Check if coordinates are within image bounds
-                    if y >= 0 && y < image.rows() && x >= 0 && x < image.cols() {
-                        let pixel = image.at_2d::<opencv::core::Vec3b>(y, x)?;
-
-                        if let Some(color) = BottleColor::from_pixel_value(*pixel, false) {
-                            bottles[bottle_idx].fills.push(color);
-                        }
-                        // Skip empty pixels and unknown colors
-                    }
-                }
-            }
-        }
-
-        // Reverse fills so bottom colors are at index 0
-        for bottle in &mut bottles {
-            bottle.fills.reverse();
-        }
-
-        Ok(bottles)
+        let mut frame_display = image.try_clone()?;
+        detect_bottles_with_layout(image, &mut frame_display, layout)
     }
 
     pub fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {

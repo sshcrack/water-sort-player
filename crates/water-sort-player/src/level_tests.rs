@@ -1,5 +1,4 @@
 use crate::bottles::BottleLayout;
-use std::collections::HashSet;
 
 use crate::{
     bottles::Bottle,
