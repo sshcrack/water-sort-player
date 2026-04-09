@@ -17,7 +17,7 @@ jobs:
             - name: Install apt dependencies (cached)
               uses: awalsh128/cache-apt-pkgs-action@latest
               with:
-                  packages: libopencv-dev clang libclang-dev
+                  packages: libopencv-dev clang libclang-dev liblapack3 liblapack-dev
                   version: 1.0
 
             - name: Install Rust toolchain
