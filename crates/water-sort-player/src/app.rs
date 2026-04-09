@@ -534,7 +534,6 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
     #[cfg(not(feature = "collect-test-data"))]
     {
         let _ = discovery_capture;
-        return;
     }
 
     #[cfg(feature = "collect-test-data")]

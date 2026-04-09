@@ -85,7 +85,11 @@ fn reconstruct_moves(records: &[SearchRecord], mut record_index: usize) -> Vec<M
     let mut moves = Vec::new();
 
     while let Some(parent_index) = records[record_index].parent {
-        moves.push(records[record_index].via_move.expect("record should contain a move"));
+        moves.push(
+            records[record_index]
+                .via_move
+                .expect("record should contain a move"),
+        );
         record_index = parent_index;
     }
 
@@ -111,7 +115,10 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
             let source_bottle = &bottles[source_idx];
             let destination_bottle = &bottles[destination_idx];
 
-            if source_bottle.is_solved() || source_bottle.is_empty() || destination_bottle.is_solved() {
+            if source_bottle.is_solved()
+                || source_bottle.is_empty()
+                || destination_bottle.is_solved()
+            {
                 continue;
             }
 
@@ -166,7 +173,10 @@ where
         let record_cost = records[record_index].cost;
         let current_key = canonical_state_key(&records[record_index].state);
 
-        if best_costs.get(&current_key).is_some_and(|best_cost| record_cost > *best_cost) {
+        if best_costs
+            .get(&current_key)
+            .is_some_and(|best_cost| record_cost > *best_cost)
+        {
             continue;
         }
 
@@ -181,7 +191,10 @@ where
             let next_cost = record_cost + 1;
             let next_key = canonical_state_key(&next_state);
 
-            if best_costs.get(&next_key).is_some_and(|best_cost| next_cost >= *best_cost) {
+            if best_costs
+                .get(&next_key)
+                .is_some_and(|best_cost| next_cost >= *best_cost)
+            {
                 continue;
             }
 
@@ -234,8 +247,12 @@ impl Move {
     }
 
     pub fn perform_move_on_device(&self, layout: &BottleLayout) {
-        click_at_position(water_sort_core::position::get_bottle_position(layout, self.0));
-        click_at_position(water_sort_core::position::get_bottle_position(layout, self.1));
+        click_at_position(water_sort_core::position::get_bottle_position(
+            layout, self.0,
+        ));
+        click_at_position(water_sort_core::position::get_bottle_position(
+            layout, self.1,
+        ));
     }
 
     pub fn can_perform_on_bottles(&self, bottles: &[Bottle]) -> bool {

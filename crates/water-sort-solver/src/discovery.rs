@@ -1,4 +1,4 @@
-use crate::{find_shortest_move_sequence, Move};
+use crate::{Move, find_shortest_move_sequence};
 use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
 pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
