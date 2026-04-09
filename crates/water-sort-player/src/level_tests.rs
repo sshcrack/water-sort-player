@@ -1,3 +1,5 @@
+use water_sort_solver::discovery::improve_current_bottles_with_revealed_state;
+
 use crate::bottles::BottleLayout;
 
 use crate::{
@@ -199,13 +201,14 @@ fn solve_and_assert(mut bottles: Vec<Bottle>) {
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
     let mut max_revealed = initial.to_vec();
 
+    let mut current_moves = Vec::new();
+    let mut current_state = initial.to_vec();
     for _ in 0..300 {
         if count_total_mystery_colors(&max_revealed) == 0 {
             break;
         }
 
-        let mut current_moves = Vec::new();
-        let mut current_state = initial.to_vec();
+        improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
         match find_best_discovery_moves(&current_state, &max_revealed) {
             DiscoverResult::MoveToDiscover(moves_to_apply) => {
                 if moves_to_apply.is_empty() {
@@ -218,15 +221,13 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                     current_moves.push(mv);
 
                     reveal_observed(&mut current_state, resolved);
-                    improve_best_revealed_state(
-                        &mut max_revealed,
-                        &previous_state,
-                        &current_state,
-                    );
+                    improve_best_revealed_state(&mut max_revealed, &previous_state, &current_state);
                 }
             }
             DiscoverResult::NoMove => {
                 println!("No more discovery moves found, simulating restart...");
+                current_moves.clear();
+                current_state = initial.to_vec();
             }
             DiscoverResult::AlreadySolved => {
                 break;
