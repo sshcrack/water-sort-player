@@ -1,6 +1,7 @@
-use crate::constants::BottleColor;
-use crate::position::Pos;
+use crate::{bottles::has_failed_level, position::Pos};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
+
+use super::{LayerSample, best_matching_surrounding_pixel, classify_bottle_layer};
 
 /// Macro to create bottle layouts from a declarative specification.
 ///
@@ -95,10 +96,11 @@ impl BottleLayout {
         let layouts = Self::get_layouts();
 
         let mut best_layout = layouts[0].clone();
-        let mut best_score = 0;
+        let mut best_score = 0.0;
+        let has_failed_level = has_failed_level(image)?;
 
         for layout in layouts {
-            let score = Self::score_layout_fit(image, &layout)?;
+            let score = Self::score_layout_fit(image, &layout, has_failed_level)?;
             println!("Layout '{}' fit score: {}", layout.name, score);
             if score > best_score {
                 best_score = score;
@@ -110,37 +112,52 @@ impl BottleLayout {
     }
 
     /// Score how well a layout fits an image based on detected bottles
-    fn score_layout_fit(image: &Mat, layout: &BottleLayout) -> anyhow::Result<usize> {
-        let mut score = 0;
+    fn score_layout_fit(
+        image: &Mat,
+        layout: &BottleLayout,
+        has_failed_level: bool,
+    ) -> anyhow::Result<f64> {
+        let mut score = 0.0;
 
         for bottle_idx in 0..layout.bottle_count() {
-            let mut bottle_has_content = false;
+            let mut seen_content = false;
+            let mut bottle_is_valid = true;
 
-            // Check if any layer in this bottle has color content
-            for layer_idx in 0..4 {
+            // A valid bottle is filled contiguously from the top down.
+            for layer_idx in 0..layout.positions[bottle_idx].layer_offsets.len() {
                 if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
                     let x = sample_pos.0;
                     let y = sample_pos.1;
 
                     // Check if coordinates are within image bounds
                     if y >= 0 && y < image.rows() && x >= 0 && x < image.cols() {
-                        let pixel = image.at_2d::<Vec3b>(y, x)?;
+                        let pixel = best_matching_surrounding_pixel(image, x, y, 4)?;
 
-                        // Check if pixel looks like bottle content (not empty background)
-                        if BottleColor::from_pixel_value(*pixel, false).is_some() {
-                            bottle_has_content = true;
-                            break;
+                        match classify_bottle_layer(pixel, has_failed_level) {
+                            LayerSample::Empty => {
+                                if seen_content {
+                                    bottle_is_valid = false;
+                                    break;
+                                }
+                            }
+                            LayerSample::Color(_) => {
+                                seen_content = true;
+                            }
+                            LayerSample::Unknown => {
+                                bottle_is_valid = false;
+                                break;
+                            }
                         }
                     }
                 }
             }
 
-            if bottle_has_content {
-                score += 1;
+            if bottle_is_valid && seen_content {
+                score += 1.0;
             }
         }
 
-        Ok(score)
+        Ok(score / layout.bottle_count() as f64)
     }
 }
 
@@ -170,6 +187,7 @@ impl BottleLayout {
             Self::ten_bottle_layout(),
             Self::eleven_bottle_layout(),
             Self::twelve_bottle_layout(),
+            Self::five_bottle_layout(),
         ]
     }
 
@@ -207,5 +225,9 @@ impl BottleLayout {
             (Pos(34, 244), Pos(58, 0), 6),
             (Pos(34, 436), Pos(58, 0), 6),
         )
+    }
+
+    pub fn five_bottle_layout() -> BottleLayout {
+        bottle_layout!("5-bottles", 35, 4, (Pos(39, 336), Pos(70, 0), 5),)
     }
 }

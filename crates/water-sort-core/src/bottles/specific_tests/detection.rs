@@ -136,3 +136,53 @@ fn test_failed_level_detection() {
         );
     }
 }
+
+#[test]
+fn test_five_bottle_detection() {
+    let image = TestUtils::load_test_image("detection/five-bottle-detection.png")
+        .expect("Failed to load five-bottle detection image");
+
+    let expected_bottles = "BGBO GGOO BGBO EEEE EEEE";
+    let expected_bottles = TestUtils::parse_bottles_sequence(expected_bottles);
+
+    let mut out_mat = image.try_clone().unwrap();
+    let layout = BottleLayout::five_bottle_layout();
+    let detected_bottles = detect_bottles_with_layout(&image, &mut out_mat, &layout)
+        .expect("Failed to detect bottles with layout");
+
+    assert_eq!(
+        detected_bottles.len(),
+        expected_bottles.len(),
+        "Detected bottle count does not match expected"
+    );
+
+    for (idx, (detected, expected)) in detected_bottles
+        .iter()
+        .zip(expected_bottles.iter())
+        .enumerate()
+    {
+        assert_eq!(
+            detected.get_fills(),
+            expected.get_fills(),
+            "Bottle {} does not match expected. Detected: {:?}, Expected: {:?}",
+            idx,
+            detected.get_fills(),
+            expected.get_fills()
+        );
+    }
+}
+
+#[test]
+fn test_five_bottle_layout_detection() {
+    let image = TestUtils::load_test_image("detection/five-bottle-detection.png")
+        .expect("Failed to load five-bottle detection image");
+
+    let detected_layout = BottleLayout::detect_layout(&image)
+        .expect("Failed to detect layout for five-bottle image");
+
+    assert_eq!(
+        detected_layout.name, "5-bottles",
+        "Expected to detect '5-bottles' layout but detected '{}'",
+        detected_layout.name
+    );
+}

@@ -12,6 +12,23 @@ pub use layout::BottleLayout;
 
 use crate::constants::{BottleColor, COLOR_VALUES, color_distance_sq};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LayerSample {
+    Empty,
+    Color(BottleColor),
+    Unknown,
+}
+
+pub(crate) fn classify_bottle_layer(pixel: Vec3b, has_failed_level: bool) -> LayerSample {
+    if BottleColor::is_empty_pixel(&pixel, has_failed_level) {
+        LayerSample::Empty
+    } else if let Some(color) = BottleColor::from_pixel_value(pixel, has_failed_level) {
+        LayerSample::Color(color)
+    } else {
+        LayerSample::Unknown
+    }
+}
+
 fn best_matching_surrounding_pixel(
     frame_raw: &Mat,
     center_x: i32,
@@ -156,6 +173,17 @@ impl Bottle {
     }
 }
 
+pub fn has_failed_level(image: &Mat) -> anyhow::Result<bool> {
+    let failed_color = image.at_2d::<Vec3b>(
+        crate::constants::FAILED_LEVEL_TEXT.1,
+        crate::constants::FAILED_LEVEL_TEXT.0,
+    )?;
+    Ok(
+        crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR)
+            <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ,
+    )
+}
+
 pub fn detect_bottles_with_layout(
     frame_raw: &Mat,
     frame_display: &mut Mat,
@@ -168,17 +196,14 @@ pub fn detect_bottles_with_layout(
         bottles.push(Bottle::default());
     }
 
-    let failed_color = frame_raw.at_2d::<Vec3b>(
-        crate::constants::FAILED_LEVEL_TEXT.1,
-        crate::constants::FAILED_LEVEL_TEXT.0,
-    )?;
-    let has_failed_level =
-        crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR)
-            <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ;
+    let has_failed_level = has_failed_level(frame_raw)?;
 
     let mut any_unknown = false;
     // Detect colors for each bottle
     for (bottle_idx, bottle) in bottles.iter_mut().enumerate().take(layout.bottle_count()) {
+        let mut seen_content = false;
+        let mut bottle_is_valid = true;
+
         // Try to find 4 layers for each bottle (standard bottle capacity)
         for layer_idx in 0..4 {
             if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
@@ -197,54 +222,69 @@ pub fn detect_bottles_with_layout(
                 .unwrap();
 
                 let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 4)?;
+                let sample = classify_bottle_layer(best_pixel, has_failed_level);
 
-                if BottleColor::is_empty_pixel(&best_pixel, has_failed_level) {
-                    // Empty pixel - draw white marker
-                    imgproc::rectangle(
-                        frame_display,
-                        Rect::new(x - 5, y - 5, 10, 10),
-                        Scalar::new(255.0, 255.0, 255.0, 255.0),
-                        2,
-                        imgproc::LINE_8,
-                        0,
-                    )
-                    .unwrap();
-                } else if let Some(color) =
-                    BottleColor::from_pixel_value(best_pixel, has_failed_level)
-                {
-                    // Detected color - draw colored marker
-                    imgproc::rectangle(
-                        frame_display,
-                        Rect::new(x - 5, y - 5, 10, 10),
-                        color.to_pixel_value().into(),
-                        2,
-                        imgproc::LINE_8,
-                        0,
-                    )
-                    .unwrap();
-                    bottle.fills.push(color);
-                } else {
-                    any_unknown = true;
-                    let best_pixel_hex = format!(
-                        "#{:02x}{:02x}{:02x}",
-                        best_pixel[2], best_pixel[1], best_pixel[0]
-                    );
-                    println!(
-                        "WARN: Pixel at ({}, {}) did not match any known color: {:?}. Assuming empty.",
-                        x, y, best_pixel_hex
-                    );
-                    // Unknown color - draw black marker
-                    imgproc::rectangle(
-                        frame_display,
-                        Rect::new(x - 5, y - 5, 10, 10),
-                        Scalar::new(0.0, 0.0, 0.0, 255.0),
-                        5,
-                        imgproc::LINE_8,
-                        0,
-                    )
-                    .unwrap();
+                match sample {
+                    LayerSample::Empty => {
+                        // Empty pixel - draw white marker
+                        imgproc::rectangle(
+                            frame_display,
+                            Rect::new(x - 5, y - 5, 10, 10),
+                            Scalar::new(255.0, 255.0, 255.0, 255.0),
+                            2,
+                            imgproc::LINE_8,
+                            0,
+                        )
+                        .unwrap();
+
+                        if seen_content {
+                            bottle_is_valid = false;
+                            break;
+                        }
+                    }
+                    LayerSample::Color(color) => {
+                        // Detected color - draw colored marker
+                        imgproc::rectangle(
+                            frame_display,
+                            Rect::new(x - 5, y - 5, 10, 10),
+                            color.to_pixel_value().into(),
+                            2,
+                            imgproc::LINE_8,
+                            0,
+                        )
+                        .unwrap();
+                        seen_content = true;
+                        bottle.fills.push(color);
+                    }
+                    LayerSample::Unknown => {
+                        any_unknown = true;
+                        let best_pixel_hex = format!(
+                            "#{:02x}{:02x}{:02x}",
+                            best_pixel[2], best_pixel[1], best_pixel[0]
+                        );
+                        println!(
+                            "WARN: Pixel at ({}, {}) did not match any known color: {:?}. Treating bottle as invalid.",
+                            x, y, best_pixel_hex
+                        );
+                        // Unknown color - draw black marker
+                        imgproc::rectangle(
+                            frame_display,
+                            Rect::new(x - 5, y - 5, 10, 10),
+                            Scalar::new(0.0, 0.0, 0.0, 255.0),
+                            5,
+                            imgproc::LINE_8,
+                            0,
+                        )
+                        .unwrap();
+                        bottle_is_valid = false;
+                        break;
+                    }
                 }
             }
+        }
+
+        if !bottle_is_valid {
+            bottle.fills.clear();
         }
     }
 

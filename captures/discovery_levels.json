@@ -119,6 +119,16 @@
       "layout_name": "10-bottles",
       "mystery_count_at_start": 0,
       "resolved_bottles": "BYOP WMPG WBMB MGMR OPGY OGRP ORYW RYWB EEEE EEEE"
+    },
+    {
+      "bottle_count": 5,
+      "captured_at_ms": 1775740455996,
+      "expected_bottles": "BGBO GGOO BGBO EEEE EEEE",
+      "id": 13,
+      "image_filename": "discovery-level-13.png",
+      "layout_name": "5-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "BGBO GGOO BGBO EEEE EEEE"
     }
   ]
 }
