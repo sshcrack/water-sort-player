@@ -68,6 +68,19 @@ fn current_time_ms() -> Result<u64> {
     )?)
 }
 
+#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
+fn next_discovery_capture_id() -> Result<u64> {
+    let manifest = read_discovery_manifest()?;
+    let next_id = manifest
+        .levels
+        .iter()
+        .map(|entry| entry.id)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    Ok(next_id)
+}
+
 fn save_png_with_filename(frame: &Mat, filename: &str) -> Result<PathBuf> {
     let frame_rgba = rgba_frame_from_bgr(frame)?;
     let bytes = frame_rgba.data_bytes()?;
@@ -266,7 +279,8 @@ pub fn start_discovery_capture(
     layout: &BottleLayout,
     bottles: &[Bottle],
 ) -> Result<DiscoveryCaptureContext> {
-    let capture_id = current_time_ms()?;
+    let capture_id = next_discovery_capture_id()?;
+    let captured_at_ms = current_time_ms()?;
     let image_filename = format!("discovery-level-{capture_id}.png");
     save_png_with_filename(frame, &image_filename)?;
 
@@ -280,7 +294,7 @@ pub fn start_discovery_capture(
             layout_name: layout.name.clone(),
             bottle_count: layout.bottle_count(),
             mystery_count_at_start: mystery_count,
-            captured_at_ms: capture_id,
+            captured_at_ms,
         },
     })
 }
