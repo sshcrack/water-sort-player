@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use crate::{Move, get_possible_moves};
+use crate::{find_shortest_move_sequence, Move};
 use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
 pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
@@ -21,45 +19,6 @@ pub enum DiscoverResult {
     AlreadySolved,
 }
 
-fn inner_discovery_mode(
-    current_state: Vec<Bottle>,
-    current_moves: Vec<Move>,
-    already_visited_states: &mut HashSet<Vec<Bottle>>,
-) -> Option<Vec<Move>> {
-    if !already_visited_states.insert(current_state.clone()) {
-        return None;
-    }
-
-    let possible_moves = get_possible_moves(&current_state, already_visited_states);
-
-    for (m, new_state) in &possible_moves {
-        let has_any_mystery_on_top = new_state.iter().any(|b| {
-            if let Some((_, top_color)) = b.get_top_fill() {
-                top_color == BottleColor::Mystery
-            } else {
-                false
-            }
-        });
-
-        if has_any_mystery_on_top {
-            let mut new_moves = current_moves.clone();
-            new_moves.push(*m);
-            return Some(new_moves);
-        }
-    }
-
-    for (m, new_state) in possible_moves {
-        let mut new_moves = current_moves.clone();
-        new_moves.push(m);
-
-        if let Some(result) = inner_discovery_mode(new_state, new_moves, already_visited_states) {
-            return Some(result);
-        }
-    }
-
-    None
-}
-
 pub fn find_best_discovery_moves(
     current_bottles: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
@@ -71,7 +30,18 @@ pub fn find_best_discovery_moves(
         return DiscoverResult::AlreadySolved;
     }
 
-    match inner_discovery_mode(current_bottles.to_vec(), Vec::new(), &mut HashSet::new()) {
+    let best_moves = find_shortest_move_sequence(current_bottles.to_vec(), |state, move_count| {
+        move_count > 0
+            && state.iter().any(|bottle| {
+                if let Some((_, top_color)) = bottle.get_top_fill() {
+                    top_color == BottleColor::Mystery
+                } else {
+                    false
+                }
+            })
+    });
+
+    match best_moves {
         Some(moves) => DiscoverResult::MoveToDiscover(moves),
         None => DiscoverResult::NoMove,
     }

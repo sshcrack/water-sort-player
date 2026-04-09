@@ -120,7 +120,7 @@ impl BottleColor {
             distance = distance.min(color_distance_sq(pixel, &FAILED_LEVEL_EMPTY_COLOR));
         }
 
-        distance <= COLOR_DISTANCE_THRESHOLD_SQ
+        distance <= 60 * 60
     }
 
     fn is_mystery_pixel(pixel: &Vec3b) -> bool {
