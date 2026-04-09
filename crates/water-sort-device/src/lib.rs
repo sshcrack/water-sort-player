@@ -3,6 +3,7 @@ mod scrcpy;
 use std::{
     io::{BufRead, BufReader, Write},
     process::Command,
+    sync::mpsc::{self, Receiver, RecvTimeoutError},
     thread,
     time::Duration,
 };
@@ -22,25 +23,63 @@ pub fn load_loopback_device() {
         .unwrap();
 }
 
-pub fn wait_for_video_stream<R: BufRead>(mut reader: R) -> Result<()> {
-    let mut line = String::new();
+fn spawn_scrcpy_stdout_logger<R: BufRead + Send + 'static>(mut reader: R) -> Receiver<Result<()>> {
+    let (ready_tx, ready_rx) = mpsc::channel::<Result<()>>();
+
+    thread::spawn(move || {
+        let mut line = String::new();
+        let mut ready_sent = false;
+
+        loop {
+            line.clear();
+            match reader.read_line(&mut line) {
+                Ok(0) => {
+                    if !ready_sent {
+                        let _ = ready_tx.send(Err(anyhow!("scrcpy process ended unexpectedly")));
+                    }
+                    break;
+                }
+                Ok(_) => {
+                    // Mirror scrcpy stdout so logs remain visible for the whole process lifetime.
+                    print!("{line}");
+                    std::io::stdout().flush().unwrap();
+
+                    if !ready_sent && line.contains("v4l2 sink started to device:") {
+                        let _ = ready_tx.send(Ok(()));
+                        ready_sent = true;
+                    }
+                }
+                Err(error) => {
+                    if !ready_sent {
+                        let _ = ready_tx.send(Err(error.into()));
+                    }
+                    break;
+                }
+            }
+        }
+    });
+
+    ready_rx
+}
+
+pub fn wait_for_video_stream(ready_rx: Receiver<Result<()>>) -> Result<()> {
     print!("Waiting for scrcpy to initialize video stream...");
 
     loop {
-        let bytes_read = reader.read_line(&mut line)?;
-        print!(".");
-        std::io::stdout().flush().unwrap();
-
-        if bytes_read == 0 {
-            return Err(anyhow::anyhow!("scrcpy process ended unexpectedly"));
+        match ready_rx.recv_timeout(Duration::from_millis(250)) {
+            Ok(result) => {
+                result?;
+                println!("\nscrcpy is ready, starting video capture...");
+                break;
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                print!(".");
+                std::io::stdout().flush().unwrap();
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                return Err(anyhow!("scrcpy stdout logger disconnected unexpectedly"));
+            }
         }
-
-        if line.contains("v4l2 sink started to device:") {
-            println!("\nscrcpy is ready, starting video capture...");
-            break;
-        }
-
-        line.clear();
     }
 
     Ok(())
@@ -56,8 +95,9 @@ pub fn start_capture(quick_mode: bool) -> anyhow::Result<(VideoCapture, usize, u
     let child_stdout = scrcpy
         .take_stdout()
         .ok_or_else(|| anyhow!("failed to capture scrcpy stdout"))?;
+    let ready_rx = spawn_scrcpy_stdout_logger(BufReader::new(child_stdout));
 
-    wait_for_video_stream(BufReader::new(child_stdout))?;
+    wait_for_video_stream(ready_rx)?;
 
     thread::sleep(Duration::from_secs(2));
 

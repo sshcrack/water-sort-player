@@ -162,6 +162,7 @@ macro_rules! create_generated_test_level {
                     };
 
                     let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
+                    println!("Expected layout for captured level {}: {:?}", $capture_id, expected_layout.name);
                     let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(&image, &expected_layout)
                         .expect("Failed to detect bottles from image");
 
@@ -221,11 +222,11 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                     mv.perform_move_on_bottles(&mut current_state);
                     current_moves.push(mv);
 
-                    let simulated_detection = simulate_observed_reveal(&current_state, resolved);
+                    reveal_observed(&mut current_state, resolved);
                     improve_best_revealed_state(
                         &mut max_revealed,
                         &previous_state,
-                        &simulated_detection,
+                        &current_state,
                     );
                 }
             }
@@ -242,12 +243,12 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
 }
 
 #[allow(dead_code)]
-fn simulate_observed_reveal(current: &[Bottle], fully_resolved: &[Bottle]) -> Vec<Bottle> {
+fn reveal_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
     current
-        .iter()
+        .iter_mut()
         .zip(fully_resolved.iter())
-        .map(|(current_bottle, resolved_bottle)| {
-            let mut observed = current_bottle.get_fills().clone();
+        .for_each(|(current_bottle, resolved_bottle)| {
+            let observed = current_bottle.get_fills_mut();
             let resolved = resolved_bottle.get_fills();
 
             // Simulate game reveal: only mystery colors currently exposed on top become known.
@@ -261,10 +262,7 @@ fn simulate_observed_reveal(current: &[Bottle], fully_resolved: &[Bottle]) -> Ve
                 observed[fill_index] = resolved[fill_index];
                 index -= 1;
             }
-
-            Bottle::from_fills(observed)
-        })
-        .collect()
+        });
 }
 
 create_test_level!(213, "YRGM BPWO OBPG ROPM YRPW MWBG BGRY YMWO EEEE EEEE");

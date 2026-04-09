@@ -1,0 +1,74 @@
+{
+  "levels": [
+    {
+      "bottle_count": 11,
+      "captured_at_ms": 1775692532562,
+      "expected_bottles": "B??? L??? Y??? G??? G??? W??? P??? R??? M??? EEEE EEEE",
+      "id": 1775692532562,
+      "image_filename": "discovery-level-1775692532562.png",
+      "layout_name": "11-bottles",
+      "mystery_count_at_start": 27,
+      "resolved_bottles": "BWBR LRLP YLOY GOLG GBWM WYWM PRYO RMPO MGPB EEEE EEEE"
+    },
+    {
+      "bottle_count": 12,
+      "captured_at_ms": 1775692828680,
+      "expected_bottles": "PYWB WOMY MLYM BLOR GPRg WBYO GgOg RMBW LgPG LPGR EEEE EEEE",
+      "id": 1775692828680,
+      "image_filename": "discovery-level-1775692828680.png",
+      "layout_name": "12-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "PYWB WOMY MLYM BLOR GPRg WBYO GgOg RMBW LgPG LPGR EEEE EEEE"
+    },
+    {
+      "bottle_count": 10,
+      "captured_at_ms": 1775693075766,
+      "expected_bottles": "WBRP MYRB WMYR OGOG YMPY BOMP WGOG WPBR EEEE EEEE",
+      "id": 1775693075766,
+      "image_filename": "discovery-level-1775693075766.png",
+      "layout_name": "10-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "WBRP MYRB WMYR OGOG YMPY BOMP WGOG WPBR EEEE EEEE"
+    },
+    {
+      "bottle_count": 11,
+      "captured_at_ms": 1775693191276,
+      "expected_bottles": "RWMW MPBY PRLY MBGL YGOW OYOL WRPG GOPB BMRL EEEE EEEE",
+      "id": 1775693191276,
+      "image_filename": "discovery-level-1775693191276.png",
+      "layout_name": "11-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "RWMW MPBY PRLY MBGL YGOW OYOL WRPG GOPB BMRL EEEE EEEE"
+    },
+    {
+      "bottle_count": 12,
+      "captured_at_ms": 1775693325105,
+      "expected_bottles": "MBWL RYgM YgWM PLOW RgBg POYM GRGW POLB PORB YGLG EEEE EEEE",
+      "id": 1775693325105,
+      "image_filename": "discovery-level-1775693325105.png",
+      "layout_name": "12-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "MBWL RYgM YgWM PLOW RgBg POYM GRGW POLB PORB YGLG EEEE EEEE"
+    },
+    {
+      "bottle_count": 10,
+      "captured_at_ms": 1775693467742,
+      "expected_bottles": "P??? B??? B??? O??? Y??? P??? P??? Y??? EEEE EEEE",
+      "id": 1775693467742,
+      "image_filename": "discovery-level-1775693467742.png",
+      "layout_name": "10-bottles",
+      "mystery_count_at_start": 24,
+      "resolved_bottles": "PWBO BMYG BGMG OWGO YMRP PYRM PRWR YWOB EEEE EEEE"
+    },
+    {
+      "bottle_count": 11,
+      "captured_at_ms": 1775694127751,
+      "expected_bottles": "MLWR POWP PLRB YOGY BGBP OMWG RBLY LMGW OYMR EEEE EEEE",
+      "id": 1775694127751,
+      "image_filename": "discovery-level-1775694127751.png",
+      "layout_name": "11-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "MLWR POWP PLRB YOGY BGBP OMWG RBLY LMGW OYMR EEEE EEEE"
+    }
+  ]
+}

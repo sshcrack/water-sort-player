@@ -2,7 +2,11 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::{core::{Mat, MatTraitConst, Vec3b}, videoio::VideoCaptureTrait};
+use opencv::{
+    core::{Mat, MatTraitConst, Vec3b},
+    videoio::VideoCaptureTrait,
+};
+use water_sort_core::constants::color_distance_sq;
 use water_sort_device::{click_at_position, start_capture};
 
 use crate::{
@@ -17,7 +21,7 @@ use crate::{
         Move,
         discovery::{
             self, count_total_mystery_colors, find_best_discovery_moves,
-            improve_best_revealed_state, improve_current_bottles_with_revealed_state
+            improve_best_revealed_state, improve_current_bottles_with_revealed_state,
         },
         run_solver,
         visualization::draw_revealed_fill_markers,
@@ -29,9 +33,9 @@ use crate::capture::start_discovery_capture;
 
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(5);
-const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(10);
-const MOVE_DELAY: Duration = Duration::from_millis(2600);
-const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(2500);
+const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(12);
+const MOVE_DELAY: Duration = Duration::from_millis(3000);
+const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(3000);
 
 enum AppState {
     WaitingToPressStart {
@@ -49,7 +53,7 @@ enum AppState {
     MysteryDiscoverColors {
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
-        current_moves: Vec<Move>
+        current_moves: Vec<Move>,
     },
     MysteryExecuteDiscoverMove {
         trigger_at: Instant,
@@ -72,6 +76,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
     println!("Test data collection enabled (feature: collect-test-data).");
 
     let (mut cam, width, height) = start_capture(quick_mode)?;
+    println!("Creating window...");
     let mut window = Window::new("AutoPlayer", width, height, WindowOptions::default())?;
     let mut frame_raw = Mat::default();
 
@@ -88,7 +93,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut active_layout: Option<BottleLayout> = None;
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
 
+    let mut first_frame_read = true;
     while window.is_open() {
+        if first_frame_read {
+            println!("Reading first frame...");
+            first_frame_read = false;
+        }
         cam.read(&mut frame_raw)?;
         if frame_raw.empty() {
             continue;
@@ -205,7 +215,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
                                 max_revealed_bottle_state: detected_bottles.clone(),
-                                current_moves: vec![]
+                                current_moves: vec![],
                             };
                         }
                     }
@@ -290,10 +300,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         }
 
                         // Find best move to reveal more colors
-                        let best_move = find_best_discovery_moves(
-                            &current_bottles,
-                            max_revealed_bottle_state
-                        );
+                        let best_move =
+                            find_best_discovery_moves(&current_bottles, max_revealed_bottle_state);
 
                         match best_move {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
@@ -315,7 +323,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 app_state = AppState::MysteryDiscoverColors {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                                    current_moves: vec![]
+                                    current_moves: vec![],
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
@@ -384,7 +392,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                            current_moves: current_moves.clone()
+                            current_moves: current_moves.clone(),
                         };
                     } else {
                         let next_move = moves_to_execute[0];
@@ -438,11 +446,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let pixel = frame_raw
                         .at_2d::<Vec3b>(NO_THANK_YOU_REWARDS_POS.1, NO_THANK_YOU_REWARDS_POS.0)?;
 
-                    if is_color_within_tolerance(
-                        pixel,
-                        &crate::constants::NO_THANK_YOU_REWARDS_COLOR,
-                        10,
-                    ) {
+                    if color_distance_sq(pixel, &crate::constants::NO_THANK_YOU_REWARDS_COLOR)
+                        < 50 * 50
+                    {
                         println!("Reward screen detected, clicking 'No, thank you'...");
                         click_at_position(NO_THANK_YOU_REWARDS_POS);
                     } else {
@@ -466,7 +472,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
     Ok(())
 }
-
 
 fn require_active_layout<'a>(
     active_layout: &'a Option<BottleLayout>,
