@@ -8,3 +8,6 @@ water-sort-core = { path = "../water-sort-core" }
 water-sort-device = { path = "../water-sort-device" }
 opencv = { workspace = true }
 anyhow = { workspace = true }
+
+[features]
+discovery-debugging = []

@@ -1,7 +1,7 @@
 use std::{env, fs, path::PathBuf};
 
-const DISCOVERY_MANIFEST_PATH: &str = "../../captures/discovery_levels.json";
 
+const DISCOVERY_MANIFEST_PATH: &str = "../../captures/discovery_levels.json";
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={DISCOVERY_MANIFEST_PATH}");
@@ -42,10 +42,9 @@ fn generate_level_test_invocations() -> String {
         return output;
     }
 
-    for (module_index, entry) in entries.into_iter().enumerate() {
+    for entry in entries.into_iter() {
         output.push_str(&format!(
-            "create_generated_test_level!({}, {}u64, {:?}, {:?}, {:?});\n",
-            module_index,
+            "create_generated_test_level!({}, {:?}, {:?}, {:?});\n",
             entry.id,
             entry.image_filename,
             entry.expected_bottles,

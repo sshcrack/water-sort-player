@@ -132,8 +132,11 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 
             let mut new_bottles = bottles.to_owned();
             let move_to_try = Move(source_idx, destination_idx);
-            move_to_try.perform_move_on_bottles(&mut new_bottles);
+            if !move_to_try.can_perform_on_bottles(&new_bottles) {
+                continue;
+            }
 
+            move_to_try.perform_move_on_bottles(&mut new_bottles);
             possible_moves.push((move_to_try, new_bottles));
         }
     }
@@ -274,6 +277,16 @@ impl Move {
     pub fn perform_move_on_bottles(&self, bottles: &mut [Bottle]) {
         let (source_bottle, destination_bottle) = get_two_mut_from_vec(bottles, self.0, self.1);
         if !destination_bottle.can_fill_from(source_bottle) {
+            #[cfg(feature = "discovery-debugging")]
+            {
+                println!(
+                    "Invalid move: cannot pour from bottle {} to bottle {}",
+                    self.0, self.1
+                );
+                println!("Source bottle: {:?}", source_bottle);
+                println!("Destination bottle: {:?}", destination_bottle);
+                std::io::stdin().read_line(&mut String::new()).unwrap();
+            }
             panic!(
                 "Invalid move: cannot pour from bottle {} to bottle {}",
                 self.0, self.1

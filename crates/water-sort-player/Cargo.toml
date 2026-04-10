@@ -16,7 +16,7 @@ water-sort-solver = { path = "../water-sort-solver" }
 water-sort-capture = { path = "../water-sort-capture" }
 
 [features]
-discovery-debugging = []
+discovery-debugging = ["water-sort-solver/discovery-debugging"]
 collect-test-data = ["water-sort-capture/collect-test-data"]
 
 [build-dependencies]

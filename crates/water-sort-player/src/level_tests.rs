@@ -111,9 +111,9 @@ macro_rules! create_test_level {
 
 #[allow(unused_macros)]
 macro_rules! create_generated_test_level {
-    ($module_suffix:literal, $capture_id:expr, $image_filename:expr, $initial_bottles:expr, $resolved_bottles:expr) => {
+    ($capture_id:literal, $image_filename:expr, $initial_bottles:expr, $resolved_bottles:expr) => {
         paste::paste! {
-            mod [<captured_level_ $module_suffix>] {
+            mod [<captured_level_ $capture_id>] {
                 use super::*;
                 macro_rules! load_capture_image {
                     () => {{

@@ -129,6 +129,16 @@
       "layout_name": "5-bottles",
       "mystery_count_at_start": 0,
       "resolved_bottles": "BGBO GGOO BGBO EEEE EEEE"
+    },
+    {
+      "bottle_count": 7,
+      "captured_at_ms": 1775740455996,
+      "expected_bottles": "BOGP B??? B??? PGPR RRPG EEEE EEEE",
+      "id": 14,
+      "image_filename": "discovery-level-14.png",
+      "layout_name": "7-bottles",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "BOGP BBOO BGOR PGPR RRPG EEEE EEEE"
     }
   ]
 }

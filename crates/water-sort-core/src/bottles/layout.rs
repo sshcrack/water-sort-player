@@ -188,7 +188,8 @@ impl BottleLayout {
             Self::eleven_bottle_layout(),
             Self::twelve_bottle_layout(),
             Self::five_bottle_layout(),
-            Self::six_bottle_layout()
+            Self::six_bottle_layout(),
+            Self::seven_bottle_layout(),
         ]
     }
 
@@ -231,8 +232,17 @@ impl BottleLayout {
     pub fn five_bottle_layout() -> BottleLayout {
         bottle_layout!("5-bottles", 35, 4, (Pos(39, 336), Pos(70, 0), 5),)
     }
-    
+
     pub fn six_bottle_layout() -> BottleLayout {
-        bottle_layout!("6-bottles", 31, 4, (Pos(32, 340), Pos(59, 0), 6),)
+        bottle_layout!("6-bottles", 31, 4, (Pos(32, 338), Pos(59, 0), 6),)
+    }
+    pub fn seven_bottle_layout() -> BottleLayout {
+        bottle_layout!(
+            "7-bottles",
+            38,
+            4,
+            (Pos(50, 207), Pos(86, 0), 4),
+            (Pos(72, 444), Pos(106, 0), 3),
+        )
     }
 }

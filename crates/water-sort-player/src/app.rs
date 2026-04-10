@@ -233,6 +233,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     let mut previous_bottles = max_revealed_bottle_state.clone();
+                    println!("Reconstructing state...");
+                    #[cfg(feature="discovery-debugging")]
+                    {
+                        println!("Current moves to reconstruct state: {:#?}", current_moves);
+                        println!("Of max revealed state: {:#?}", max_revealed_bottle_state);
+                        std::io::stdin().read_line(&mut String::new()).unwrap();
+                    }
                     for (i, m) in current_moves.iter().enumerate() {
                         if i == current_moves.len() - 1 {
                             break;
@@ -395,7 +402,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             current_moves: current_moves.clone(),
                         };
                     } else {
-                        let next_move = moves_to_execute[0];
+                        let next_move = moves_to_execute.remove(0);
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
@@ -414,7 +421,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         next_move.perform_move_on_device(layout);
 
                         // Remove the executed move from the list
-                        moves_to_execute.remove(0);
                         current_moves.push(next_move);
 
                         // Schedule the next move or go back to discovery state after a delay

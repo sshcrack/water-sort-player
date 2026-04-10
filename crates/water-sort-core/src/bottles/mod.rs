@@ -151,6 +151,11 @@ impl Bottle {
             return false;
         }
 
+        if self_top_color == BottleColor::Mystery || other_top_color == BottleColor::Mystery {
+            println!("Tried to fill mystery color into bottles");
+            return false;
+        }
+
         self.get_fill_count() + other_top_amount <= FULL_BOTTLE_COUNT
     }
 
@@ -294,17 +299,21 @@ pub fn detect_bottles_with_layout(
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
+
+        let raw_filename = format!("target/unknown_color_detection_{}_raw.png", timestamp);
+        let display_filename = format!("target/unknown_color_detection_{}.png", timestamp);
         let _ = imgcodecs::imwrite(
-            format!("target/unknown_color_detection_{}_raw.png", timestamp).as_str(),
+            raw_filename.as_str(),
             frame_raw,
             &opencv::core::Vector::new(),
         );
         let _ = imgcodecs::imwrite(
-            format!("target/unknown_color_detection_{}.png", timestamp).as_str(),
+            display_filename.as_str(),
             frame_display,
             &opencv::core::Vector::new(),
         );
 
+        println!("Detection files have been saved to {} and {}", raw_filename, display_filename);
         return Err(anyhow::anyhow!(
             "One or more pixels could not be matched to known colors"
         ));
