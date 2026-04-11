@@ -2,14 +2,12 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::{
-    core::{Mat, MatTraitConst, Vec3b},
-    videoio::VideoCaptureTrait,
-};
+use opencv::core::{Mat, MatTraitConst, Vec3b};
 use water_sort_core::constants::{
-    NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS, NO_THANK_YOU_REWARDS_COLOR, color_distance_sq
+    NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
+    NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
 };
-use water_sort_device::{click_at_position, start_capture};
+use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
 use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
@@ -84,10 +82,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
     #[cfg(feature = "collect-test-data")]
     println!("Test data collection enabled (feature: collect-test-data).");
 
-    let (mut cam, width, height) = start_capture(quick_mode)?;
+    let mut capture = construct_capture_backend();
+    let (width, height) = capture.start_capture(quick_mode)?;
     println!("Creating window...");
     let mut window = Window::new("AutoPlayer", width, height, WindowOptions::default())?;
-    let mut frame_raw = Mat::default();
+    let mut frame_raw: Mat;
 
     let mut app_state = if quick_mode {
         AppState::ClickNextLevel {
@@ -109,9 +108,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
             println!("Reading first frame...");
             first_frame_read = false;
         }
-        cam.read(&mut frame_raw)?;
-        if frame_raw.empty() {
-            continue;
+        match capture.capture_frame() {
+            Ok(frame) => frame_raw = frame,
+            Err(error) => {
+                println!("Skipping frame read error: {:?}", error);
+                continue;
+            }
         }
 
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
@@ -134,7 +136,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             AppState::WaitingToPressStart { trigger_at } => {
                 if now >= *trigger_at {
                     println!("Starting level...");
-                    click_at_position(START_BUTTON_POS);
+                    capture.click_at_position(START_BUTTON_POS)?;
                     app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
                         retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -157,7 +159,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         .unwrap_or(NEXT_LEVEL_BUTTON_POSITIONS[0]);
                     println!("Pressing next level button at {button_pos:?}...");
 
-                    click_at_position(button_pos);
+                    capture.click_at_position(button_pos)?;
                     app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
                         retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -318,7 +320,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .expect("Failed to find a solution for the revealed bottle state");
 
                         println!("Resetting level for the solver...");
-                        click_at_position(RETRY_BUTTON_POS);
+                        capture.click_at_position(RETRY_BUTTON_POS)?;
                         app_state = AppState::ExecuteFinalSolveMoves {
                             planned_moves: solution,
                             performed_moves: 0,
@@ -354,7 +356,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     "No discovery move found that reveals new colors. Retrying level..."
                                 );
 
-                                click_at_position(RETRY_BUTTON_POS);
+                                capture.click_at_position(RETRY_BUTTON_POS)?;
 
                                 app_state = AppState::MysteryDiscoverColors {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
@@ -450,7 +452,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             println!("Press enter to perform the next move...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
-                        next_move.perform_move_on_device(layout);
+                        next_move.perform_move_on_device(layout, &capture)?;
 
                         // Remove the executed move from the list
                         current_moves.push(next_move);
@@ -469,7 +471,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     if now >= *next_move_at {
                         println!("Performing move: {:?}.", next);
                         let layout = require_active_layout(&active_layout, "solve move execution")?;
-                        next.perform_move_on_device(layout);
+                        next.perform_move_on_device(layout, &capture)?;
                         *performed_moves += 1;
                         *next_move_at = now + MOVE_DELAY;
                     }
@@ -489,7 +491,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     if has_no_thank_you {
                         println!("Reward screen detected, clicking 'No, thank you'...");
-                        click_at_position(NO_THANK_YOU_POSITIONS[0]);
+                        capture.click_at_position(NO_THANK_YOU_POSITIONS[0])?;
                     } else {
                         println!("No reward screen detected, proceeding to next level...");
                     }

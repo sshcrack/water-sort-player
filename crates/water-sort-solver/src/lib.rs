@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
+use anyhow::Result;
 use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,
 };
-use water_sort_device::click_at_position;
+use water_sort_device::CaptureDeviceBackend;
 
 pub mod discovery;
 
@@ -249,13 +250,14 @@ impl Move {
         self.1
     }
 
-    pub fn perform_move_on_device(&self, layout: &BottleLayout) {
-        click_at_position(water_sort_core::position::get_bottle_position(
-            layout, self.0,
-        ));
-        click_at_position(water_sort_core::position::get_bottle_position(
-            layout, self.1,
-        ));
+    pub fn perform_move_on_device<B: CaptureDeviceBackend>(
+        &self,
+        layout: &BottleLayout,
+        device: &B,
+    ) -> Result<()> {
+        device.click_at_position(water_sort_core::position::get_bottle_position(layout, self.0))?;
+        device.click_at_position(water_sort_core::position::get_bottle_position(layout, self.1))?;
+        Ok(())
     }
 
     pub fn can_perform_on_bottles(&self, bottles: &[Bottle]) -> bool {
