@@ -49,13 +49,13 @@ pub fn find_best_discovery_moves(
 
 pub fn improve_best_revealed_state(
     initial_revealed_bottle_state: &mut [Bottle],
-    previous_bottles: &[Bottle],
+    initial_bottles: &[Bottle],
     current_bottles: &[Bottle],
 ) {
     initial_revealed_bottle_state
         .iter_mut()
         .zip(current_bottles.iter())
-        .zip(previous_bottles.iter())
+        .zip(initial_bottles.iter())
         .for_each(|((revealed_bottle, current_bottle), previous_bottle)| {
             revealed_bottle
                 .get_fills_mut()

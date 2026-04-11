@@ -52,12 +52,14 @@ enum AppState {
     },
     MysteryDiscoverColors {
         trigger_at: Instant,
+        initial_state: Vec<Bottle>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
     },
     MysteryExecuteDiscoverMove {
         trigger_at: Instant,
         moves_to_execute: Vec<Move>,
+        initial_state: Vec<Bottle>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
     },
@@ -214,6 +216,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
+                                initial_state: detected_bottles.clone(),
                                 max_revealed_bottle_state: detected_bottles.clone(),
                                 current_moves: vec![],
                             };
@@ -223,6 +226,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
             AppState::MysteryDiscoverColors {
                 trigger_at,
+                initial_state,
                 max_revealed_bottle_state,
                 current_moves,
             } => {
@@ -231,22 +235,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     let current_bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
-
-                    let mut previous_bottles = max_revealed_bottle_state.clone();
-                    println!("Reconstructing state...");
-                    #[cfg(feature = "discovery-debugging")]
-                    {
-                        println!("Current moves to reconstruct state: {:#?}", current_moves);
-                        println!("Of max revealed state: {:#?}", max_revealed_bottle_state);
-                        std::io::stdin().read_line(&mut String::new()).unwrap();
-                    }
-                    for (i, m) in current_moves.iter().enumerate() {
-                        if i == current_moves.len() - 1 {
-                            break;
-                        }
-
-                        m.perform_move_on_bottles(&mut previous_bottles);
-                    }
 
                     if let Err(error) = current_bottles {
                         return Err(anyhow!(
@@ -266,7 +254,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     improve_best_revealed_state(
                         max_revealed_bottle_state,
-                        &previous_bottles,
+                        initial_state,
                         &current_bottles,
                     );
                     improve_current_bottles_with_revealed_state(
@@ -315,6 +303,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 println!("Best discovery move sequence found: {:?}", best_moves);
                                 app_state = AppState::MysteryExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
+                                    initial_state: initial_state.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     current_moves: current_moves.clone(),
                                     trigger_at: now,
@@ -329,6 +318,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                 app_state = AppState::MysteryDiscoverColors {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                    initial_state: initial_state.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     current_moves: vec![],
                                 };
@@ -357,6 +347,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 moves_to_execute,
                 max_revealed_bottle_state,
                 current_moves,
+                initial_state,
             } => {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "discovery move execution")?;
@@ -398,6 +389,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     if moves_to_execute.is_empty() {
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
+                            initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: current_moves.clone(),
                         };

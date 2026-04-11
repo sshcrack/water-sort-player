@@ -66,7 +66,7 @@ fn best_matching_surrounding_pixel(
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
-    fills: Vec<BottleColor>,
+    fills: Vec<BottleColor>
 }
 
 // Remove hardcoded constants - using layouts now

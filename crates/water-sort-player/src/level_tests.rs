@@ -224,12 +224,11 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                 }
 
                 for mv in moves_to_apply {
-                    let previous_state = current_state.clone();
                     mv.perform_move_on_bottles(&mut current_state);
                     current_moves.push(mv);
 
                     reveal_observed(&mut current_state, resolved);
-                    improve_best_revealed_state(&mut max_revealed, &previous_state, &current_state);
+                    improve_best_revealed_state(&mut max_revealed, initial, &current_state);
                 }
             }
             DiscoverResult::NoMove => {
