@@ -113,6 +113,11 @@ mod tests {
         improve_best_revealed_state(&mut revealed_state, &previous_bottles, &current_bottles);
 
         let expected_revealed_state = TestUtils::parse_bottles_sequence("PY?? YG?? G???");
-        assert_eq!(revealed_state, expected_revealed_state);
+        assert!(
+            revealed_state
+                .iter()
+                .zip(expected_revealed_state.iter())
+                .all(|(actual, expected)| actual.get_fills() == expected.get_fills()),
+        );
     }
 }

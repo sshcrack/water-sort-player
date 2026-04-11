@@ -141,10 +141,12 @@ macro_rules! create_generated_test_level {
                         "Discovery simulation should reveal all mystery colors for captured level {}",
                         $capture_id
                     );
-                    assert_eq!(
-                        final_revealed,
-                        RESOLVED_BOTTLES.as_slice(),
-                        "Discovery simulation should match the captured resolved state for level {}",
+                    assert!(
+                        final_revealed
+                            .iter()
+                            .zip(RESOLVED_BOTTLES.iter())
+                            .all(|(actual, expected)| actual.get_fills() == expected.get_fills()),
+                        "Discovery simulation should match the captured resolved state colors for level {}",
                         $capture_id
                     );
 

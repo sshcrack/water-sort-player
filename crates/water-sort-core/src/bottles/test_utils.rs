@@ -61,35 +61,59 @@ impl TestUtils {
     }
 
     pub fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {
-        let mut fills: Vec<BottleColor> = bottle_str
+        bottle_str
             .chars()
             .filter_map(|c| match c {
-                'Y' => Some(BottleColor::Yellow),
-                'R' => Some(BottleColor::Red),
-                'G' => Some(BottleColor::Green),
-                'g' => Some(BottleColor::Lime),
-                'L' => Some(BottleColor::LightBlue),
-                'M' => Some(BottleColor::MediumBlue),
-                'B' => Some(BottleColor::Blue),
-                'P' => Some(BottleColor::Purple),
-                'O' => Some(BottleColor::Orange),
-                'W' => Some(BottleColor::Pink),
-                '?' => Some(BottleColor::Mystery),
+                'Y' => Some((BottleColor::Yellow, false)),
+                'R' => Some((BottleColor::Red, false)),
+                'G' => Some((BottleColor::Green, false)),
+                'g' => Some((BottleColor::Lime, false)),
+                'L' => Some((BottleColor::LightBlue, false)),
+                'M' => Some((BottleColor::MediumBlue, false)),
+                'B' => Some((BottleColor::Blue, false)),
+                'P' => Some((BottleColor::Purple, false)),
+                'O' => Some((BottleColor::Orange, false)),
+                'W' => Some((BottleColor::Pink, false)),
+                '?' => Some((BottleColor::Mystery, true)),
                 'E' => None,
                 _ => panic!("Invalid character in bottle string: {}", c),
             })
-            .collect();
-
-        // Strings are provided top->bottom; bottle fills are stored bottom->top.
-        fills.reverse();
-        fills
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .map(|(color, _)| color)
+            .collect()
     }
 
     pub fn parse_bottles_sequence(sequence: &str) -> Vec<Bottle> {
         sequence
             .split_whitespace()
-            .map(TestUtils::parse_bottle_string)
-            .map(Bottle::from_fills)
+            .map(|bottle_str| {
+                let parsed = bottle_str
+                    .chars()
+                    .filter_map(|c| match c {
+                        'Y' => Some((BottleColor::Yellow, false)),
+                        'R' => Some((BottleColor::Red, false)),
+                        'G' => Some((BottleColor::Green, false)),
+                        'g' => Some((BottleColor::Lime, false)),
+                        'L' => Some((BottleColor::LightBlue, false)),
+                        'M' => Some((BottleColor::MediumBlue, false)),
+                        'B' => Some((BottleColor::Blue, false)),
+                        'P' => Some((BottleColor::Purple, false)),
+                        'O' => Some((BottleColor::Orange, false)),
+                        'W' => Some((BottleColor::Pink, false)),
+                        '?' => Some((BottleColor::Mystery, true)),
+                        'E' => None,
+                        _ => panic!("Invalid character in bottle string: {}", c),
+                    })
+                    .collect::<Vec<_>>();
+
+                let (fills, mystery_origin_flags): (Vec<_>, Vec<_>) =
+                    parsed.into_iter().rev().unzip();
+
+                // Strings are provided top->bottom; bottle fills are stored bottom->top.
+                Bottle::from_fills_with_mystery_flags(fills, mystery_origin_flags)
+            })
             .collect()
     }
 }

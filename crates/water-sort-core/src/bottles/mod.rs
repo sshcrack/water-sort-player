@@ -67,6 +67,7 @@ fn best_matching_surrounding_pixel(
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     fills: Vec<BottleColor>,
+    mystery_origin_flags: Vec<bool>,
 }
 
 // Remove hardcoded constants - using layouts now
@@ -74,7 +75,27 @@ const FULL_BOTTLE_COUNT: usize = 4;
 
 impl Bottle {
     pub fn from_fills(fills: Vec<BottleColor>) -> Self {
-        Bottle { fills }
+        let mystery_origin_flags = vec![false; fills.len()];
+        Bottle {
+            fills,
+            mystery_origin_flags,
+        }
+    }
+
+    pub fn from_fills_with_mystery_flags(
+        fills: Vec<BottleColor>,
+        mystery_origin_flags: Vec<bool>,
+    ) -> Self {
+        assert_eq!(
+            fills.len(),
+            mystery_origin_flags.len(),
+            "fills and mystery flags must have the same length"
+        );
+
+        Bottle {
+            fills,
+            mystery_origin_flags,
+        }
     }
 
     pub fn get_fills_mut(&mut self) -> &mut Vec<BottleColor> {
@@ -85,22 +106,43 @@ impl Bottle {
         &self.fills
     }
 
-    pub fn get_top_fill(&self) -> Option<(usize, BottleColor)> {
+    pub fn get_mystery_origin_flags_mut(&mut self) -> &mut Vec<bool> {
+        &mut self.mystery_origin_flags
+    }
+
+    pub fn get_mystery_origin_flags(&self) -> &Vec<bool> {
+        &self.mystery_origin_flags
+    }
+
+    fn get_top_fill_with_mystery_origin(&self) -> Option<(usize, BottleColor, bool)> {
         let mut last_fill = None;
+        let mut last_flag = None;
         let mut amount = 0;
 
-        for (i, color) in self.fills.iter().rev().enumerate() {
+        for (i, (color, mystery_origin)) in self
+            .fills
+            .iter()
+            .zip(self.mystery_origin_flags.iter())
+            .rev()
+            .enumerate()
+        {
             if i == 0 {
                 last_fill = Some(color);
+                last_flag = Some(*mystery_origin);
                 amount = 1;
-            } else if Some(color) == last_fill {
+            } else if Some(color) == last_fill && Some(*mystery_origin) == last_flag {
                 amount += 1;
             } else {
                 break;
             }
         }
 
-        last_fill.map(|color| (amount, *color))
+        last_fill.map(|color| (amount, *color, last_flag.unwrap()))
+    }
+
+    pub fn get_top_fill(&self) -> Option<(usize, BottleColor)> {
+        self.get_top_fill_with_mystery_origin()
+            .map(|(amount, color, _)| (amount, color))
     }
 
     pub fn is_full(&self) -> bool {
@@ -131,9 +173,10 @@ impl Bottle {
             return false;
         }
 
-        let (other_top_amount, other_top_color) = match other.get_top_fill() {
-            Some((amount, color)) => (amount, color),
-            None => return false,
+        let Some((other_top_amount, other_top_color, _mystery_origin)) =
+            other.get_top_fill_with_mystery_origin()
+        else {
+            return false;
         };
 
         if self.is_empty() {
@@ -164,7 +207,8 @@ impl Bottle {
             panic!("Cannot fill from the given source bottle");
         }
 
-        let (source_top_amount, source_top_color) = source.get_top_fill().unwrap();
+        let (source_top_amount, source_top_color, source_top_mystery_origin) =
+            source.get_top_fill_with_mystery_origin().unwrap();
 
         let available_space = FULL_BOTTLE_COUNT - self.get_fill_count();
         if available_space < source_top_amount {
@@ -173,7 +217,9 @@ impl Bottle {
 
         for _ in 0..source_top_amount {
             self.fills.push(source_top_color);
+            self.mystery_origin_flags.push(source_top_mystery_origin);
             source.fills.pop();
+            source.mystery_origin_flags.pop();
         }
     }
 }

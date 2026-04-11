@@ -9,7 +9,7 @@ fn test_bottle_is_full() {
         BottleColor::Blue,
     ];
 
-    let mut bottle = Bottle { fills };
+    let mut bottle = Bottle::from_fills(fills);
 
     assert!(bottle.is_full());
 
@@ -25,21 +25,19 @@ fn test_bottle_solved() {
         }
 
         let fills = vec![color; 4];
-        let bottle = Bottle { fills };
+        let bottle = Bottle::from_fills(fills);
         assert!(bottle.is_solved());
     });
 
-    let empty_bottle = Bottle { fills: vec![] };
+    let empty_bottle = Bottle::from_fills(vec![]);
     assert!(!empty_bottle.is_solved());
 
-    let unsolved_bottle = Bottle {
-        fills: vec![
-            BottleColor::Red,
-            BottleColor::Green,
-            BottleColor::Red,
-            BottleColor::Blue,
-        ],
-    };
+    let unsolved_bottle = Bottle::from_fills(vec![
+        BottleColor::Red,
+        BottleColor::Green,
+        BottleColor::Red,
+        BottleColor::Blue,
+    ]);
 
     assert!(!unsolved_bottle.is_solved());
 }
@@ -48,20 +46,26 @@ fn test_bottle_solved() {
 fn test_bottle_can_fill_from() {
     let source = Bottle {
         fills: vec![BottleColor::Red, BottleColor::Red],
+        mystery_origin_flags: vec![false, false],
     };
 
-    let mut destination = Bottle { fills: vec![] };
+    let mut destination = Bottle::from_fills(vec![]);
     assert!(destination.can_fill_from(&source));
 
     destination.fills.push(BottleColor::Green);
+    destination.get_mystery_origin_flags_mut().push(false);
     assert!(!destination.can_fill_from(&source));
 
     destination.fills.pop();
+    destination.get_mystery_origin_flags_mut().pop();
     destination.fills.push(BottleColor::Red);
+    destination.get_mystery_origin_flags_mut().push(false);
     assert!(destination.can_fill_from(&source));
 
     destination.fills.push(BottleColor::Red);
     destination.fills.push(BottleColor::Red);
+    destination.get_mystery_origin_flags_mut().push(false);
+    destination.get_mystery_origin_flags_mut().push(false);
     assert!(!destination.can_fill_from(&source));
 }
 
@@ -74,6 +78,7 @@ fn test_bottle_get_top_fill() {
             BottleColor::Green,
             BottleColor::Green,
         ],
+        mystery_origin_flags: vec![false, false, false, false],
     };
 
     let (amount, color) = bottle.get_top_fill().unwrap();
@@ -90,6 +95,7 @@ fn test_bottle_get_top_fill_all_same() {
             BottleColor::Red,
             BottleColor::Red,
         ],
+        mystery_origin_flags: vec![false, false, false, false],
     };
 
     let (amount, color) = bottle.get_top_fill().unwrap();
@@ -99,9 +105,10 @@ fn test_bottle_get_top_fill_all_same() {
 
 #[test]
 fn test_bottle_fill_from_simple() {
-    let mut destination = Bottle { fills: vec![] };
+    let mut destination = Bottle::from_fills(vec![]);
     let mut source = Bottle {
         fills: vec![BottleColor::Red, BottleColor::Red],
+        mystery_origin_flags: vec![false, false],
     };
 
     destination.fill_from(&mut source);
@@ -112,11 +119,10 @@ fn test_bottle_fill_from_simple() {
 
 #[test]
 fn test_bottle_fill_from_partial() {
-    let mut destination = Bottle {
-        fills: vec![BottleColor::Red],
-    };
+    let mut destination = Bottle::from_fills(vec![BottleColor::Red]);
     let mut source = Bottle {
         fills: vec![BottleColor::Red, BottleColor::Red, BottleColor::Red],
+        mystery_origin_flags: vec![false, false, false],
     };
 
     destination.fill_from(&mut source);
@@ -138,12 +144,10 @@ fn test_bottle_fill_from_partial() {
 
 #[test]
 fn test_bottle_is_empty() {
-    let empty = Bottle { fills: vec![] };
+    let empty = Bottle::from_fills(vec![]);
     assert!(empty.is_empty());
 
-    let not_empty = Bottle {
-        fills: vec![BottleColor::Red],
-    };
+    let not_empty = Bottle::from_fills(vec![BottleColor::Red]);
     assert!(!not_empty.is_empty());
 }
 
@@ -151,6 +155,7 @@ fn test_bottle_is_empty() {
 fn test_bottle_fill_count() {
     let bottle = Bottle {
         fills: vec![BottleColor::Red, BottleColor::Green, BottleColor::Blue],
+        mystery_origin_flags: vec![false, false, false],
     };
     assert_eq!(bottle.get_fill_count(), 3);
 }
