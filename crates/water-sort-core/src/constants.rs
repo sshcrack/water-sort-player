@@ -17,10 +17,10 @@ pub const RETRY_BUTTON_POS: Pos = Pos(324, 57);
 
 pub const FAILED_LEVEL_TEXT: Pos = Pos(170, 647);
 
-pub const NO_THANK_YOU_REWARDS_POS: Pos = Pos(187, 737);
 pub const Y_MEASURE_OFFSET: i32 = 0;
 pub const X_MEASURE_OFFSET: i32 = 0;
 lazy_static! {
+    pub static ref NO_THANK_YOU_POSITIONS: Vec<Pos> = vec![Pos(177, 738), Pos(187, 737)];
     pub static ref FAILED_LEVEL_COLOR: Vec3b = vec3_from_hex("#f8d224");
     pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#eff6e2");
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");

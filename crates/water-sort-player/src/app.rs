@@ -6,7 +6,9 @@ use opencv::{
     core::{Mat, MatTraitConst, Vec3b},
     videoio::VideoCaptureTrait,
 };
-use water_sort_core::constants::color_distance_sq;
+use water_sort_core::constants::{
+    NO_THANK_YOU_POSITIONS, NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+};
 use water_sort_device::{click_at_position, start_capture};
 
 use crate::{
@@ -14,8 +16,7 @@ use crate::{
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
     capture::{DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png},
     constants::{
-        NEXT_LEVEL_BUTTON_POS, NO_THANK_YOU_REWARDS_POS, RETRY_BUTTON_POS, START_BUTTON_POS,
-        is_color_within_tolerance,
+        NEXT_LEVEL_BUTTON_POS, RETRY_BUTTON_POS, START_BUTTON_POS, is_color_within_tolerance,
     },
     solver::{
         Move,
@@ -452,14 +453,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
             AppState::CheckForRewards { trigger_at } => {
                 if now >= *trigger_at {
-                    let pixel = frame_raw
-                        .at_2d::<Vec3b>(NO_THANK_YOU_REWARDS_POS.1, NO_THANK_YOU_REWARDS_POS.0)?;
+                    let has_no_thank_you = NO_THANK_YOU_POSITIONS.iter().any(|pos| {
+                        let pixel = frame_raw.at_2d::<Vec3b>(pos.1, pos.0).unwrap();
 
-                    if color_distance_sq(pixel, &crate::constants::NO_THANK_YOU_REWARDS_COLOR)
-                        < 50 * 50
-                    {
+                        color_distance_sq(pixel, &NO_THANK_YOU_REWARDS_COLOR) < 50 * 50
+                    });
+
+                    if has_no_thank_you {
                         println!("Reward screen detected, clicking 'No, thank you'...");
-                        click_at_position(NO_THANK_YOU_REWARDS_POS);
+                        click_at_position(NO_THANK_YOU_POSITIONS[0]);
                     } else {
                         println!("No reward screen detected, proceeding to next level...");
                     }
