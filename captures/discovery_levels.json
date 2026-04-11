@@ -139,6 +139,56 @@
       "layout_name": "7-bottles",
       "mystery_count_at_start": 0,
       "resolved_bottles": "BOGP BBOO BGOR PGPR RRPG EEEE EEEE"
+    },
+    {
+      "bottle_count": 9,
+      "captured_at_ms": 1775918603496,
+      "expected_bottles": "W??W G??? O??? G??? Y??P B??B EEEE EEEE R??O",
+      "id": 15,
+      "image_filename": "discovery-level-15.png",
+      "layout_name": "nine_bottle_layout",
+      "mystery_count_at_start": 17,
+      "resolved_bottles": "WPGW GBYG OWPR GYRP YRYP BBOB EEEE EEEE ROWO"
+    },
+    {
+      "bottle_count": 8,
+      "captured_at_ms": 1775918777889,
+      "expected_bottles": "BYYR R??R Y??O GRPO OBPY GGBG EEEE EEEE",
+      "id": 16,
+      "image_filename": "discovery-level-16.png",
+      "layout_name": "eight_bottle_layout",
+      "mystery_count_at_start": 4,
+      "resolved_bottles": "BYYR RBPR YPOO GRPO OBPY GGBG EEEE EEEE"
+    },
+    {
+      "bottle_count": 8,
+      "captured_at_ms": 1775918877693,
+      "expected_bottles": "B??R G??G O??W O??O BRPP BGRP EEEE EEEE",
+      "id": 17,
+      "image_filename": "discovery-level-17.png",
+      "layout_name": "eight_bottle_layout",
+      "mystery_count_at_start": 8,
+      "resolved_bottles": "BRPR GWOG OBWW OGWO BRPP BGRP EEEE EEEE"
+    },
+    {
+      "bottle_count": 8,
+      "captured_at_ms": 1775918997343,
+      "expected_bottles": "PRBB POGB GYPO YOPG Y??? R??? EEEE EEEE",
+      "id": 18,
+      "image_filename": "discovery-level-18.png",
+      "layout_name": "eight_bottle_layout",
+      "mystery_count_at_start": 6,
+      "resolved_bottles": "PRBB POGB GYPO YOPG YBRG RYOR EEEE EEEE"
+    },
+    {
+      "bottle_count": 9,
+      "captured_at_ms": 1775919106921,
+      "expected_bottles": "OGGP OLYO BBGR PRLY LYBP LPOY EEEE EEEE BRRG",
+      "id": 19,
+      "image_filename": "discovery-level-19.png",
+      "layout_name": "nine_bottle_layout",
+      "mystery_count_at_start": 0,
+      "resolved_bottles": "OGGP OLYO BBGR PRLY LYBP LPOY EEEE EEEE BRRG"
     }
   ]
 }

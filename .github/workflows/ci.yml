@@ -20,28 +20,18 @@ jobs:
                   packages: libopencv-dev clang libclang-dev liblapack3 liblapack-dev
                   version: 1.0
 
-            - name: Install Rust toolchain
-              uses: dtolnay/rust-toolchain@stable
-
+            - uses: actions-rs/toolchain@v1
             - name: Cache Rust dependencies
               uses: Swatinem/rust-cache@v2
 
-            - name: Cache cargo-nextest
-              uses: actions/cache@v4
-              with:
-                  path: ~/.cargo/bin/cargo-nextest
-                  key: cargo-nextest-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-                  restore-keys: |
-                      cargo-nextest-${{ runner.os }}-
-
-            - name: Install cargo-nextest
-              run: |
-                  if ! command -v cargo-nextest >/dev/null 2>&1; then
-                    cargo install cargo-nextest --locked
-                  fi
-
+            - uses: taiki-e/install-action@nextest
             - name: Build
-              run: cargo build --locked
+              uses: actions-rs/cargo@v1
+              with:
+                command: build
 
-            - name: Test
-              run: cargo nextest run --locked
+            - name: Test with latest nextest release
+              uses: actions-rs/cargo@v1
+              with:
+                command: nextest
+                args: run --release
