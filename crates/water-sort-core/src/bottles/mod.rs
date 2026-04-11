@@ -66,7 +66,8 @@ fn best_matching_surrounding_pixel(
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
-    fills: Vec<BottleColor>
+    // The boolean indicates whether the initial color was mystery, to properly handle filling in the solver
+    fills: Vec<(BottleColor, bool)>,
 }
 
 // Remove hardcoded constants - using layouts now
@@ -74,26 +75,47 @@ const FULL_BOTTLE_COUNT: usize = 4;
 
 impl Bottle {
     pub fn from_fills(fills: Vec<BottleColor>) -> Self {
-        Bottle { fills }
+        Bottle {
+            fills: fills
+                .into_iter()
+                .map(|color| (color, color == BottleColor::Mystery))
+                .collect(),
+        }
     }
 
-    pub fn get_fills_mut(&mut self) -> &mut Vec<BottleColor> {
+    pub fn from_fills_with_initial(fills: Vec<BottleColor>, initial: Vec<BottleColor>) -> Self {
+        Bottle {
+            fills: fills
+                .into_iter()
+                .zip(initial)
+                .map(|(color, initial_color)| (color, initial_color == BottleColor::Mystery))
+                .collect(),
+        }
+    }
+
+    pub fn get_fills_mut(&mut self) -> &mut Vec<(BottleColor, bool)> {
         &mut self.fills
     }
 
-    pub fn get_fills(&self) -> &Vec<BottleColor> {
-        &self.fills
+    pub fn get_fills(&self) -> Vec<BottleColor> {
+        self.fills.iter().map(|(color, _)| *color).collect()
     }
 
     pub fn get_top_fill(&self) -> Option<(usize, BottleColor)> {
         let mut last_fill = None;
         let mut amount = 0;
 
-        for (i, color) in self.fills.iter().rev().enumerate() {
+        for (i, (color, was_mystery)) in self.fills.iter().rev().enumerate() {
             if i == 0 {
                 last_fill = Some(color);
                 amount = 1;
+                if *was_mystery {
+                    break;
+                }
             } else if Some(color) == last_fill {
+                if *was_mystery {
+                    break;
+                }
                 amount += 1;
             } else {
                 break;
@@ -120,10 +142,10 @@ impl Bottle {
             return false;
         }
 
-        let first_color = self.fills[0];
+        let (first_color, _) = self.fills[0];
         self.fills
             .iter()
-            .all(|&color| color == first_color && color != BottleColor::Mystery)
+            .all(|&(color, _)| color == first_color && color != BottleColor::Mystery)
     }
 
     pub fn can_fill_from(&self, other: &Bottle) -> bool {
@@ -172,7 +194,7 @@ impl Bottle {
         }
 
         for _ in 0..source_top_amount {
-            self.fills.push(source_top_color);
+            self.fills.push((source_top_color, false));
             source.fills.pop();
         }
     }
@@ -259,7 +281,7 @@ pub fn detect_bottles_with_layout(
                         )
                         .unwrap();
                         seen_content = true;
-                        bottle.fills.push(color);
+                        bottle.fills.push((color, false));
                     }
                     LayerSample::Unknown => {
                         any_unknown = true;

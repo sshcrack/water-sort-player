@@ -18,11 +18,12 @@ pub fn draw_revealed_fill_markers(
                 continue;
             }
 
-            let current_color = current_bottle_state
-                .get(bottle_index)
-                .and_then(|current| current.get_fills().get(fill_index));
+            let current_color = current_bottle_state.get(bottle_index).and_then(|current| {
+                let fills = current.get_fills();
+                fills.get(fill_index).cloned()
+            });
 
-            if current_color != Some(&BottleColor::Mystery) {
+            if current_color != Some(BottleColor::Mystery) {
                 continue;
             }
 

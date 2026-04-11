@@ -9,7 +9,7 @@ fn test_bottle_is_full() {
         BottleColor::Blue,
     ];
 
-    let mut bottle = Bottle { fills };
+    let mut bottle = Bottle::from_fills(fills);
 
     assert!(bottle.is_full());
 
@@ -25,56 +25,50 @@ fn test_bottle_solved() {
         }
 
         let fills = vec![color; 4];
-        let bottle = Bottle { fills };
+        let bottle = Bottle::from_fills(fills);
         assert!(bottle.is_solved());
     });
 
     let empty_bottle = Bottle { fills: vec![] };
     assert!(!empty_bottle.is_solved());
 
-    let unsolved_bottle = Bottle {
-        fills: vec![
-            BottleColor::Red,
-            BottleColor::Green,
-            BottleColor::Red,
-            BottleColor::Blue,
-        ],
-    };
+    let unsolved_bottle = Bottle::from_fills(vec![
+        BottleColor::Red,
+        BottleColor::Green,
+        BottleColor::Red,
+        BottleColor::Blue,
+    ]);
 
     assert!(!unsolved_bottle.is_solved());
 }
 
 #[test]
 fn test_bottle_can_fill_from() {
-    let source = Bottle {
-        fills: vec![BottleColor::Red, BottleColor::Red],
-    };
+    let source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red]);
 
     let mut destination = Bottle { fills: vec![] };
     assert!(destination.can_fill_from(&source));
 
-    destination.fills.push(BottleColor::Green);
+    destination.fills.push((BottleColor::Green, false));
     assert!(!destination.can_fill_from(&source));
 
     destination.fills.pop();
-    destination.fills.push(BottleColor::Red);
+    destination.fills.push((BottleColor::Red, false));
     assert!(destination.can_fill_from(&source));
 
-    destination.fills.push(BottleColor::Red);
-    destination.fills.push(BottleColor::Red);
+    destination.fills.push((BottleColor::Red, false));
+    destination.fills.push((BottleColor::Red, false));
     assert!(!destination.can_fill_from(&source));
 }
 
 #[test]
 fn test_bottle_get_top_fill() {
-    let bottle = Bottle {
-        fills: vec![
-            BottleColor::Red,
-            BottleColor::Red,
-            BottleColor::Green,
-            BottleColor::Green,
-        ],
-    };
+    let bottle = Bottle::from_fills(vec![
+        BottleColor::Red,
+        BottleColor::Red,
+        BottleColor::Green,
+        BottleColor::Green,
+    ]);
 
     let (amount, color) = bottle.get_top_fill().unwrap();
     assert_eq!(amount, 2);
@@ -83,14 +77,12 @@ fn test_bottle_get_top_fill() {
 
 #[test]
 fn test_bottle_get_top_fill_all_same() {
-    let bottle = Bottle {
-        fills: vec![
-            BottleColor::Red,
-            BottleColor::Red,
-            BottleColor::Red,
-            BottleColor::Red,
-        ],
-    };
+    let bottle = Bottle::from_fills(vec![
+        BottleColor::Red,
+        BottleColor::Red,
+        BottleColor::Red,
+        BottleColor::Red,
+    ]);
 
     let (amount, color) = bottle.get_top_fill().unwrap();
     assert_eq!(amount, 4);
@@ -99,25 +91,22 @@ fn test_bottle_get_top_fill_all_same() {
 
 #[test]
 fn test_bottle_fill_from_simple() {
-    let mut destination = Bottle { fills: vec![] };
-    let mut source = Bottle {
-        fills: vec![BottleColor::Red, BottleColor::Red],
-    };
+    let mut destination = Bottle::from_fills(vec![]);
+    let mut source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red]);
 
     destination.fill_from(&mut source);
 
-    assert_eq!(destination.fills, vec![BottleColor::Red, BottleColor::Red]);
+    assert_eq!(
+        destination.fills,
+        vec![(BottleColor::Red, false), (BottleColor::Red, false)]
+    );
     assert!(source.is_empty());
 }
 
 #[test]
 fn test_bottle_fill_from_partial() {
-    let mut destination = Bottle {
-        fills: vec![BottleColor::Red],
-    };
-    let mut source = Bottle {
-        fills: vec![BottleColor::Red, BottleColor::Red, BottleColor::Red],
-    };
+    let mut destination = Bottle::from_fills(vec![BottleColor::Red]);
+    let mut source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red, BottleColor::Red]);
 
     destination.fill_from(&mut source);
 
@@ -127,10 +116,10 @@ fn test_bottle_fill_from_partial() {
     assert_eq!(
         destination.fills,
         vec![
-            BottleColor::Red,
-            BottleColor::Red,
-            BottleColor::Red,
-            BottleColor::Red
+            (BottleColor::Red, false),
+            (BottleColor::Red, false),
+            (BottleColor::Red, false),
+            (BottleColor::Red, false)
         ]
     );
     assert!(source.is_empty());
@@ -141,16 +130,16 @@ fn test_bottle_is_empty() {
     let empty = Bottle { fills: vec![] };
     assert!(empty.is_empty());
 
-    let not_empty = Bottle {
-        fills: vec![BottleColor::Red],
-    };
+    let not_empty = Bottle::from_fills(vec![BottleColor::Red]);
     assert!(!not_empty.is_empty());
 }
 
 #[test]
 fn test_bottle_fill_count() {
-    let bottle = Bottle {
-        fills: vec![BottleColor::Red, BottleColor::Green, BottleColor::Blue],
-    };
+    let bottle = Bottle::from_fills(vec![
+        BottleColor::Red,
+        BottleColor::Green,
+        BottleColor::Blue,
+    ]);
     assert_eq!(bottle.get_fill_count(), 3);
 }

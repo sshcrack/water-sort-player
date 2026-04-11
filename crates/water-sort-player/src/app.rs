@@ -274,7 +274,18 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         finalize_discovery_capture(&mut discovery_capture);
 
-                        let solution = run_solver(max_revealed_bottle_state)
+                        let mut solver_bottles = Vec::new();
+                        max_revealed_bottle_state
+                            .iter()
+                            .enumerate()
+                            .for_each(|(i, bottle)| {
+                                solver_bottles.push(Bottle::from_fills_with_initial(
+                                    bottle.get_fills().clone(),
+                                    initial_state[i].get_fills().clone(),
+                                ));
+                            });
+
+                        let solution = run_solver(&solver_bottles)
                             .expect("Failed to find a solution for the revealed bottle state");
 
                         println!("Resetting level for the solver...");

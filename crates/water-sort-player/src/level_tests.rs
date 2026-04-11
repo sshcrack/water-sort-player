@@ -141,11 +141,14 @@ macro_rules! create_generated_test_level {
                         "Discovery simulation should reveal all mystery colors for captured level {}",
                         $capture_id
                     );
-                    assert_eq!(
+
+                    let are_equal = crate::bottles::test_utils::TestUtils::are_bottles_equal(final_revealed.as_slice(), RESOLVED_BOTTLES.as_slice());
+                    assert!(
+                        are_equal,
+                        "Final revealed bottles do not match expected resolved bottles for captured level {}. Final revealed: {:?}, Expected resolved: {:?}",
+                        $capture_id,
                         final_revealed,
-                        RESOLVED_BOTTLES.as_slice(),
-                        "Discovery simulation should match the captured resolved state for level {}",
-                        $capture_id
+                        *RESOLVED_BOTTLES
                     );
 
                     solve_and_assert(final_revealed);
@@ -242,7 +245,15 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         }
     }
 
-    max_revealed
+    let mut solver_bottles = Vec::new();
+    max_revealed.iter().enumerate().for_each(|(i, bottle)| {
+        solver_bottles.push(Bottle::from_fills_with_initial(
+            bottle.get_fills().clone(),
+            initial[i].get_fills().clone(),
+        ));
+    });
+
+    solver_bottles
 }
 
 #[allow(dead_code)]
@@ -258,11 +269,11 @@ fn reveal_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
             let mut index = observed.len();
             while index > 0 {
                 let fill_index = index - 1;
-                if observed[fill_index] != BottleColor::Mystery {
+                if observed[fill_index].0 != BottleColor::Mystery {
                     break;
                 }
 
-                observed[fill_index] = resolved[fill_index];
+                observed[fill_index] = (resolved[fill_index], false);
                 index -= 1;
             }
         });

@@ -62,7 +62,7 @@ pub fn improve_best_revealed_state(
                 .iter_mut()
                 .zip(current_bottle.get_fills().iter())
                 .zip(previous_bottle.get_fills().iter())
-                .for_each(|((revealed_color, current_color), previous_color)| {
+                .for_each(|(((revealed_color, _), current_color), previous_color)| {
                     if *revealed_color == BottleColor::Mystery
                         && previous_color == &BottleColor::Mystery
                         && current_color != &BottleColor::Mystery
@@ -85,7 +85,7 @@ pub fn improve_current_bottles_with_revealed_state(
                 .get_fills_mut()
                 .iter_mut()
                 .zip(revealed_bottle.get_fills().iter())
-                .for_each(|(current_color, revealed_color)| {
+                .for_each(|((current_color, _), revealed_color)| {
                     if *current_color == BottleColor::Mystery {
                         *current_color = *revealed_color;
                     }
@@ -113,6 +113,6 @@ mod tests {
         improve_best_revealed_state(&mut revealed_state, &previous_bottles, &current_bottles);
 
         let expected_revealed_state = TestUtils::parse_bottles_sequence("PY?? YG?? G???");
-        assert_eq!(revealed_state, expected_revealed_state);
+        assert!(TestUtils::are_bottles_equal(&revealed_state, &expected_revealed_state), "Revealed state should be improved with newly discovered colors. Actual: {:?}, Expected: {:?}", revealed_state, expected_revealed_state);
     }
 }
