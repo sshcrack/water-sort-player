@@ -1,6 +1,5 @@
 [
     {
-        "id": "10-bottles",
         "friendly-name": "ten_bottle_layout",
         "layer": {
             "spacing": 35,
@@ -32,7 +31,6 @@
         ]
     },
     {
-        "id": "11-bottles",
         "friendly-name": "eleven_bottle_layout",
         "layer": {
             "spacing": 31,
@@ -64,7 +62,6 @@
         ]
     },
     {
-        "id": "12-bottles",
         "friendly-name": "twelve_bottle_layout",
         "layer": {
             "spacing": 31,
@@ -96,7 +93,6 @@
         ]
     },
     {
-        "id": "5-bottles",
         "friendly-name": "five_bottle_layout",
         "layer": {
             "spacing": 35,
@@ -117,7 +113,6 @@
         ]
     },
     {
-        "id": "6-bottles",
         "friendly-name": "six_bottle_layout",
         "layer": {
             "spacing": 31,
@@ -138,7 +133,6 @@
         ]
     },
     {
-        "id": "7-bottles",
         "friendly-name": "seven_bottle_layout",
         "layer": {
             "spacing": 38,
@@ -170,7 +164,6 @@
         ]
     },
     {
-        "id": "12-alternative-bottles",
         "friendly-name": "twelve_bottle_layout_alternative",
         "layer": {
             "count": 4,
@@ -208,6 +201,37 @@
                 "spacing": [
                     76,
                     0
+                ]
+            }
+        ]
+    },
+    {
+        "friendly-name": "eight_bottle_layout",
+        "layer": {
+            "count": 4,
+            "spacing": 35
+        },
+        "rows": [
+            {
+                "bottle_count": 4,
+                "spacing": [
+                    84,
+                    0
+                ],
+                "start_position": [
+                    49,
+                    208
+                ]
+            },
+            {
+                "bottle_count": 4,
+                "spacing": [
+                    84,
+                    0
+                ],
+                "start_position": [
+                    51,
+                    446
                 ]
             }
         ]

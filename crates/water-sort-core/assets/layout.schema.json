@@ -6,13 +6,9 @@
     "minItems": 1,
     "items": {
         "type": "object",
-        "required": ["id", "friendly-name", "layer", "rows"],
+        "required": ["friendly-name", "layer", "rows"],
         "additionalProperties": false,
         "properties": {
-            "id": {
-                "type": "string",
-                "pattern": "^[a-z0-9-]+$"
-            },
             "friendly-name": {
                 "type": "string",
                 "pattern": "^[a-z0-9_]+$"

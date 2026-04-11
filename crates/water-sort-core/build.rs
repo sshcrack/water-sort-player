@@ -4,7 +4,6 @@ use std::{env, fs, path::PathBuf};
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct LayoutDefinition {
-    id: String,
     #[serde(rename = "friendly-name")]
     friendly_name: String,
     layer: LayerDefinition,
@@ -64,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         generated.push_str(&format!(
             "       bottle_layout!(\"{}\", {}, {}, {})\n",
-            definition.id, definition.layer.spacing, definition.layer.count, rows_macro_argument
+            definition.friendly_name, definition.layer.spacing, definition.layer.count, rows_macro_argument
         ));
 
         generated.push_str("    }\n");
