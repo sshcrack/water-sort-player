@@ -313,7 +313,10 @@ pub fn detect_bottles_with_layout(
             &opencv::core::Vector::new(),
         );
 
-        println!("Detection files have been saved to {} and {}", raw_filename, display_filename);
+        println!(
+            "Detection files have been saved to {} and {}",
+            raw_filename, display_filename
+        );
         return Err(anyhow::anyhow!(
             "One or more pixels could not be matched to known colors"
         ));

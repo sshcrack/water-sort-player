@@ -113,7 +113,6 @@ create_bottle_detection_test!(
     "BGBO GGOO BGBO EEEE EEEE"
 );
 
-
 create_bottle_detection_test!(
     test_six_bottle_detection,
     "detection/six-bottle-detection.png",
@@ -121,14 +120,12 @@ create_bottle_detection_test!(
     "PGBP GGOO EEOO EEEE EEBB GPBP"
 );
 
-
 create_bottle_detection_test!(
     test_seven_bottle_detection,
     "detection/seven-bottle-detection.png",
     BottleLayout::seven_bottle_layout(),
     "OGGP OOBB OGBB RPGP RPRR EEEE EEEE"
 );
-
 
 create_bottle_detection_test!(
     test_twelve_alternative_detection,

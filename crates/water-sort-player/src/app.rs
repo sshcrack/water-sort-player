@@ -234,7 +234,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     let mut previous_bottles = max_revealed_bottle_state.clone();
                     println!("Reconstructing state...");
-                    #[cfg(feature="discovery-debugging")]
+                    #[cfg(feature = "discovery-debugging")]
                     {
                         println!("Current moves to reconstruct state: {:#?}", current_moves);
                         println!("Of max revealed state: {:#?}", max_revealed_bottle_state);

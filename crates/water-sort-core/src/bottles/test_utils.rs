@@ -1,4 +1,8 @@
-use std::{env, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    env, fs,
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::bottles::{Bottle, BottleLayout};
 use crate::constants::BottleColor;
