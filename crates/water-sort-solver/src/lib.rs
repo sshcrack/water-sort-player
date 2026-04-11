@@ -66,17 +66,12 @@ fn canonical_state_key(bottles: &[Bottle]) -> CanonicalStateKey {
 
 fn bottle_run_count(bottle: &Bottle) -> usize {
     let fills = bottle.get_fills();
-    let mystery_origin_flags = bottle.get_mystery_origin_flags();
 
     if fills.is_empty() {
         return 0;
     }
 
-    1 + fills
-        .windows(2)
-        .zip(mystery_origin_flags.windows(2))
-        .filter(|(colors, flags)| colors[0] != colors[1] || flags[0] != flags[1])
-        .count()
+    1 + fills.windows(2).filter(|pair| pair[0] != pair[1]).count()
 }
 
 fn total_run_count(bottles: &[Bottle]) -> usize {
@@ -109,13 +104,9 @@ fn reconstruct_moves(records: &[SearchRecord], mut record_index: usize) -> Vec<M
 
 fn is_single_color_bottle(bottle: &Bottle) -> bool {
     let fills = bottle.get_fills();
-    let mystery_origin_flags = bottle.get_mystery_origin_flags();
 
     let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
-    let flag_set = std::collections::HashSet::<&bool>::from_iter(mystery_origin_flags.iter());
-    hash_set.len() == 1
-        && hash_set.iter().next() != Some(&&BottleColor::Mystery)
-        && flag_set.len() == 1
+    hash_set.len() == 1 && hash_set.iter().next() != Some(&&BottleColor::Mystery)
 }
 
 fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {

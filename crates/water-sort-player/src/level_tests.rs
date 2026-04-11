@@ -219,12 +219,16 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         }
 
         improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+        println!("Current revealed state: {:#?}", max_revealed);
+        println!("Current bottle state: {:#?}", current_state);
         match find_best_discovery_moves(&current_state, &max_revealed) {
             DiscoverResult::MoveToDiscover(moves_to_apply) => {
                 if moves_to_apply.is_empty() {
-                    break;
+                    panic!("find_best_discovery_moves returned MoveToDiscover with empty move list");
                 }
 
+                println!("Applying discovery moves to reveal new colors...");
+                println!("Moves to apply: {:#?}", moves_to_apply);
                 for mv in moves_to_apply {
                     let previous_state = current_state.clone();
                     mv.perform_move_on_bottles(&mut current_state);
@@ -235,6 +239,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                 }
             }
             DiscoverResult::NoMove => {
+                // Simulating restart
                 println!("No more discovery moves found, simulating restart...");
                 current_moves.clear();
                 current_state = initial.to_vec();

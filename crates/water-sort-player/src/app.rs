@@ -325,6 +325,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     "No discovery move found that reveals new colors. Retrying level..."
                                 );
 
+
+                                #[cfg(feature="discovery-debugging")]
+                                {
+                                    println!("Current bottles: {:#?}", current_bottles);
+                                    println!("Max revealed bottle state: {:#?}", max_revealed_bottle_state);
+                                    println!("Current moves: {:#?}", current_moves);
+                                    std::io::stdin().read_line(&mut String::new()).unwrap();
+                                }
+
                                 click_at_position(RETRY_BUTTON_POS);
 
                                 app_state = AppState::MysteryDiscoverColors {

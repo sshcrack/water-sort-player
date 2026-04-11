@@ -1,0 +1,3731 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+Current revealed state: [
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        0,
+        10,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        9,
+        10,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        9,
+        0,
+    ),
+    Move(
+        5,
+        9,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        2,
+        5,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        2,
+        9,
+    ),
+    Move(
+        3,
+        2,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        1,
+        11,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            false,
+        ],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        4,
+        1,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            MediumBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            false,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            false,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            false,
+        ],
+    },
+]
+No more discovery moves found, simulating restart...
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        6,
+        10,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            MediumBlue,
+            LightBlue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            MediumBlue,
+            LightBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Orange,
+        ],
+        mystery_origin_flags: [
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        7,
+        11,
+    ),
+]
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            MediumBlue,
+            LightBlue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            LightBlue,
+            Green,
+            Purple,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            MediumBlue,
+            LightBlue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            LightBlue,
+            Green,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Orange,
+        ],
+        mystery_origin_flags: [
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+        ],
+        mystery_origin_flags: [
+            false,
+        ],
+    },
+]
+No more discovery moves found, simulating restart...
+Current revealed state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            MediumBlue,
+            LightBlue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            LightBlue,
+            Green,
+            Purple,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current bottle state: [
+    Bottle {
+        fills: [
+            Orange,
+            LightBlue,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            MediumBlue,
+            Orange,
+            Yellow,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Lime,
+            Red,
+            Blue,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Purple,
+            Lime,
+            LightBlue,
+            Lime,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Lime,
+            Blue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Pink,
+            Red,
+            Blue,
+            Red,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Green,
+            MediumBlue,
+            LightBlue,
+            Orange,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            LightBlue,
+            Green,
+            Purple,
+            Green,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Pink,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [
+            Yellow,
+            Red,
+            MediumBlue,
+            Purple,
+        ],
+        mystery_origin_flags: [
+            true,
+            true,
+            true,
+            false,
+        ],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Applying discovery moves to reveal new colors...
+Moves to apply: [
+    Move(
+        8,
+        10,
+    ),
+]
+Solving puzzle with initial state: [Bottle { fills: [Orange, LightBlue, MediumBlue, Purple], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Yellow, MediumBlue, Orange, Yellow], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Green, Lime, Red, Blue], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Purple, Lime, LightBlue, Lime], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Pink, Lime, Blue, Orange], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Pink, Red, Blue, Red], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Green, MediumBlue, LightBlue, Orange], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [LightBlue, Green, Purple, Green], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Yellow, Pink, Blue, Pink], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [Yellow, Red, MediumBlue, Purple], mystery_origin_flags: [true, true, true, false] }, Bottle { fills: [], mystery_origin_flags: [] }, Bottle { fills: [], mystery_origin_flags: [] }]
+test level_tests::captured_level_11::discovery_reveal_and_solve ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 5.28s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+

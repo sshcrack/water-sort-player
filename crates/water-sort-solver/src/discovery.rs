@@ -81,13 +81,19 @@ pub fn improve_current_bottles_with_revealed_state(
         .iter_mut()
         .zip(max_revealed_bottle_state.iter())
         .for_each(|(current_bottle, revealed_bottle)| {
-            current_bottle
-                .get_fills_mut()
+            let (current_colors, current_flags) =
+                current_bottle.get_fills_and_mystery_origin_flags_mut();
+            let revealed_colors = revealed_bottle.get_fills();
+            let revealed_flags = revealed_bottle.get_mystery_origin_flags();
+
+            current_colors
                 .iter_mut()
-                .zip(revealed_bottle.get_fills().iter())
-                .for_each(|(current_color, revealed_color)| {
+                .zip(revealed_colors.iter())
+                .zip(current_flags.iter_mut().zip(revealed_flags.iter()))
+                .for_each(|((current_color, revealed_color), (current_flag, revealed_flag))| {
                     if *current_color == BottleColor::Mystery {
                         *current_color = *revealed_color;
+                        *current_flag = *revealed_flag;
                     }
                 });
         });

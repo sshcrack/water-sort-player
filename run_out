@@ -1,0 +1,198 @@
+Loading loopback video device...
+scrcpy started successfully.
+Waiting for scrcpy to initialize video stream...scrcpy 3.3.4 <https://github.com/Genymobile/scrcpy>
+INFO: ADB device found:
+INFO:     --> (tcpip)  10.6.0.15:5555                  device  sdk_gphone16k_x86_64
+..[server] INFO: Device: [Google] google sdk_gphone16k_x86_64 (Android 17)
+.INFO: Renderer: opengl
+INFO: OpenGL version: 4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.1
+INFO: Trilinear filtering disabled
+.INFO: v4l2 sink started to device: /dev/video10
+
+scrcpy is ready, starting video capture...
+[server] INFO: Starting app "Water Sort" [com.no1ornothing.color.water.sort.woody.puzzle] on display 0...
+Computed scale factors - X: 3, Y: 3
+Video stream dimensions: 360x800
+Creating window...
+Reading first frame...
+Starting level...
+Detecting bottles for new level...
+Layout '10-bottles' fit score: 8
+Layout '11-bottles' fit score: 4
+Layout '12-bottles' fit score: 4
+Layout '5-bottles' fit score: 0
+Layout '6-bottles' fit score: 1
+Layout '7-bottles' fit score: 20
+Layout '12-alternative-bottles' fit score: 3
+Detected 6 mystery colors, starting discovery process...
+Reconstructing state...
+Current moves to reconstruct state: []
+Of max revealed state: [
+    Bottle {
+        fills: [
+            Purple,
+            Green,
+            Orange,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Red,
+            Purple,
+            Green,
+            Purple,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Purple,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Total mystery colors still hidden: 6
+Press enter to continue discovery...
+No discovery move found that reveals new colors. Retrying level...
+Current bottles: [
+    Bottle {
+        fills: [
+            Purple,
+            Green,
+            Orange,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Red,
+            Purple,
+            Green,
+            Purple,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Purple,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Max revealed bottle state: [
+    Bottle {
+        fills: [
+            Purple,
+            Green,
+            Orange,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Mystery,
+            Mystery,
+            Mystery,
+            Blue,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Red,
+            Purple,
+            Green,
+            Purple,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [
+            Green,
+            Purple,
+            Red,
+            Red,
+        ],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+    Bottle {
+        fills: [],
+        mystery_origin_flags: [],
+    },
+]
+Current moves: []

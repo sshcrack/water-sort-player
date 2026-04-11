@@ -114,6 +114,12 @@ impl Bottle {
         &self.mystery_origin_flags
     }
 
+    pub fn get_fills_and_mystery_origin_flags_mut(
+        &mut self,
+    ) -> (&mut Vec<BottleColor>, &mut Vec<bool>) {
+        (&mut self.fills, &mut self.mystery_origin_flags)
+    }
+
     fn get_top_fill_with_mystery_origin(&self) -> Option<(usize, BottleColor, bool)> {
         let mut last_fill = None;
         let mut last_flag = None;
