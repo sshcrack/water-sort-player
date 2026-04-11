@@ -168,5 +168,48 @@
                 "bottle_count": 3
             }
         ]
+    },
+    {
+        "id": "12-alternative-bottles",
+        "friendly-name": "twelve_bottle_layout_alternative",
+        "layer": {
+            "count": 4,
+            "spacing": 28
+        },
+        "rows": [
+            {
+                "bottle_count": 4,
+                "start_position": [
+                    61,
+                    156
+                ],
+                "spacing": [
+                    76,
+                    0
+                ]
+            },
+            {
+                "bottle_count": 4,
+                "start_position": [
+                    60,
+                    340
+                ],
+                "spacing": [
+                    76,
+                    0
+                ]
+            },
+            {
+                "bottle_count": 4,
+                "start_position": [
+                    61,
+                    528
+                ],
+                "spacing": [
+                    76,
+                    0
+                ]
+            }
+        ]
     }
 ]

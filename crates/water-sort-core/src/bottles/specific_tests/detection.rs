@@ -128,3 +128,11 @@ create_bottle_detection_test!(
     BottleLayout::seven_bottle_layout(),
     "OGGP OOBB OGBB RPGP RPRR EEEE EEEE"
 );
+
+
+create_bottle_detection_test!(
+    test_twelve_alternative_detection,
+    "detection/twelve-alternative-detection.png",
+    BottleLayout::twelve_bottle_layout_alternative(),
+    "P??? Y??? O??? G??? B??? B??? O??? B??? M??? P??? EEEE EEEE"
+);
