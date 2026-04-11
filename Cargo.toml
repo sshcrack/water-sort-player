@@ -4,6 +4,10 @@ members = [
 	"crates/water-sort-device",
 	"crates/water-sort-solver",
 	"crates/water-sort-capture",
+	"crates/water-sort-player",
+	"crates/water-sort-image-debugger"
+]
+default-members = [
 	"crates/water-sort-player"
 ]
 resolver = "2"

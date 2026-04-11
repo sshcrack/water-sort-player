@@ -79,8 +79,11 @@ lazy_static! {
         (BottleColor::Orange, vec3_from_hex("#f37c1c"))
     ];
     pub static ref FAILED_LEVEL_EMPTY_COLOR: Vec3b = vec3_from_hex("#331c14");
-    pub static ref EMPTY_COLOR: Vec3b = vec3_from_hex("#713d2c");
-    pub static ref OTHER_EMPTY_COLOR: Vec3b = vec3_from_hex("#a9674e");
+    pub static ref EMPTY_COLORS: Vec<Vec3b> = vec![
+        vec3_from_hex("#371D16"),
+        vec3_from_hex("#713d2c"),
+        vec3_from_hex("#a9674e")
+    ];
 }
 
 pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
@@ -116,14 +119,18 @@ impl BottleColor {
     }
 
     pub fn is_empty_pixel(pixel: &Vec3b, has_failed_level: bool) -> bool {
-        let mut distance = color_distance_sq(pixel, &EMPTY_COLOR);
-        if has_failed_level {
-            distance = distance.min(color_distance_sq(pixel, &FAILED_LEVEL_EMPTY_COLOR));
+        for color in EMPTY_COLORS.iter() {
+            if color_distance_sq(pixel, color) <= COLOR_DISTANCE_THRESHOLD_SQ {
+                return true;
+            }
+        }
+        if has_failed_level
+            && color_distance_sq(pixel, &FAILED_LEVEL_EMPTY_COLOR) <= COLOR_DISTANCE_THRESHOLD_SQ
+        {
+            return true;
         }
 
-        distance = distance.min(color_distance_sq(pixel, &OTHER_EMPTY_COLOR));
-
-        distance <= COLOR_DISTANCE_THRESHOLD_SQ
+        false
     }
 
     fn is_mystery_pixel(pixel: &Vec3b) -> bool {

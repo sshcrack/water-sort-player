@@ -1,0 +1,11 @@
+[package]
+name = "water-sort-image-debugger"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { version = "4.5.39", features = ["derive"] }
+opencv = { workspace = true }
+water-sort-core = { path = "../water-sort-core" }
+water-sort-capture = { path = "../water-sort-capture" }
