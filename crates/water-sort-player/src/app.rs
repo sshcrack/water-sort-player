@@ -35,6 +35,9 @@ use crate::capture::start_discovery_capture;
 const START_WAIT: Duration = Duration::from_secs(10);
 const NEXT_LEVEL_WAIT: Duration = Duration::from_secs(6);
 const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(15);
+const BOTTLE_DETECTION_RETRY_DELAY: Duration = Duration::from_secs(1);
+const BOTTLE_DETECTION_RETRIES: u8 = 3;
+const POST_DETECTION_WAIT: Duration = Duration::from_secs(1);
 const MOVE_DELAY: Duration = Duration::from_millis(3000);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(3000);
 
@@ -50,6 +53,11 @@ enum AppState {
     },
     DetectAndPlan {
         trigger_at: Instant,
+        retries_remaining: u8,
+    },
+    AwaitPostDetectionPlan {
+        trigger_at: Instant,
+        detected_bottles: Vec<Bottle>,
     },
     MysteryDiscoverColors {
         trigger_at: Instant,
@@ -86,6 +94,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut app_state = if quick_mode {
         AppState::DetectAndPlan {
             trigger_at: Instant::now() + Duration::from_secs(1),
+            retries_remaining: BOTTLE_DETECTION_RETRIES,
         }
     } else {
         AppState::WaitingToPressStart {
@@ -130,6 +139,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     click_at_position(START_BUTTON_POS);
                     app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
+                        retries_remaining: BOTTLE_DETECTION_RETRIES,
                     };
                 }
             }
@@ -156,10 +166,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
+                        retries_remaining: BOTTLE_DETECTION_RETRIES,
                     };
                 }
             }
-            AppState::DetectAndPlan { trigger_at } => {
+            AppState::DetectAndPlan {
+                trigger_at,
+                retries_remaining,
+            } => {
                 if now >= *trigger_at {
                     println!("Detecting bottles for new level...");
                     let layout = match BottleLayout::detect_layout(&frame_raw) {
@@ -173,55 +187,75 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     };
                     let bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
-                    if let Err(error) = bottles {
-                        return Err(anyhow!(
-                            "Could not detect bottles. Error: {:?}. Cannot proceed without bottle detection.",
-                            error
-                        ));
-                    } else {
-                        active_layout = Some(layout.clone());
-
-                        // Redraw window before running solver to show detected bottles
-                        let buffer = frame_to_window_buffer(&frame_display)?;
-                        window.update_with_buffer(&buffer, width, height)?;
-
-                        std::thread::sleep(Duration::from_secs(1)); // Brief pause to show detected bottles before solver runs
-
-                        let detected_bottles = bottles?;
-
-                        discovery_capture =
-                            maybe_start_discovery_capture(&frame_raw, &layout, &detected_bottles);
-
-                        // Check if there are any mystery colors
-                        let mystery_count =
-                            discovery::count_total_mystery_colors(&detected_bottles);
-                        if mystery_count == 0 {
-                            println!("No mystery colors detected, running solver directly...");
-
-                            maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
-                            finalize_discovery_capture(&mut discovery_capture);
-
-                            let solution = run_solver(&detected_bottles)
-                                .expect("Failed to find a solution for the detected bottles");
-
-                            app_state = AppState::ExecuteFinalSolveMoves {
-                                planned_moves: solution,
-                                performed_moves: 0,
-                                next_move_at: Instant::now() + MOVE_DELAY,
-                            };
-                        } else {
-                            println!(
-                                "Detected {} mystery colors, starting discovery process...",
-                                mystery_count
-                            );
-
-                            app_state = AppState::MysteryDiscoverColors {
-                                trigger_at: now,
-                                initial_state: detected_bottles.clone(),
-                                max_revealed_bottle_state: detected_bottles.clone(),
-                                current_moves: vec![],
+                    match bottles {
+                        Ok(detected_bottles) => {
+                            active_layout = Some(layout.clone());
+                            app_state = AppState::AwaitPostDetectionPlan {
+                                trigger_at: now + POST_DETECTION_WAIT,
+                                detected_bottles,
                             };
                         }
+                        Err(error) => {
+                            if *retries_remaining == 0 {
+                                return Err(anyhow!(
+                                    "Could not detect bottles after {} attempts. Last error: {:?}",
+                                    BOTTLE_DETECTION_RETRIES + 1,
+                                    error
+                                ));
+                            }
+
+                            let next_retries_remaining = *retries_remaining - 1;
+                            println!(
+                                "Could not detect bottles: {:?}. Retrying in 1 second ({} retries left)...",
+                                error, next_retries_remaining
+                            );
+
+                            app_state = AppState::DetectAndPlan {
+                                trigger_at: now + BOTTLE_DETECTION_RETRY_DELAY,
+                                retries_remaining: next_retries_remaining,
+                            };
+                        }
+                    }
+                }
+            }
+            AppState::AwaitPostDetectionPlan {
+                trigger_at,
+                detected_bottles,
+            } => {
+                if now >= *trigger_at {
+                    let detected_bottles = detected_bottles.clone();
+                    let layout = require_active_layout(&active_layout, "post-detection planning")?;
+                    discovery_capture =
+                        maybe_start_discovery_capture(&frame_raw, layout, &detected_bottles);
+
+                    // Check if there are any mystery colors
+                    let mystery_count = discovery::count_total_mystery_colors(&detected_bottles);
+                    if mystery_count == 0 {
+                        println!("No mystery colors detected, running solver directly...");
+
+                        maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
+                        finalize_discovery_capture(&mut discovery_capture);
+
+                        let solution = run_solver(&detected_bottles)
+                            .expect("Failed to find a solution for the detected bottles");
+
+                        app_state = AppState::ExecuteFinalSolveMoves {
+                            planned_moves: solution,
+                            performed_moves: 0,
+                            next_move_at: Instant::now() + MOVE_DELAY,
+                        };
+                    } else {
+                        println!(
+                            "Detected {} mystery colors, starting discovery process...",
+                            mystery_count
+                        );
+
+                        app_state = AppState::MysteryDiscoverColors {
+                            trigger_at: now,
+                            initial_state: detected_bottles.clone(),
+                            max_revealed_bottle_state: detected_bottles.clone(),
+                            current_moves: vec![],
+                        };
                     }
                 }
             }
@@ -597,9 +631,30 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             solve_moves: &[],
             solve_performed_moves: 0,
         },
-        AppState::DetectAndPlan { trigger_at } => OverlaySnapshot {
+        AppState::DetectAndPlan {
+            trigger_at,
+            retries_remaining,
+        } => OverlaySnapshot {
             phase: "DetectAndPlan".to_string(),
-            detail: "Detecting bottle layout and planning".to_string(),
+            detail: if *retries_remaining == BOTTLE_DETECTION_RETRIES {
+                "Detecting bottle layout and planning".to_string()
+            } else {
+                format!(
+                    "Retrying bottle detection ({} retries left)",
+                    *retries_remaining
+                )
+            },
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+        },
+        AppState::AwaitPostDetectionPlan { trigger_at, .. } => OverlaySnapshot {
+            phase: "AwaitPostDetectionPlan".to_string(),
+            detail: "Reviewing detected bottles before planning".to_string(),
             until_ready: remaining_until(*trigger_at, now),
             discovery_hidden: None,
             discovery_total_slots: None,

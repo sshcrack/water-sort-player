@@ -147,3 +147,10 @@ create_bottle_detection_test!(
     BottleLayout::nine_bottle_layout(),
     "W??W G??? O??? G??? Y??P B??B EEEE EEEE R??O"
 );
+
+create_bottle_detection_test!(
+    test_special_level_detection,
+    "detection/special-level.png",
+    BottleLayout::seven_bottle_layout(),
+    "EGOB EPRG EBPO EGGR EBPB EEOP EEROR"
+);
