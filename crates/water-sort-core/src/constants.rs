@@ -12,7 +12,6 @@ pub const SCRCPY_VIDEO_BIT_RATE: u32 = 2_000_000;
 
 pub const START_BUTTON_POS: Pos = Pos(186, 605);
 
-pub const NEXT_LEVEL_BUTTON_POS: Pos = Pos(184, 604);
 pub const RETRY_BUTTON_POS: Pos = Pos(324, 57);
 
 pub const FAILED_LEVEL_TEXT: Pos = Pos(170, 647);
@@ -20,9 +19,13 @@ pub const FAILED_LEVEL_TEXT: Pos = Pos(170, 647);
 pub const Y_MEASURE_OFFSET: i32 = 0;
 pub const X_MEASURE_OFFSET: i32 = 0;
 lazy_static! {
+    pub static ref NEXT_LEVEL_BUTTON_POSITIONS: Vec<Pos> =vec![
+         Pos(184, 604),
+         Pos(184, 675),
+    ];
     pub static ref NO_THANK_YOU_POSITIONS: Vec<Pos> = vec![Pos(177, 738), Pos(187, 737)];
     pub static ref FAILED_LEVEL_COLOR: Vec3b = vec3_from_hex("#f8d224");
-    pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#eff6e2");
+    pub static ref NEXT_LEVEL_BUTTON_COLOR: Vec3b = vec3_from_hex("#B2CE39");
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");
 }
 
@@ -42,13 +45,6 @@ pub enum BottleColor {
     Mystery,
 }
 
-pub fn is_color_within_tolerance(pixel: &Vec3b, target: &Vec3b, tolerance: u8) -> bool {
-    let b_diff = (pixel[0] as i16 - target[0] as i16).unsigned_abs() as u8;
-    let g_diff = (pixel[1] as i16 - target[1] as i16).unsigned_abs() as u8;
-    let r_diff = (pixel[2] as i16 - target[2] as i16).unsigned_abs() as u8;
-
-    b_diff <= tolerance && g_diff <= tolerance && r_diff <= tolerance
-}
 
 pub fn color_distance_sq(pixel: &Vec3b, target: &Vec3b) -> u32 {
     let b_diff = pixel[0] as i32 - target[0] as i32;

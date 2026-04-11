@@ -7,7 +7,7 @@ use opencv::{
     videoio::VideoCaptureTrait,
 };
 use water_sort_core::constants::{
-    NO_THANK_YOU_POSITIONS, NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+    NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS, NO_THANK_YOU_REWARDS_COLOR, color_distance_sq
 };
 use water_sort_device::{click_at_position, start_capture};
 
@@ -15,9 +15,7 @@ use crate::{
     app_visualization::{OverlaySnapshot, draw_state_hud},
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
     capture::{DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png},
-    constants::{
-        NEXT_LEVEL_BUTTON_POS, RETRY_BUTTON_POS, START_BUTTON_POS, is_color_within_tolerance,
-    },
+    constants::{RETRY_BUTTON_POS, START_BUTTON_POS},
     solver::{
         Move,
         discovery::{
@@ -92,9 +90,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut frame_raw = Mat::default();
 
     let mut app_state = if quick_mode {
-        AppState::DetectAndPlan {
+        AppState::ClickNextLevel {
             trigger_at: Instant::now() + Duration::from_secs(1),
-            retries_remaining: BOTTLE_DETECTION_RETRIES,
+            //retries_remaining: BOTTLE_DETECTION_RETRIES,
         }
     } else {
         AppState::WaitingToPressStart {
@@ -145,25 +143,21 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
             AppState::ClickNextLevel { trigger_at } => {
                 if now >= *trigger_at {
-                    println!("Pressing next level button...");
-                    // Check if it is the expected next level button color
-                    let pixel = frame_raw
-                        .at_2d::<Vec3b>(NEXT_LEVEL_BUTTON_POS.1, NEXT_LEVEL_BUTTON_POS.0)
-                        .unwrap();
+                    let button_pos = NEXT_LEVEL_BUTTON_POSITIONS
+                        .iter()
+                        .find(|pos| {
+                            let pixel = frame_raw.at_2d::<Vec3b>(pos.1, pos.0).unwrap();
+                            println!("Checking for next level button at position {:?} with pixel value {:?}...", pos, pixel);
+                            println!("Color distance to expected next level button color: {}", color_distance_sq(pixel, &NEXT_LEVEL_BUTTON_COLOR));
+                            println!("Hex value of pixel: #{:02x}{:02x}{:02x}", pixel[2], pixel[1], pixel[0]);
+                            color_distance_sq(pixel, &NEXT_LEVEL_BUTTON_COLOR)
+                                <= 50 * 50
+                        })
+                        .copied()
+                        .unwrap_or(NEXT_LEVEL_BUTTON_POSITIONS[0]);
+                    println!("Pressing next level button at {button_pos:?}...");
 
-                    if is_color_within_tolerance(
-                        pixel,
-                        &crate::constants::NEXT_LEVEL_BUTTON_COLOR,
-                        15,
-                    ) {
-                        click_at_position(NEXT_LEVEL_BUTTON_POS);
-                    } else {
-                        println!(
-                            "Warning: Next level button color mismatch. Clicking configured position anyway..."
-                        );
-                        click_at_position(NEXT_LEVEL_BUTTON_POS);
-                    }
-
+                    click_at_position(button_pos);
                     app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
                         retries_remaining: BOTTLE_DETECTION_RETRIES,
