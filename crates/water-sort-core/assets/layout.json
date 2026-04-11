@@ -1,0 +1,172 @@
+[
+    {
+        "id": "10-bottles",
+        "friendly-name": "ten_bottle_layout",
+        "layer": {
+            "spacing": 35,
+            "count": 4
+        },
+        "rows": [
+            {
+                "start_position": [
+                    41,
+                    223
+                ],
+                "spacing": [
+                    69,
+                    0
+                ],
+                "bottle_count": 5
+            },
+            {
+                "start_position": [
+                    41,
+                    440
+                ],
+                "spacing": [
+                    69,
+                    0
+                ],
+                "bottle_count": 5
+            }
+        ]
+    },
+    {
+        "id": "11-bottles",
+        "friendly-name": "eleven_bottle_layout",
+        "layer": {
+            "spacing": 31,
+            "count": 4
+        },
+        "rows": [
+            {
+                "start_position": [
+                    34,
+                    244
+                ],
+                "spacing": [
+                    58,
+                    0
+                ],
+                "bottle_count": 6
+            },
+            {
+                "start_position": [
+                    56,
+                    436
+                ],
+                "spacing": [
+                    61,
+                    0
+                ],
+                "bottle_count": 5
+            }
+        ]
+    },
+    {
+        "id": "12-bottles",
+        "friendly-name": "twelve_bottle_layout",
+        "layer": {
+            "spacing": 31,
+            "count": 4
+        },
+        "rows": [
+            {
+                "start_position": [
+                    34,
+                    244
+                ],
+                "spacing": [
+                    58,
+                    0
+                ],
+                "bottle_count": 6
+            },
+            {
+                "start_position": [
+                    34,
+                    436
+                ],
+                "spacing": [
+                    58,
+                    0
+                ],
+                "bottle_count": 6
+            }
+        ]
+    },
+    {
+        "id": "5-bottles",
+        "friendly-name": "five_bottle_layout",
+        "layer": {
+            "spacing": 35,
+            "count": 4
+        },
+        "rows": [
+            {
+                "start_position": [
+                    39,
+                    336
+                ],
+                "spacing": [
+                    70,
+                    0
+                ],
+                "bottle_count": 5
+            }
+        ]
+    },
+    {
+        "id": "6-bottles",
+        "friendly-name": "six_bottle_layout",
+        "layer": {
+            "spacing": 31,
+            "count": 4
+        },
+        "rows": [
+            {
+                "start_position": [
+                    32,
+                    338
+                ],
+                "spacing": [
+                    59,
+                    0
+                ],
+                "bottle_count": 6
+            }
+        ]
+    },
+    {
+        "id": "7-bottles",
+        "friendly-name": "seven_bottle_layout",
+        "layer": {
+            "spacing": 38,
+            "count": 4
+        },
+        "rows": [
+            {
+                "start_position": [
+                    50,
+                    207
+                ],
+                "spacing": [
+                    86,
+                    0
+                ],
+                "bottle_count": 4
+            },
+            {
+                "start_position": [
+                    72,
+                    444
+                ],
+                "spacing": [
+                    106,
+                    0
+                ],
+                "bottle_count": 3
+            }
+        ]
+    }
+]

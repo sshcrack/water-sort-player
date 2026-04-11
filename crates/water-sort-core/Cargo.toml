@@ -2,9 +2,14 @@
 name = "water-sort-core"
 version = "0.1.0"
 edition = "2024"
+build="build.rs"
 
 [dependencies]
 lazy_static = { workspace = true }
 opencv = { workspace = true }
 paste = { workspace = true }
 anyhow = { workspace = true }
+
+[build-dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json.workspace = true

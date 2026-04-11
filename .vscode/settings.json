@@ -1,4 +1,10 @@
 {
     "rust-analyzer.check.command": "clippy",
-    "testOnSave.testCommand": "cargo nextest run --fail-fast"
+    "testOnSave.testCommand": "cargo nextest run --fail-fast",
+    "json.schemas": [
+        {
+            "fileMatch": ["/crates/water-sort-core/assets/layout.json"],
+            "url": "./crates/water-sort-core/assets/layout.schema.json"
+        }
+    ]
 }

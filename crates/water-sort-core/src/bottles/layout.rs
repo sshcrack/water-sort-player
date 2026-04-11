@@ -96,7 +96,7 @@ impl BottleLayout {
         let layouts = Self::get_layouts();
 
         let mut best_layout = layouts[0].clone();
-        let mut best_score = 0.0;
+        let mut best_score = 0;
         let has_failed_level = has_failed_level(image)?;
 
         for layout in layouts {
@@ -116,11 +116,11 @@ impl BottleLayout {
         image: &Mat,
         layout: &BottleLayout,
         has_failed_level: bool,
-    ) -> anyhow::Result<f64> {
-        let mut score = 0.0;
+    ) -> anyhow::Result<usize> {
+        let mut score = 0;
 
         for bottle_idx in 0..layout.bottle_count() {
-            let mut seen_content = false;
+            let mut color_amount = 0;
             let mut bottle_is_valid = true;
 
             // A valid bottle is filled contiguously from the top down.
@@ -135,13 +135,13 @@ impl BottleLayout {
 
                         match classify_bottle_layer(pixel, has_failed_level) {
                             LayerSample::Empty => {
-                                if seen_content {
+                                if color_amount > 0 {
                                     bottle_is_valid = false;
                                     break;
                                 }
                             }
                             LayerSample::Color(_) => {
-                                seen_content = true;
+                                color_amount += 1;
                             }
                             LayerSample::Unknown => {
                                 bottle_is_valid = false;
@@ -152,12 +152,12 @@ impl BottleLayout {
                 }
             }
 
-            if bottle_is_valid && seen_content {
-                score += 1.0;
+            if bottle_is_valid && color_amount > 0 {
+                score += color_amount;
             }
         }
 
-        Ok(score / layout.bottle_count() as f64)
+        Ok(score)
     }
 }
 
@@ -180,69 +180,4 @@ impl BottlePosition {
     }
 }
 
-/// Predefined layouts
-impl BottleLayout {
-    pub fn get_layouts() -> Vec<Self> {
-        vec![
-            Self::ten_bottle_layout(),
-            Self::eleven_bottle_layout(),
-            Self::twelve_bottle_layout(),
-            Self::five_bottle_layout(),
-            Self::six_bottle_layout(),
-            Self::seven_bottle_layout(),
-        ]
-    }
-
-    /// Create the standard 10-bottle layout (2x5 grid)
-    pub fn ten_bottle_layout() -> Self {
-        bottle_layout!(
-            "10-bottles", // Layout name
-            35,           // Layer spacing (pixels between color layers)
-            4,            // Layer count (4 colors per bottle)
-            // Row 1: 5 bottles at y=223, starting at x=41, spaced 69px apart
-            (Pos(41, 223), Pos(69, 0), 5),
-            // Row 2: 5 bottles at y=440, starting at x=41, spaced 69px apart
-            (Pos(41, 440), Pos(69, 0), 5),
-        )
-    }
-
-    /// Create the 11-bottle layout (6 + 5 arrangement)
-    pub fn eleven_bottle_layout() -> Self {
-        bottle_layout!(
-            "11-bottles", // Layout name
-            31,           // Layer spacing (pixels between color layers)
-            4,            // Layer count (4 colors per bottle)
-            // Row 1: 6 bottles at y=244, starting at x=34, spaced 58px apart
-            (Pos(34, 244), Pos(58, 0), 6),
-            // Row 2: 5 bottles at y=436, starting at x=56, spaced 58px apart
-            (Pos(56, 436), Pos(61, 0), 5),
-        )
-    }
-
-    pub fn twelve_bottle_layout() -> BottleLayout {
-        bottle_layout!(
-            "12-bottles",
-            31,
-            4,
-            (Pos(34, 244), Pos(58, 0), 6),
-            (Pos(34, 436), Pos(58, 0), 6),
-        )
-    }
-
-    pub fn five_bottle_layout() -> BottleLayout {
-        bottle_layout!("5-bottles", 35, 4, (Pos(39, 336), Pos(70, 0), 5),)
-    }
-
-    pub fn six_bottle_layout() -> BottleLayout {
-        bottle_layout!("6-bottles", 31, 4, (Pos(32, 338), Pos(59, 0), 6),)
-    }
-    pub fn seven_bottle_layout() -> BottleLayout {
-        bottle_layout!(
-            "7-bottles",
-            38,
-            4,
-            (Pos(50, 207), Pos(86, 0), 4),
-            (Pos(72, 444), Pos(106, 0), 3),
-        )
-    }
-}
+include!(concat!(env!("OUT_DIR"), "/generated_layouts.rs"));
