@@ -189,6 +189,16 @@
       "layout_name": "nine_bottle_layout",
       "mystery_count_at_start": 0,
       "resolved_bottles": "OGGP OLYO BBGR PRLY LYBP LPOY EEEE EEEE BRRG"
+    },
+    {
+      "bottle_count": 9,
+      "captured_at_ms": 1775919196078,
+      "expected_bottles": "GWBG G??? O??? W??? PYPW RGBW EEEE EEEE YOPR",
+      "id": 20,
+      "image_filename": "discovery-level-20.png",
+      "layout_name": "nine_bottle_layout",
+      "mystery_count_at_start": 9,
+      "resolved_bottles": "GWBG GRYB OBOP WYRO PYPW RGBW EEEE EEEE YOPR"
     }
   ]
 }
