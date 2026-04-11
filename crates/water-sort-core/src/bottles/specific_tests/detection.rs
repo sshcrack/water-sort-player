@@ -140,3 +140,10 @@ create_bottle_detection_test!(
     BottleLayout::eight_bottle_layout(),
     "B??O Y??? B??? G??R RPOO BBYP EEEE EEEE"
 );
+
+create_bottle_detection_test!(
+    test_nine_bottle_detection,
+    "detection/nine-bottle-detection.png",
+    BottleLayout::nine_bottle_layout(),
+    "W??W G??? O??? G??? Y??P B??B EEEE EEEE R??O"
+);

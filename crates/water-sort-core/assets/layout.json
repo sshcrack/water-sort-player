@@ -235,5 +235,24 @@
                 ]
             }
         ]
+    },
+    {
+        "friendly-name": "nine_bottle_layout",
+        "layer": {
+            "count": 4,
+            "spacing": 32
+        },
+        "rows": [
+            {
+                "bottle_count": 5,
+                "spacing": [70, 0],
+                "start_position": [38, 225]
+            },
+            {
+                "bottle_count": 4,
+                "spacing": [77, 0],
+                "start_position": [61, 440]
+            }
+        ]
     }
 ]

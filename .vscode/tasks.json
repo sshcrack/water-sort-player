@@ -16,7 +16,7 @@
         {
             "label": "cargo test",
             "type": "shell",
-            "command": "cargo nextest r",
+            "command": "cargo nextest r -r",
             "group": {
                 "kind": "test",
                 "isDefault": true
