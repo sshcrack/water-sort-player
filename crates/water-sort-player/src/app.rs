@@ -595,10 +595,8 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
 fn build_overlay_snapshot<'a>(
     app_state: &'a AppState,
     now: Instant,
-    #[cfg(feature = "solver-visualization")]
-    active_layout: &'a Option<BottleLayout>,
-    #[cfg(not(feature = "solver-visualization"))]
-    _active_layout: &'a Option<BottleLayout>,
+    #[cfg(feature = "solver-visualization")] active_layout: &'a Option<BottleLayout>,
+    #[cfg(not(feature = "solver-visualization"))] _active_layout: &'a Option<BottleLayout>,
 ) -> OverlaySnapshot<'a> {
     match app_state {
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {

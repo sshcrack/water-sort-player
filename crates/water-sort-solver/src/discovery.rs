@@ -113,6 +113,11 @@ mod tests {
         improve_best_revealed_state(&mut revealed_state, &previous_bottles, &current_bottles);
 
         let expected_revealed_state = TestUtils::parse_bottles_sequence("PY?? YG?? G???");
-        assert!(TestUtils::are_bottles_equal(&revealed_state, &expected_revealed_state), "Revealed state should be improved with newly discovered colors. Actual: {:?}, Expected: {:?}", revealed_state, expected_revealed_state);
+        assert!(
+            TestUtils::are_bottles_equal(&revealed_state, &expected_revealed_state),
+            "Revealed state should be improved with newly discovered colors. Actual: {:?}, Expected: {:?}",
+            revealed_state,
+            expected_revealed_state
+        );
     }
 }

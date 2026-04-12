@@ -37,8 +37,7 @@ fn find_layout_by_name(name: &str) -> Result<BottleLayout> {
     BottleLayout::get_layouts()
         .into_iter()
         .find(|layout| {
-            layout.name.eq_ignore_ascii_case(name)
-                || layout.name.to_ascii_lowercase() == normalized
+            layout.name.eq_ignore_ascii_case(name) || layout.name.to_ascii_lowercase() == normalized
         })
         .ok_or_else(|| {
             let available = BottleLayout::get_layouts()

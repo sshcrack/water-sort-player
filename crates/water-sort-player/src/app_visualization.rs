@@ -237,7 +237,7 @@ pub fn draw_state_hud(
 #[cfg(feature = "solver-visualization")]
 fn get_bottle_center_pixel(bottle_index: usize, layout: &BottleLayout) -> Option<(i32, i32)> {
     let pos = layout.get_click_position(bottle_index)?;
-    Some((pos.0 as i32, pos.1 as i32))
+    Some((pos.0, pos.1))
 }
 
 #[cfg(feature = "solver-visualization")]
@@ -245,15 +245,18 @@ fn get_bottle_bounds(bottle_index: usize, layout: &BottleLayout) -> Option<(i32,
     // Estimate bottle bounds based on positions
     // Get a few sample positions to estimate bottle dimensions
     let top_pos = layout.get_sample_position(bottle_index, 0)?;
-    let bottom_pos = layout.get_sample_position(bottle_index, 3.min(layout.positions[bottle_index].layer_offsets.len() - 1))?;
-    
+    let bottom_pos = layout.get_sample_position(
+        bottle_index,
+        3.min(layout.positions[bottle_index].layer_offsets.len() - 1),
+    )?;
+
     // Calculate approximate bottle width and height
     let bottle_width = 50i32; // Estimated bottle width
-    let x0 = top_pos.0 as i32 - bottle_width / 2;
-    let y0 = (top_pos.1 - 30) as i32;
+    let x0 = top_pos.0 - bottle_width / 2;
+    let y0 = top_pos.1 - 30;
     let x1 = x0 + bottle_width;
-    let y1 = (bottom_pos.1 + 10) as i32;
-    
+    let y1 = bottom_pos.1 + 10;
+
     Some((x0, y0, x1, y1))
 }
 
@@ -266,7 +269,15 @@ fn draw_arrow(
     thickness: i32,
 ) -> Result<()> {
     // Draw line from start to end
-    imgproc::line(frame, Point::new(start.0, start.1), Point::new(end.0, end.1), color, thickness, imgproc::LINE_AA, 0)?;
+    imgproc::line(
+        frame,
+        Point::new(start.0, start.1),
+        Point::new(end.0, end.1),
+        color,
+        thickness,
+        imgproc::LINE_AA,
+        0,
+    )?;
 
     // Draw arrowhead
     let dx = (end.0 - start.0) as f32;
@@ -277,14 +288,34 @@ fn draw_arrow(
         let angle = dy.atan2(dx);
         let arrow_size = 15.0;
 
-        let tip1_x = (end.0 as f32 - arrow_size * angle.cos() + arrow_size * 0.5 * angle.sin()) as i32;
-        let tip1_y = (end.1 as f32 - arrow_size * angle.sin() - arrow_size * 0.5 * angle.cos()) as i32;
+        let tip1_x =
+            (end.0 as f32 - arrow_size * angle.cos() + arrow_size * 0.5 * angle.sin()) as i32;
+        let tip1_y =
+            (end.1 as f32 - arrow_size * angle.sin() - arrow_size * 0.5 * angle.cos()) as i32;
 
-        let tip2_x = (end.0 as f32 - arrow_size * angle.cos() - arrow_size * 0.5 * angle.sin()) as i32;
-        let tip2_y = (end.1 as f32 - arrow_size * angle.sin() + arrow_size * 0.5 * angle.cos()) as i32;
+        let tip2_x =
+            (end.0 as f32 - arrow_size * angle.cos() - arrow_size * 0.5 * angle.sin()) as i32;
+        let tip2_y =
+            (end.1 as f32 - arrow_size * angle.sin() + arrow_size * 0.5 * angle.cos()) as i32;
 
-        imgproc::line(frame, Point::new(end.0, end.1), Point::new(tip1_x, tip1_y), color, thickness, imgproc::LINE_AA, 0)?;
-        imgproc::line(frame, Point::new(end.0, end.1), Point::new(tip2_x, tip2_y), color, thickness, imgproc::LINE_AA, 0)?;
+        imgproc::line(
+            frame,
+            Point::new(end.0, end.1),
+            Point::new(tip1_x, tip1_y),
+            color,
+            thickness,
+            imgproc::LINE_AA,
+            0,
+        )?;
+        imgproc::line(
+            frame,
+            Point::new(end.0, end.1),
+            Point::new(tip2_x, tip2_y),
+            color,
+            thickness,
+            imgproc::LINE_AA,
+            0,
+        )?;
     }
 
     Ok(())
@@ -296,7 +327,9 @@ pub fn draw_solver_move_indicators(
     snapshot: &OverlaySnapshot<'_>,
 ) -> Result<()> {
     // Only draw if we have layout and are executing moves
-    let Some(layout) = snapshot.solve_layout else { return Ok(()); };
+    let Some(layout) = snapshot.solve_layout else {
+        return Ok(());
+    };
     if snapshot.solve_moves.is_empty() {
         return Ok(());
     }
@@ -348,13 +381,7 @@ pub fn draw_solver_move_indicators(
     }
 
     // Draw arrow from source to destination
-    draw_arrow(
-        frame_display,
-        source_pos,
-        dest_pos,
-        solver_arrow_color(),
-        3,
-    )?;
+    draw_arrow(frame_display, source_pos, dest_pos, solver_arrow_color(), 3)?;
 
     Ok(())
 }

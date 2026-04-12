@@ -255,8 +255,12 @@ impl Move {
         layout: &BottleLayout,
         device: &B,
     ) -> Result<()> {
-        device.click_at_position(water_sort_core::position::get_bottle_position(layout, self.0))?;
-        device.click_at_position(water_sort_core::position::get_bottle_position(layout, self.1))?;
+        device.click_at_position(water_sort_core::position::get_bottle_position(
+            layout, self.0,
+        ))?;
+        device.click_at_position(water_sort_core::position::get_bottle_position(
+            layout, self.1,
+        ))?;
         Ok(())
     }
 
