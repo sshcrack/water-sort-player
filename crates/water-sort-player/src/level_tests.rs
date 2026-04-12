@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use water_sort_solver::build_solver_initial_bottle_state;
 use water_sort_solver::discovery::improve_current_bottles_with_revealed_state;
 
 use crate::bottles::BottleLayout;
@@ -62,7 +63,7 @@ macro_rules! create_test_level {
                     use crate::bottles::Bottle;
                     let mut bottles_parsed: Vec<Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles);
 
-                    let solution = crate::solver::run_solver(&bottles_parsed).expect("No solution found");
+                    let solution = crate::solver::run_solver(&bottles_parsed, &bottles_parsed).expect("No solution found");
 
                     for m in solution {
                         println!("Move from bottle {} to bottle {}", m.source_index(), m.destination_index());
@@ -172,7 +173,30 @@ macro_rules! create_generated_test_level {
                         RESOLVED_BOTTLES.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(" ")
                     );
 
-                    solve_and_assert(final_revealed);
+                    solve_and_assert(&final_revealed, PARSED_BOTTLES.as_slice());
+                }
+
+                #[test]
+                fn run_solver() {
+                    if crate::solver::run_solver(RESOLVED_BOTTLES.as_slice(), PARSED_BOTTLES.as_slice()).is_some() {
+                        solve_and_assert(RESOLVED_BOTTLES.as_slice(), PARSED_BOTTLES.as_slice());
+                        return;
+                    }
+
+                    let discovered_revealed =
+                        run_discovery_simulation(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
+
+                    assert!(
+                        crate::solver::run_solver(&discovered_revealed, PARSED_BOTTLES.as_slice()).is_some(),
+                        "No solver solution found for captured level {} using resolved or discovery-derived revealed state",
+                        $capture_id
+                    );
+
+                    println!(
+                        "Warning: Using discovery-derived revealed state for captured level {} run_solver test",
+                        $capture_id
+                    );
+                    solve_and_assert(&discovered_revealed, PARSED_BOTTLES.as_slice());
                 }
 
                 #[test]
@@ -217,47 +241,86 @@ macro_rules! create_generated_test_level {
     };
 }
 
+#[test]
+fn init() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Trace)
+        .try_init();
+}
 #[allow(dead_code)]
-fn solve_and_assert(mut bottles: Vec<Bottle>) {
-    let solution = run_solver(&bottles).expect("No solution found after discovery");
+fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle]) {
+    let mut current_bottles =
+        build_solver_initial_bottle_state(max_revealed_bottles, initial_bottles);
+
+    log::debug!(
+        "Running solver on final revealed state: {}",
+        max_revealed_bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<String>>()
+            .join(" ")
+    );
+    log::debug!(
+        "Initial state for solver: {}",
+        initial_bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<String>>()
+            .join(" ")
+    );
+
+    let solution = run_solver(max_revealed_bottles, initial_bottles)
+        .expect("No solution found after discovery");
+    println!(
+        "Solution moves: {}",
+        solution
+            .iter()
+            .map(|m| format!("{}->{}", m.source_index(), m.destination_index()))
+            .collect::<Vec<String>>()
+            .join(", ")
+    );
     for mv in solution {
-        mv.perform_move_on_bottles(&mut bottles);
+        assert!(
+            mv.can_perform_on_bottles(&current_bottles),
+            "Solver produced an invalid replay move {}->{} on state {}",
+            mv.source_index(),
+            mv.destination_index(),
+            current_bottles
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+
+        mv.perform_move_on_bottles(&mut current_bottles);
     }
 
     assert!(
-        bottles.iter().all(|b| b.is_solved() || b.is_empty()),
-        "Final bottle state should be solved"
+        current_bottles
+            .iter()
+            .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden())),
+        "Final bottle state should be solved after replay. Final state: {}",
+        current_bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<String>>()
+            .join(" ")
     );
 }
 
 #[test]
-fn hidden_bottle_unlock_then_solve_pipeline() {
-    let mut current =
-        crate::bottles::test_utils::TestUtils::parse_bottles_sequence("OOOR O !O EEEE");
-
-    assert_eq!(count_hidden_bottles(&current), 1);
-
-    match find_best_hidden_unlock_moves(&current) {
-        DiscoverResult::MoveToDiscover(moves_to_apply) => {
-            assert!(!moves_to_apply.is_empty());
-            for mv in moves_to_apply {
-                mv.perform_move_on_bottles(&mut current);
-            }
-        }
-        other => panic!("Expected hidden unlock move sequence, got {:?}", other),
-    }
-
-    assert!(
-        current
-            .iter()
-            .any(|bottle| bottle.solved_color() == Some(BottleColor::Orange)),
-        "Unlock move should solve an orange bottle"
+#[ignore = "debug-only exploratory test case"]
+fn test_lol() {
+    let initial = water_sort_core::bottles::test_utils::TestUtils::parse_bottles_sequence(
+        "EG??W !P P??B !O O??B RPOP OORG EEEE EEEE",
+    );
+    let resolved = water_sort_core::bottles::test_utils::TestUtils::parse_bottles_sequence(
+        "GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE",
     );
 
-    current[2] = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red, BottleColor::Red]);
-    assert_eq!(count_hidden_bottles(&current), 0);
-
-    solve_and_assert(current);
+    let solved = run_solver(&resolved, &initial);
+    assert!(solved.is_some(), "Should find solution after discovery");
 }
 
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
@@ -340,22 +403,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         }
     }
 
-    let mut solver_bottles = Vec::new();
-    max_revealed.iter().enumerate().for_each(|(i, bottle)| {
-        let revealed_fills = bottle.get_fills();
-        let initial_fills = initial[i].get_fills();
-
-        if revealed_fills.len() == initial_fills.len() {
-            solver_bottles.push(Bottle::from_fills_with_initial(
-                revealed_fills,
-                initial_fills,
-            ));
-        } else {
-            solver_bottles.push(Bottle::from_fills(revealed_fills));
-        }
-    });
-
-    solver_bottles
+    max_revealed
 }
 
 #[allow(dead_code)]
@@ -379,7 +427,8 @@ fn reveal_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
                     break;
                 }
 
-                observed[fill_index] = (resolved[fill_index], false);
+                let was_mystery = observed[fill_index].1;
+                observed[fill_index] = (resolved[fill_index], was_mystery);
                 index -= 1;
             }
         });

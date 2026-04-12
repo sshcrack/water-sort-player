@@ -341,8 +341,35 @@ impl Move {
     }
 }
 
+pub fn build_solver_initial_bottle_state(
+    max_revealed_bottles: &[Bottle],
+    initial_bottles: &[Bottle],
+) -> Vec<Bottle> {
+    let mut bottles = Vec::with_capacity(max_revealed_bottles.len());
+
+    max_revealed_bottles
+        .iter()
+        .zip(initial_bottles.iter())
+        .for_each(|(max_revealed_bottle, initial_bottle)| {
+            let mut new_bottle = Bottle::from_fills_with_initial(
+                max_revealed_bottle.get_fills().clone(),
+                initial_bottle.get_fills().clone(),
+            );
+
+            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement());
+            bottles.push(new_bottle);
+        });
+
+    bottles
+}
+
 #[allow(dead_code)]
-pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
+pub fn run_solver(
+    max_revealed_bottle_state: &[Bottle],
+    initial_state: &[Bottle],
+) -> Option<Vec<Move>> {
+    let bottles = build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
+
     info!(
         "Solving puzzle with initial state: {}",
         bottles
@@ -366,12 +393,27 @@ pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
 
 #[cfg(feature = "solver-visualization")]
 pub fn run_solver_with_progress<ProgressFn>(
-    bottles: &[Bottle],
+    max_revealed_bottle_state: &[Bottle],
+    initial_state: &[Bottle],
     mut on_progress: ProgressFn,
 ) -> Option<Vec<Move>>
 where
     ProgressFn: FnMut(SolverProgressSnapshot<'_>),
 {
+    let mut bottles = Vec::new();
+    max_revealed_bottle_state
+        .iter()
+        .zip(initial_state.iter())
+        .for_each(|(max_revealed_bottle, initial_bottle)| {
+            let mut new_bottle = Bottle::from_fills_with_initial(
+                max_revealed_bottle.get_fills().clone(),
+                initial_bottle.get_fills().clone(),
+            );
+
+            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement());
+            bottles.push(new_bottle);
+        });
+
     info!(
         "Solving puzzle with initial state: {}",
         bottles

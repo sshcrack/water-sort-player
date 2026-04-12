@@ -892,64 +892,55 @@ fn solve_with_visualization(
     width: usize,
     height: usize,
 ) -> Result<Vec<Move>> {
-    let mut solver_bottles = Vec::new();
-    max_revealed_bottle_state
-        .iter()
-        .zip(initial_state.iter())
-        .for_each(|(max_revealed_bottle, initial_bottle)| {
-            let mut new_bottle = Bottle::from_fills_with_initial(
-                max_revealed_bottle.get_fills().clone(),
-                initial_bottle.get_fills().clone(),
-            );
-
-            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement());
-            solver_bottles.push(new_bottle);
-        });
-
     #[cfg(feature = "solver-visualization")]
     {
         let baseline_frame = frame_raw.try_clone()?;
         let mut last_update = Instant::now() - SOLVER_VISUALIZATION_UPDATE_INTERVAL;
 
-        let maybe_solution = crate::solver::run_solver_with_progress(&solver_bottles, |snapshot| {
-            if !snapshot.is_goal && last_update.elapsed() < SOLVER_VISUALIZATION_UPDATE_INTERVAL {
-                return;
-            }
-            last_update = Instant::now();
-
-            let mut preview_frame = match baseline_frame.try_clone() {
-                Ok(frame) => frame,
-                Err(error) => {
-                    warn!("Solver visualization frame clone failed: {:?}", error);
+        let maybe_solution = crate::solver::run_solver_with_progress(
+            max_revealed_bottle_state,
+            initial_state,
+            |snapshot| {
+                if !snapshot.is_goal && last_update.elapsed() < SOLVER_VISUALIZATION_UPDATE_INTERVAL
+                {
                     return;
                 }
-            };
+                last_update = Instant::now();
 
-            if let Err(error) = draw_solver_search_preview(
-                &mut preview_frame,
-                snapshot.state,
-                snapshot.explored_states,
-                snapshot.queue_len,
-                snapshot.depth,
-                snapshot.is_goal,
-            ) {
-                warn!("Solver visualization draw failed: {:?}", error);
-                return;
-            }
+                let mut preview_frame = match baseline_frame.try_clone() {
+                    Ok(frame) => frame,
+                    Err(error) => {
+                        warn!("Solver visualization frame clone failed: {:?}", error);
+                        return;
+                    }
+                };
 
-            match frame_to_window_buffer(&preview_frame) {
-                Ok(buffer) => {
-                    if let Err(error) = window.update_with_buffer(&buffer, width, height) {
-                        warn!("Solver visualization window update failed: {:?}", error);
+                if let Err(error) = draw_solver_search_preview(
+                    &mut preview_frame,
+                    snapshot.state,
+                    snapshot.explored_states,
+                    snapshot.queue_len,
+                    snapshot.depth,
+                    snapshot.is_goal,
+                ) {
+                    warn!("Solver visualization draw failed: {:?}", error);
+                    return;
+                }
+
+                match frame_to_window_buffer(&preview_frame) {
+                    Ok(buffer) => {
+                        if let Err(error) = window.update_with_buffer(&buffer, width, height) {
+                            warn!("Solver visualization window update failed: {:?}", error);
+                        }
+                    }
+                    Err(error) => {
+                        warn!("Solver visualization buffer conversion failed: {:?}", error);
                     }
                 }
-                Err(error) => {
-                    warn!("Solver visualization buffer conversion failed: {:?}", error);
-                }
-            }
 
-            std::thread::sleep(SOLVER_VISUALIZATION_FRAME_DELAY);
-        });
+                std::thread::sleep(SOLVER_VISUALIZATION_FRAME_DELAY);
+            },
+        );
 
         maybe_solution.ok_or_else(|| anyhow!("Failed to find solver solution"))
     }
@@ -957,7 +948,8 @@ fn solve_with_visualization(
     #[cfg(not(feature = "solver-visualization"))]
     {
         let _ = (frame_raw, window, width, height);
-        run_solver(&solver_bottles).ok_or_else(|| anyhow!("Failed to find solver solution"))
+        run_solver(max_revealed_bottle_state, initial_state)
+            .ok_or_else(|| anyhow!("Failed to find solver solution"))
     }
 }
 

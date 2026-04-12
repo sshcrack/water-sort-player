@@ -81,7 +81,7 @@ impl TestUtils {
         Ok(path)
     }
 
-    pub fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {
+    fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {
         let mut fills: Vec<BottleColor> = bottle_str
             .chars()
             .filter_map(|c| match c {
