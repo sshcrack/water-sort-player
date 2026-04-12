@@ -9,3 +9,6 @@ anyhow = { workspace = true }
 ctrlc = { workspace = true }
 lazy_static = { workspace = true }
 opencv = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+win-screenshot = "4.0.14"

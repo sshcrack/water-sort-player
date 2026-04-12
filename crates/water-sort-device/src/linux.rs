@@ -184,7 +184,7 @@ impl ScrcpyVirtualCamBackend {
             .arg(format!("--video-bit-rate={}", self.config.video_bit_rate))
             .arg(format!("--video-codec={}", self.config.video_codec))
             .arg("--no-clipboard-autosync")
-            .arg("--window-title=AutoPlayer")
+            .arg("--window-title=WaterSortPlayer")
             .arg("--no-video-playback")
             .arg(format!("--v4l2-sink={}", VIRTUAL_CAM))
             .stdout(Stdio::piped())
@@ -196,45 +196,6 @@ impl ScrcpyVirtualCamBackend {
 
         let child = cmd.spawn().context("failed to spawn scrcpy")?;
         self.child = Some(ScrcpyChild(child));
-        Ok(())
-    }
-
-    fn measure_window_to_mobile_scale(&self, width: usize, height: usize) -> Result<()> {
-        let size = Command::new(get_adb_path())
-            .args(["shell", "wm", "size"])
-            .output()
-            .context("failed to query device screen size over adb")?;
-
-        let output = String::from_utf8_lossy(&size.stdout);
-        let mut mobile_width = 0.0;
-        let mut mobile_height = 0.0;
-
-        for line in output.lines() {
-            if line.contains("Physical size:") {
-                let parts: Vec<&str> = line.split(':').collect();
-                if parts.len() == 2 {
-                    let dims: Vec<&str> = parts[1].trim().split('x').collect();
-                    if dims.len() == 2 {
-                        mobile_width = dims[0].parse::<f32>().unwrap_or(0.0);
-                        mobile_height = dims[1].parse::<f32>().unwrap_or(0.0);
-                    }
-                }
-            }
-        }
-
-        if mobile_width <= 0.0 || mobile_height <= 0.0 {
-            return Err(anyhow!(
-                "unable to parse device physical size from adb output"
-            ));
-        }
-
-        let scale_x = mobile_width / width as f32;
-        let scale_y = mobile_height / height as f32;
-
-        let mut scale_lock = self.scale.lock().unwrap();
-        *scale_lock = (scale_x, scale_y);
-
-        println!("Computed scale factors - X: {}, Y: {}", scale_x, scale_y);
         Ok(())
     }
 }
@@ -260,7 +221,11 @@ impl CaptureDeviceBackend for ScrcpyVirtualCamBackend {
         let width = cam.get(videoio::CAP_PROP_FRAME_WIDTH)? as usize;
         let height = cam.get(videoio::CAP_PROP_FRAME_HEIGHT)? as usize;
 
-        self.measure_window_to_mobile_scale(width, height)?;
+        let (scale_x, scale_y) = measure_window_to_mobile_scale(width, height)?;
+        {
+            let mut scale_lock = self.scale.lock().unwrap();
+            *scale_lock = (scale_x, scale_y);
+        }
 
         println!("Video stream dimensions: {}x{}", width, height);
         self.cam = Some(cam);
@@ -284,32 +249,7 @@ impl CaptureDeviceBackend for ScrcpyVirtualCamBackend {
         Ok(frame)
     }
 
-    fn click_at(&self, x: i32, y: i32) -> Result<()> {
-        let (scale_x, scale_y) = *self.scale.lock().unwrap();
-        let x = (x as f32 * scale_x) as i32;
-        let y = (y as f32 * scale_y) as i32;
-
-        let status = Command::new(get_adb_path())
-            .args(["shell", "input", "tap", &x.to_string(), &y.to_string()])
-            .status()
-            .context("failed to execute adb tap command")?;
-
-        if !status.success() {
-            return Err(anyhow!("adb tap command exited with status: {}", status));
-        }
-
-        Ok(())
+    fn get_scale(&self) -> (f32, f32) {
+        *self.scale.lock().unwrap()
     }
-}
-
-fn get_adb_path() -> PathBuf {
-    let current_executable = std::env::current_exe().unwrap();
-    let current_dir = current_executable.parent().unwrap();
-    let adb_path = current_dir.join("adb");
-
-    if !adb_path.exists() {
-        panic!("adb executable not found at: {}", adb_path.display());
-    }
-
-    adb_path
 }

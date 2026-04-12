@@ -3,9 +3,15 @@ mod linux;
 #[cfg(target_os = "windows")]
 mod windows;
 
-use anyhow::Result;
+mod common;
+
+use std::process::Command;
+
+use anyhow::{Context, Result, anyhow};
 use opencv::core::Mat;
 use water_sort_core::Pos;
+
+use crate::common::get_adb_path;
 
 pub trait CaptureDeviceBackend {
     fn start_capture(&mut self, quick_mode: bool) -> Result<(usize, usize)>;
@@ -16,7 +22,24 @@ pub trait CaptureDeviceBackend {
         self.click_at(pos.0, pos.1)
     }
 
-    fn click_at(&self, x: i32, y: i32) -> Result<()>;
+    fn get_scale(&self) -> (f32, f32);
+
+    fn click_at(&self, x: i32, y: i32) -> Result<()> {
+        let (scale_x, scale_y) = self.get_scale();
+        let x = (x as f32 * scale_x) as i32;
+        let y = (y as f32 * scale_y) as i32;
+
+        let status = Command::new(get_adb_path())
+            .args(["shell", "input", "tap", &x.to_string(), &y.to_string()])
+            .status()
+            .context("failed to execute adb tap command")?;
+
+        if !status.success() {
+            return Err(anyhow!("adb tap command exited with status: {}", status));
+        }
+
+        Ok(())
+    }
 }
 
 pub fn construct_capture_backend() -> impl CaptureDeviceBackend {

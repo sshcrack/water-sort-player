@@ -6,6 +6,8 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use image::{ImageBuffer, Rgba};
+#[cfg(target_os = "windows")]
+use opencv::core::AlgorithmHint;
 use opencv::{
     core::{Mat, MatTraitConst, MatTraitConstManual},
     imgproc,
@@ -58,7 +60,16 @@ impl DiscoveryCaptureContext {
 
 fn rgba_frame_from_bgr(frame: &Mat) -> Result<Mat> {
     let mut frame_rgba = Mat::default();
+    #[cfg(target_os = "linux")]
     imgproc::cvt_color(frame, &mut frame_rgba, imgproc::COLOR_BGR2RGBA, 0)?;
+    #[cfg(target_os = "windows")]
+    imgproc::cvt_color(
+        frame,
+        &mut frame_rgba,
+        imgproc::COLOR_BGR2RGBA,
+        0,
+        AlgorithmHint::ALGO_HINT_DEFAULT,
+    )?;
     Ok(frame_rgba)
 }
 
