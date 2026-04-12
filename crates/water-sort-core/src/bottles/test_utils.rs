@@ -117,20 +117,20 @@ impl TestUtils {
             .collect()
     }
 
-    pub fn are_bottles_equal(a: &[Bottle], b: &[Bottle]) -> bool {
-        if a.len() != b.len() {
+    pub fn are_bottles_equal(a: &[Bottle], expected: &[Bottle]) -> bool {
+        if a.len() != expected.len() {
             println!(
                 "Bottle sequences have different lengths: {} vs {}",
                 a.len(),
-                b.len()
+                expected.len()
             );
             return false;
         }
 
-        for (i, (bottle_a, bottle_b)) in a.iter().zip(b.iter()).enumerate() {
+        for (i, (bottle_a, bottle_b)) in a.iter().zip(expected.iter()).enumerate() {
             if bottle_a.get_fills() != bottle_b.get_fills() {
                 println!(
-                    "Bottles differ at index {}: {:?} vs {:?}",
+                    "Bottles differ at index {}: {:?}, expected {:?}",
                     i, bottle_a, bottle_b
                 );
                 return false;

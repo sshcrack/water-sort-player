@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use opencv::{
     core::{Mat, MatTraitConst, Rect, Scalar, Vec3b},
     imgcodecs, imgproc,
@@ -336,6 +338,35 @@ impl Bottle {
     }
 }
 
+impl Display for Bottle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_empty() {
+            return write!(f, "EEEE");
+        }
+
+        if let Some(requirement) = self.hidden_requirement {
+            return write!(f, "!{}", requirement.to_char());
+        }
+
+        let fill_str: String = self
+            .fills
+            .iter()
+            .rev()
+            .map(|(color, was_mystery)| {
+                let c = if *was_mystery { "?" } else { "" }.to_string();
+
+                c + color.to_char().to_string().as_str()
+            })
+            .collect();
+
+        if let Some(requirement) = self.hidden_requirement {
+            write!(f, "!{}{}", requirement.to_char(), fill_str)
+        } else {
+            write!(f, "{}", fill_str)
+        }
+    }
+}
+
 pub fn has_failed_level(image: &Mat) -> anyhow::Result<bool> {
     let failed_color = image.at_2d::<Vec3b>(
         crate::constants::FAILED_LEVEL_TEXT.1,
@@ -450,7 +481,9 @@ pub fn detect_bottles_with_layout(
 
         if saw_unknown && is_hidden_curtain_bottle(frame_raw, layout, bottle_idx)? {
             bottle.fills.clear();
-            if let Some(requirement) = detect_hidden_requirement_color(frame_raw, layout, bottle_idx)? {
+            if let Some(requirement) =
+                detect_hidden_requirement_color(frame_raw, layout, bottle_idx)?
+            {
                 bottle.set_hidden_requirement(Some(requirement));
                 unresolved_unknown = false;
                 bottle_is_valid = true;

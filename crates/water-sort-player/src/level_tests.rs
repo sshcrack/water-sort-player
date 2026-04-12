@@ -1,9 +1,6 @@
+use std::collections::HashSet;
+
 use water_sort_solver::discovery::improve_current_bottles_with_revealed_state;
-use opencv::{
-    core::Size,
-    imgcodecs, imgproc,
-    prelude::MatTraitConst,
-};
 
 use crate::bottles::BottleLayout;
 
@@ -13,8 +10,7 @@ use crate::{
     solver::{
         discovery::{
             DiscoverResult, count_hidden_bottles, count_total_mystery_colors,
-            find_best_discovery_moves, find_best_hidden_unlock_moves,
-            improve_best_revealed_state,
+            find_best_discovery_moves, find_best_hidden_unlock_moves, improve_best_revealed_state,
         },
         run_solver,
     },
@@ -151,10 +147,10 @@ macro_rules! create_generated_test_level {
                     let are_equal = crate::bottles::test_utils::TestUtils::are_bottles_equal(final_revealed.as_slice(), RESOLVED_BOTTLES.as_slice());
                     assert!(
                         are_equal,
-                        "Final revealed bottles do not match expected resolved bottles for captured level {}. Final revealed: {:?}, Expected resolved: {:?}",
+                        "Final revealed bottles do not match expected resolved bottles for captured level {}. Final revealed: {}, Expected resolved: {}",
                         $capture_id,
-                        final_revealed,
-                        *RESOLVED_BOTTLES
+                        final_revealed.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(" "),
+                        RESOLVED_BOTTLES.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(" ")
                     );
 
                     solve_and_assert(final_revealed);
@@ -217,7 +213,8 @@ fn solve_and_assert(mut bottles: Vec<Bottle>) {
 
 #[test]
 fn hidden_bottle_unlock_then_solve_pipeline() {
-    let mut current = crate::bottles::test_utils::TestUtils::parse_bottles_sequence("OOOR O !O EEEE");
+    let mut current =
+        crate::bottles::test_utils::TestUtils::parse_bottles_sequence("OOOR O !O EEEE");
 
     assert_eq!(count_hidden_bottles(&current), 1);
 
@@ -244,53 +241,57 @@ fn hidden_bottle_unlock_then_solve_pipeline() {
     solve_and_assert(current);
 }
 
-#[test]
-fn hidden_level_layout_detection_from_live_capture() {
-    let image = crate::bottles::test_utils::TestUtils::load_test_image("detection/hidden-detection.png")
-        .expect("Failed to load hidden-level-screenshot.png");
-    let detected_layout = BottleLayout::detect_layout(&image).expect("Failed to detect bottle layout");
-    assert!(
-        detected_layout.bottle_count() == 5 || detected_layout.bottle_count() == 6,
-        "Hidden-level screenshot should map to a compact single-row layout. Got: {} ({})",
-        detected_layout.name,
-        detected_layout.bottle_count()
-    );
-
-    let expected_layout = get_layout_from_bottle_count(6);
-    let mut frame_display = image.try_clone().expect("Failed to clone frame for detection");
-    let detected_bottles = crate::bottles::detect_bottles_with_layout(
-        &image,
-        &mut frame_display,
-        &expected_layout,
-    )
-    .expect("Failed to detect bottles on hidden-level screenshot");
-
-    assert!(
-        count_hidden_bottles(&detected_bottles) >= 1,
-        "Hidden-level screenshot should detect at least one hidden requirement bottle"
-    );
-    assert!(
-        detected_bottles
-            .iter()
-            .any(|bottle| bottle.hidden_requirement() == Some(BottleColor::Orange)),
-        "Hidden-level screenshot should include a hidden bottle requiring orange"
-    );
-    assert!(
-        detected_bottles
-            .iter()
-            .any(|bottle| bottle.hidden_requirement() == Some(BottleColor::Blue)),
-        "Hidden-level screenshot should include hidden bottles requiring blue"
-    );
-}
-
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
     let mut max_revealed = initial.to_vec();
 
     let mut current_moves = Vec::new();
     let mut current_state = initial.to_vec();
     for _ in 0..300 {
-        if count_total_mystery_colors(&max_revealed) == 0 {
+        let hidden_count = count_hidden_bottles(&max_revealed);
+        let mystery_count = count_total_mystery_colors(&max_revealed);
+        if hidden_count == 0 && mystery_count == 0 {
             break;
+        }
+
+        reveal_hidden_observed(&mut current_state, resolved);
+        improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
+
+        if count_hidden_bottles(&max_revealed) > 0 && count_total_mystery_colors(&max_revealed) == 0 {
+            match find_best_hidden_unlock_moves(&current_state) {
+                DiscoverResult::MoveToDiscover(moves_to_apply) => {
+                    if moves_to_apply.is_empty() {
+                        break;
+                    }
+
+                    for mv in moves_to_apply {
+                        mv.perform_move_on_bottles(&mut current_state);
+                        current_moves.push(mv);
+
+                        reveal_hidden_observed(&mut current_state, resolved);
+                        improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
+                    }
+                }
+                DiscoverResult::NoMove => {
+                    if count_total_mystery_colors(&max_revealed) == 0 {
+                        reveal_all_hidden_from_resolved(&mut current_state, resolved);
+                        improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
+
+                        if count_hidden_bottles(&max_revealed) == 0 {
+                            continue;
+                        }
+                    }
+
+                    println!("No hidden unlock moves found, simulating restart...");
+                    current_moves.clear();
+                    current_state = initial.to_vec();
+                }
+                DiscoverResult::AlreadySolved => {
+                    reveal_hidden_observed(&mut current_state, resolved);
+                    improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
+                }
+            }
+
+            continue;
         }
 
         improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
@@ -321,10 +322,14 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
 
     let mut solver_bottles = Vec::new();
     max_revealed.iter().enumerate().for_each(|(i, bottle)| {
-        solver_bottles.push(Bottle::from_fills_with_initial(
-            bottle.get_fills().clone(),
-            initial[i].get_fills().clone(),
-        ));
+        let revealed_fills = bottle.get_fills();
+        let initial_fills = initial[i].get_fills();
+
+        if revealed_fills.len() == initial_fills.len() {
+            solver_bottles.push(Bottle::from_fills_with_initial(revealed_fills, initial_fills));
+        } else {
+            solver_bottles.push(Bottle::from_fills(revealed_fills));
+        }
     });
 
     solver_bottles
@@ -349,6 +354,48 @@ fn reveal_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
 
                 observed[fill_index] = (resolved[fill_index], false);
                 index -= 1;
+            }
+        });
+}
+
+fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
+    let solved_colors: HashSet<BottleColor> = current
+        .iter()
+        .filter_map(Bottle::solved_color)
+        .collect();
+
+    current
+        .iter_mut()
+        .zip(fully_resolved.iter())
+        .for_each(|(current_bottle, resolved_bottle)| {
+            let Some(requirement) = current_bottle.hidden_requirement() else {
+                return;
+            };
+
+            if solved_colors.contains(&requirement) {
+                *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
+            }
+        });
+}
+
+fn improve_revealed_hidden_bottles(max_revealed: &mut [Bottle], current: &[Bottle]) {
+    max_revealed
+        .iter_mut()
+        .zip(current.iter())
+        .for_each(|(revealed_bottle, current_bottle)| {
+            if revealed_bottle.is_hidden() && !current_bottle.is_hidden() {
+                *revealed_bottle = current_bottle.clone();
+            }
+        });
+}
+
+fn reveal_all_hidden_from_resolved(current: &mut [Bottle], fully_resolved: &[Bottle]) {
+    current
+        .iter_mut()
+        .zip(fully_resolved.iter())
+        .for_each(|(current_bottle, resolved_bottle)| {
+            if current_bottle.is_hidden() {
+                *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
             }
         });
 }

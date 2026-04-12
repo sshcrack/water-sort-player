@@ -17,9 +17,9 @@ use crate::{
     solver::{
         Move,
         discovery::{
-            self, collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors, find_best_discovery_moves,
-            find_best_hidden_unlock_moves,
-            improve_best_revealed_state, improve_current_bottles_with_revealed_state,
+            self, collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors,
+            find_best_discovery_moves, find_best_hidden_unlock_moves, improve_best_revealed_state,
+            improve_current_bottles_with_revealed_state,
         },
         visualization::draw_revealed_fill_markers,
     },
@@ -108,9 +108,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut frame_raw: Mat;
 
     let mut app_state = if quick_mode {
-        AppState::ClickNextLevel {
+        AppState::DetectAndPlan {
             trigger_at: Instant::now() + Duration::from_secs(1),
-            //retries_remaining: BOTTLE_DETECTION_RETRIES,
+            retries_remaining: BOTTLE_DETECTION_RETRIES,
         }
     } else {
         AppState::WaitingToPressStart {
@@ -212,11 +212,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         }
                         Err(error) => {
                             if *retries_remaining == 0 {
-                                return Err(anyhow!(
-                                    "Could not detect bottles after {} attempts. Last error: {:?}",
-                                    BOTTLE_DETECTION_RETRIES + 1,
-                                    error
-                                ));
+                                println!("No retries left for bottle detection. Restarting app...");
+                                capture.restart_app()?;
+                                app_state = AppState::WaitingToPressStart {
+                                    trigger_at: Instant::now() + START_WAIT,
+                                };
+                                continue;
                             }
 
                             let next_retries_remaining = *retries_remaining - 1;
@@ -297,7 +298,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "hidden bottle discovery")?;
 
-                    let current_bottles = detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+                    let current_bottles =
+                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
                         return Err(anyhow!(
@@ -567,7 +569,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 current_moves,
             } => {
                 if now >= *trigger_at {
-                    let layout = require_active_layout(&active_layout, "hidden bottle move execution")?;
+                    let layout =
+                        require_active_layout(&active_layout, "hidden bottle move execution")?;
 
                     let current_bottles =
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
@@ -588,7 +591,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
-                        let reveal_wait_needed = move_satisfies_hidden_requirement(&current_bottles, next_move);
+                        let reveal_wait_needed =
+                            move_satisfies_hidden_requirement(&current_bottles, next_move);
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(

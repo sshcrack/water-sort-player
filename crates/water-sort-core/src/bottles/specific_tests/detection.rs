@@ -154,3 +154,18 @@ create_bottle_detection_test!(
     BottleLayout::seven_bottle_layout(),
     "EGOB EPRG EBPO EGGR EBPB EEOP EEROR"
 );
+
+create_bottle_detection_test!(
+    test_hidden_bottle_detection,
+    "detection/hidden-detection.png",
+    BottleLayout::five_bottle_layout(),
+    "OORR OOBB EEEE !O !B !B"
+);
+
+
+create_bottle_detection_test!(
+    test_hidden_bottle_detection_alternative,
+    "detection/hidden-detection-2.png",
+    BottleLayout::eight_bottle_layout(),
+    "!O !O !B !B BBOY OYBB EEEE EEEE"
+);

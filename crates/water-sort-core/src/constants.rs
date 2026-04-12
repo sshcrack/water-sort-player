@@ -44,6 +44,41 @@ pub enum BottleColor {
     Mystery,
 }
 
+impl BottleColor {
+    pub fn to_char(self) -> char {
+        match self {
+            BottleColor::Yellow => 'Y',
+            BottleColor::Red => 'R',
+            BottleColor::Green => 'G',
+            BottleColor::Lime => 'g',
+            BottleColor::LightBlue => 'L',
+            BottleColor::MediumBlue => 'M',
+            BottleColor::Blue => 'B',
+            BottleColor::Purple => 'P',
+            BottleColor::Pink => 'W',
+            BottleColor::Orange => 'O',
+            BottleColor::Mystery => '?',
+        }
+    }
+
+    pub fn from_char(c: char) -> Option<Self> {
+        match c {
+            'Y' => Some(BottleColor::Yellow),
+            'R' => Some(BottleColor::Red),
+            'G' => Some(BottleColor::Green),
+            'g' => Some(BottleColor::Lime),
+            'L' => Some(BottleColor::LightBlue),
+            'M' => Some(BottleColor::MediumBlue),
+            'B' => Some(BottleColor::Blue),
+            'P' => Some(BottleColor::Purple),
+            'O' => Some(BottleColor::Orange),
+            'W' => Some(BottleColor::Pink),
+            '?' => Some(BottleColor::Mystery),
+            _ => None,
+        }
+    }
+}
+
 pub fn color_distance_sq(pixel: &Vec3b, target: &Vec3b) -> u32 {
     let b_diff = pixel[0] as i32 - target[0] as i32;
     let g_diff = pixel[1] as i32 - target[1] as i32;
