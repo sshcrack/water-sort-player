@@ -29,7 +29,7 @@ fn test_bottle_solved() {
         assert!(bottle.is_solved());
     });
 
-    let empty_bottle = Bottle { fills: vec![] };
+    let empty_bottle = Bottle::default();
     assert!(!empty_bottle.is_solved());
 
     let unsolved_bottle = Bottle::from_fills(vec![
@@ -46,7 +46,7 @@ fn test_bottle_solved() {
 fn test_bottle_can_fill_from() {
     let source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red]);
 
-    let mut destination = Bottle { fills: vec![] };
+    let mut destination = Bottle::default();
     assert!(destination.can_fill_from(&source));
 
     destination.fills.push((BottleColor::Green, false));
@@ -127,7 +127,7 @@ fn test_bottle_fill_from_partial() {
 
 #[test]
 fn test_bottle_is_empty() {
-    let empty = Bottle { fills: vec![] };
+    let empty = Bottle::default();
     assert!(empty.is_empty());
 
     let not_empty = Bottle::from_fills(vec![BottleColor::Red]);

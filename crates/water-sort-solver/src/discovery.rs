@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{Move, find_shortest_move_sequence};
 use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
@@ -13,10 +15,66 @@ pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
         .sum()
 }
 
+pub fn count_hidden_bottles(bottles: &[Bottle]) -> usize {
+    bottles.iter().filter(|bottle| bottle.is_hidden()).count()
+}
+
+pub fn collect_hidden_requirements(bottles: &[Bottle]) -> HashSet<BottleColor> {
+    bottles
+        .iter()
+        .filter_map(Bottle::hidden_requirement)
+        .collect()
+}
+
+#[derive(Debug)]
 pub enum DiscoverResult {
     NoMove,
     MoveToDiscover(Vec<Move>),
     AlreadySolved,
+}
+
+pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResult {
+    let hidden_requirements = collect_hidden_requirements(current_bottles);
+    if hidden_requirements.is_empty() {
+        return DiscoverResult::AlreadySolved;
+    }
+
+    if current_bottles.iter().any(|bottle| {
+        bottle
+            .solved_color()
+            .is_some_and(|color| hidden_requirements.contains(&color))
+    }) {
+        return DiscoverResult::AlreadySolved;
+    }
+
+    #[cfg(feature = "solver-visualization")]
+    let best_moves = find_shortest_move_sequence(
+        current_bottles.to_vec(),
+        |state, move_count| {
+            move_count > 0
+                && state.iter().any(|bottle| {
+                    bottle
+                        .solved_color()
+                        .is_some_and(|color| hidden_requirements.contains(&color))
+                })
+        },
+        None,
+    );
+
+    #[cfg(not(feature = "solver-visualization"))]
+    let best_moves = find_shortest_move_sequence(current_bottles.to_vec(), |state, move_count| {
+        move_count > 0
+            && state.iter().any(|bottle| {
+                bottle
+                    .solved_color()
+                    .is_some_and(|color| hidden_requirements.contains(&color))
+            })
+    });
+
+    match best_moves {
+        Some(moves) => DiscoverResult::MoveToDiscover(moves),
+        None => DiscoverResult::NoMove,
+    }
 }
 
 pub fn find_best_discovery_moves(
@@ -112,14 +170,47 @@ pub fn improve_current_bottles_with_revealed_state(
 
 #[cfg(test)]
 mod tests {
-    use crate::discovery::{count_total_mystery_colors, improve_best_revealed_state};
+    use crate::discovery::{
+        collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors,
+        find_best_hidden_unlock_moves, improve_best_revealed_state, DiscoverResult,
+    };
     use water_sort_core::bottles::test_utils::TestUtils;
+    use water_sort_core::constants::BottleColor;
 
     #[test]
     fn test_count_total_mystery_colors() {
         let bottles = TestUtils::parse_bottles_sequence("P??? YGBR G???");
 
         assert_eq!(count_total_mystery_colors(&bottles), 6);
+    }
+
+    #[test]
+    fn test_hidden_requirement_helpers() {
+        let mut bottles = TestUtils::parse_bottles_sequence("OOOR B??R EEEE");
+        bottles.push(water_sort_core::bottles::Bottle::from_hidden_requirement(
+            BottleColor::Orange,
+        ));
+
+        assert_eq!(count_hidden_bottles(&bottles), 1);
+        assert!(collect_hidden_requirements(&bottles).contains(&BottleColor::Orange));
+    }
+
+    #[test]
+    fn test_find_best_hidden_unlock_moves() {
+        let mut bottles = TestUtils::parse_bottles_sequence("OOOR EEEE EEEE EEEE");
+        bottles.push(water_sort_core::bottles::Bottle::from_hidden_requirement(
+            BottleColor::Orange,
+        ));
+
+        match find_best_hidden_unlock_moves(&bottles) {
+            DiscoverResult::MoveToDiscover(moves) => {
+                assert_eq!(moves.len(), 1);
+                let mut next_state = bottles.clone();
+                moves[0].perform_move_on_bottles(&mut next_state);
+                assert!(next_state.iter().any(|bottle| bottle.solved_color() == Some(BottleColor::Orange)));
+            }
+            other => panic!("Expected a move sequence to unlock hidden bottle, got {:?}", other),
+        }
     }
 
     #[test]

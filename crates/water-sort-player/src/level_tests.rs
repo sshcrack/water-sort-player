@@ -1,4 +1,9 @@
 use water_sort_solver::discovery::improve_current_bottles_with_revealed_state;
+use opencv::{
+    core::Size,
+    imgcodecs, imgproc,
+    prelude::MatTraitConst,
+};
 
 use crate::bottles::BottleLayout;
 
@@ -7,7 +12,8 @@ use crate::{
     constants::BottleColor,
     solver::{
         discovery::{
-            DiscoverResult, count_total_mystery_colors, find_best_discovery_moves,
+            DiscoverResult, count_hidden_bottles, count_total_mystery_colors,
+            find_best_discovery_moves, find_best_hidden_unlock_moves,
             improve_best_revealed_state,
         },
         run_solver,
@@ -206,6 +212,74 @@ fn solve_and_assert(mut bottles: Vec<Bottle>) {
     assert!(
         bottles.iter().all(|b| b.is_solved() || b.is_empty()),
         "Final bottle state should be solved"
+    );
+}
+
+#[test]
+fn hidden_bottle_unlock_then_solve_pipeline() {
+    let mut current = crate::bottles::test_utils::TestUtils::parse_bottles_sequence("OOOR O !O EEEE");
+
+    assert_eq!(count_hidden_bottles(&current), 1);
+
+    match find_best_hidden_unlock_moves(&current) {
+        DiscoverResult::MoveToDiscover(moves_to_apply) => {
+            assert!(!moves_to_apply.is_empty());
+            for mv in moves_to_apply {
+                mv.perform_move_on_bottles(&mut current);
+            }
+        }
+        other => panic!("Expected hidden unlock move sequence, got {:?}", other),
+    }
+
+    assert!(
+        current
+            .iter()
+            .any(|bottle| bottle.solved_color() == Some(BottleColor::Orange)),
+        "Unlock move should solve an orange bottle"
+    );
+
+    current[2] = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red, BottleColor::Red]);
+    assert_eq!(count_hidden_bottles(&current), 0);
+
+    solve_and_assert(current);
+}
+
+#[test]
+fn hidden_level_layout_detection_from_live_capture() {
+    let image = crate::bottles::test_utils::TestUtils::load_test_image("detection/hidden-detection.png")
+        .expect("Failed to load hidden-level-screenshot.png");
+    let detected_layout = BottleLayout::detect_layout(&image).expect("Failed to detect bottle layout");
+    assert!(
+        detected_layout.bottle_count() == 5 || detected_layout.bottle_count() == 6,
+        "Hidden-level screenshot should map to a compact single-row layout. Got: {} ({})",
+        detected_layout.name,
+        detected_layout.bottle_count()
+    );
+
+    let expected_layout = get_layout_from_bottle_count(6);
+    let mut frame_display = image.try_clone().expect("Failed to clone frame for detection");
+    let detected_bottles = crate::bottles::detect_bottles_with_layout(
+        &image,
+        &mut frame_display,
+        &expected_layout,
+    )
+    .expect("Failed to detect bottles on hidden-level screenshot");
+
+    assert!(
+        count_hidden_bottles(&detected_bottles) >= 1,
+        "Hidden-level screenshot should detect at least one hidden requirement bottle"
+    );
+    assert!(
+        detected_bottles
+            .iter()
+            .any(|bottle| bottle.hidden_requirement() == Some(BottleColor::Orange)),
+        "Hidden-level screenshot should include a hidden bottle requiring orange"
+    );
+    assert!(
+        detected_bottles
+            .iter()
+            .any(|bottle| bottle.hidden_requirement() == Some(BottleColor::Blue)),
+        "Hidden-level screenshot should include hidden bottles requiring blue"
     );
 }
 

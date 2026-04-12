@@ -30,7 +30,7 @@ pub mod visualization;
 
 const FULL_BOTTLE_COUNT: usize = 4;
 
-type CanonicalStateKey = Vec<Vec<BottleColor>>;
+type CanonicalStateKey = Vec<(Option<BottleColor>, Vec<BottleColor>)>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct SearchRecord {
@@ -66,7 +66,7 @@ impl PartialOrd for QueueEntry {
 fn canonical_state_key(bottles: &[Bottle]) -> CanonicalStateKey {
     let mut key = bottles
         .iter()
-        .map(|bottle| bottle.get_fills().clone())
+        .map(|bottle| (bottle.hidden_requirement(), bottle.get_fills().clone()))
         .collect::<Vec<_>>();
     key.sort();
     key
@@ -130,7 +130,9 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 
             if source_bottle.is_solved()
                 || source_bottle.is_empty()
+                || source_bottle.is_hidden()
                 || destination_bottle.is_solved()
+                || destination_bottle.is_hidden()
             {
                 continue;
             }
@@ -342,7 +344,9 @@ pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
 
     find_shortest_move_sequence(
         bottles.to_vec(),
-        |state, _move_count| state.iter().all(|b| b.is_solved() || b.is_empty()),
+        |state, _move_count| {
+            state.iter().all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
+        },
         #[cfg(feature = "solver-visualization")]
         None,
     )
@@ -360,7 +364,9 @@ where
 
     find_shortest_move_sequence(
         bottles.to_vec(),
-        |state, _move_count| state.iter().all(|b| b.is_solved() || b.is_empty()),
+        |state, _move_count| {
+            state.iter().all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
+        },
         Some(&mut on_progress),
     )
 }

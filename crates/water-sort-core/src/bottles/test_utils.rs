@@ -13,6 +13,23 @@ use opencv::{core::Mat, imgcodecs, prelude::*};
 pub struct TestUtils;
 
 impl TestUtils {
+    fn parse_color_char(c: char) -> BottleColor {
+        match c {
+            'Y' => BottleColor::Yellow,
+            'R' => BottleColor::Red,
+            'G' => BottleColor::Green,
+            'g' => BottleColor::Lime,
+            'L' => BottleColor::LightBlue,
+            'M' => BottleColor::MediumBlue,
+            'B' => BottleColor::Blue,
+            'P' => BottleColor::Purple,
+            'O' => BottleColor::Orange,
+            'W' => BottleColor::Pink,
+            '?' => BottleColor::Mystery,
+            _ => panic!("Invalid color character in bottle string: {}", c),
+        }
+    }
+
     /// Load an image from the captures directory
     pub fn load_test_image(filename: &str) -> anyhow::Result<Mat> {
         let path = format!("../../captures/{}", filename);
@@ -68,17 +85,9 @@ impl TestUtils {
         let mut fills: Vec<BottleColor> = bottle_str
             .chars()
             .filter_map(|c| match c {
-                'Y' => Some(BottleColor::Yellow),
-                'R' => Some(BottleColor::Red),
-                'G' => Some(BottleColor::Green),
-                'g' => Some(BottleColor::Lime),
-                'L' => Some(BottleColor::LightBlue),
-                'M' => Some(BottleColor::MediumBlue),
-                'B' => Some(BottleColor::Blue),
-                'P' => Some(BottleColor::Purple),
-                'O' => Some(BottleColor::Orange),
-                'W' => Some(BottleColor::Pink),
-                '?' => Some(BottleColor::Mystery),
+                'Y' | 'R' | 'G' | 'g' | 'L' | 'M' | 'B' | 'P' | 'O' | 'W' | '?' => {
+                    Some(Self::parse_color_char(c))
+                }
                 'E' => None,
                 _ => panic!("Invalid character in bottle string: {}", c),
             })
@@ -92,8 +101,19 @@ impl TestUtils {
     pub fn parse_bottles_sequence(sequence: &str) -> Vec<Bottle> {
         sequence
             .split_whitespace()
-            .map(TestUtils::parse_bottle_string)
-            .map(Bottle::from_fills)
+            .map(|token| {
+                if token.len() == 2 && token.starts_with('!') {
+                    let requirement = Self::parse_color_char(
+                        token
+                            .chars()
+                            .nth(1)
+                            .expect("Hidden bottle requirement token is missing a color"),
+                    );
+                    Bottle::from_hidden_requirement(requirement)
+                } else {
+                    Bottle::from_fills(TestUtils::parse_bottle_string(token))
+                }
+            })
             .collect()
     }
 
@@ -118,5 +138,23 @@ impl TestUtils {
         }
 
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TestUtils;
+    use crate::constants::BottleColor;
+
+    #[test]
+    fn parse_bottles_sequence_supports_hidden_requirement_tokens() {
+        let bottles = TestUtils::parse_bottles_sequence("OR OB EEEE !O !B");
+
+        assert_eq!(bottles.len(), 5);
+        assert_eq!(bottles[0].get_fills(), vec![BottleColor::Red, BottleColor::Orange]);
+        assert_eq!(bottles[1].get_fills(), vec![BottleColor::Blue, BottleColor::Orange]);
+        assert!(bottles[2].is_empty());
+        assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
+        assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::Blue));
     }
 }

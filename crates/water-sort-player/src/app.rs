@@ -17,7 +17,8 @@ use crate::{
     solver::{
         Move,
         discovery::{
-            self, count_total_mystery_colors, find_best_discovery_moves,
+            self, count_hidden_bottles, count_total_mystery_colors, find_best_discovery_moves,
+            find_best_hidden_unlock_moves,
             improve_best_revealed_state, improve_current_bottles_with_revealed_state,
         },
         visualization::draw_revealed_fill_markers,
@@ -40,6 +41,7 @@ const BOTTLE_DETECTION_RETRIES: u8 = 3;
 const POST_DETECTION_WAIT: Duration = Duration::from_secs(1);
 const MOVE_DELAY: Duration = Duration::from_millis(3000);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(3000);
+const HIDDEN_REVEAL_DETECTION_DELAY: Duration = Duration::from_millis(5500);
 #[cfg(feature = "solver-visualization")]
 const SOLVER_VISUALIZATION_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 #[cfg(feature = "solver-visualization")]
@@ -62,6 +64,15 @@ enum AppState {
     AwaitPostDetectionPlan {
         trigger_at: Instant,
         detected_bottles: Vec<Bottle>,
+    },
+    HiddenDiscoverBottles {
+        trigger_at: Instant,
+        current_moves: Vec<Move>,
+    },
+    HiddenExecuteDiscoverMove {
+        trigger_at: Instant,
+        moves_to_execute: Vec<Move>,
+        current_moves: Vec<Move>,
     },
     MysteryDiscoverColors {
         trigger_at: Instant,
@@ -234,7 +245,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     // Check if there are any mystery colors
                     let mystery_count = discovery::count_total_mystery_colors(&detected_bottles);
-                    if mystery_count == 0 {
+                    let hidden_count = count_hidden_bottles(&detected_bottles);
+                    if mystery_count == 0 && hidden_count == 0 {
                         println!("No mystery colors detected, running solver directly...");
 
                         maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
@@ -253,7 +265,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             performed_moves: 0,
                             next_move_at: Instant::now() + MOVE_DELAY,
                         };
-                    } else {
+                    } else if mystery_count > 0 {
                         println!(
                             "Detected {} mystery colors, starting discovery process...",
                             mystery_count
@@ -265,6 +277,126 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
                         };
+                    } else {
+                        println!(
+                            "Detected {} hidden bottle(s), starting unlock discovery...",
+                            hidden_count
+                        );
+
+                        app_state = AppState::HiddenDiscoverBottles {
+                            trigger_at: now,
+                            current_moves: vec![],
+                        };
+                    }
+                }
+            }
+            AppState::HiddenDiscoverBottles {
+                trigger_at,
+                current_moves,
+            } => {
+                if now >= *trigger_at {
+                    let layout = require_active_layout(&active_layout, "hidden bottle discovery")?;
+
+                    let current_bottles = detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+
+                    if let Err(error) = current_bottles {
+                        return Err(anyhow!(
+                            "Error detecting bottles during hidden bottle discovery: {:?}",
+                            error
+                        ));
+                    }
+
+                    let current_bottles = current_bottles.unwrap();
+                    let mystery_count = count_total_mystery_colors(&current_bottles);
+                    let hidden_count = count_hidden_bottles(&current_bottles);
+
+                    if hidden_count == 0 {
+                        if mystery_count > 0 {
+                            println!(
+                                "Hidden bottles unlocked and {} mystery colors remain. Starting mystery discovery...",
+                                mystery_count
+                            );
+
+                            app_state = AppState::MysteryDiscoverColors {
+                                trigger_at: now,
+                                initial_state: current_bottles.clone(),
+                                max_revealed_bottle_state: current_bottles.clone(),
+                                current_moves: vec![],
+                            };
+                        } else {
+                            println!("All hidden bottles revealed! Running solver...");
+
+                            maybe_set_resolved_bottles(&mut discovery_capture, &current_bottles);
+                            finalize_discovery_capture(&mut discovery_capture);
+
+                            let solution = solve_with_visualization(
+                                &current_bottles,
+                                &frame_raw,
+                                &mut window,
+                                width,
+                                height,
+                            )?;
+
+                            app_state = AppState::ExecuteFinalSolveMoves {
+                                planned_moves: solution,
+                                performed_moves: 0,
+                                next_move_at: Instant::now() + MOVE_DELAY,
+                            };
+                        }
+                    } else if mystery_count > 0 {
+                        println!(
+                            "Hidden bottles are still locked, but {} mystery colors remain. Switching to mystery discovery first...",
+                            mystery_count
+                        );
+
+                        app_state = AppState::MysteryDiscoverColors {
+                            trigger_at: now,
+                            initial_state: current_bottles.clone(),
+                            max_revealed_bottle_state: current_bottles.clone(),
+                            current_moves: vec![],
+                        };
+                    } else {
+                        #[cfg(feature = "discovery-debugging")]
+                        {
+                            let buffer = frame_to_window_buffer(&frame_display)?;
+                            window.update_with_buffer(&buffer, width, height)?;
+
+                            println!("Press enter to continue hidden-bottle discovery...");
+                            std::io::stdin().read_line(&mut String::new()).unwrap();
+                        }
+
+                        match find_best_hidden_unlock_moves(&current_bottles) {
+                            discovery::DiscoverResult::MoveToDiscover(best_moves) => {
+                                println!("Best hidden unlock sequence found: {:?}", best_moves);
+                                app_state = AppState::HiddenExecuteDiscoverMove {
+                                    moves_to_execute: best_moves,
+                                    current_moves: current_moves.clone(),
+                                    trigger_at: now,
+                                };
+                            }
+                            discovery::DiscoverResult::NoMove => {
+                                println!(
+                                    "No move found that unlocks hidden bottles. Retrying level..."
+                                );
+
+                                capture.click_at_position(RETRY_BUTTON_POS)?;
+
+                                app_state = AppState::HiddenDiscoverBottles {
+                                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                    current_moves: vec![],
+                                };
+                            }
+                            discovery::DiscoverResult::AlreadySolved => {
+                                println!(
+                                    "A hidden bottle requirement is already satisfied. Waiting for reveal..."
+                                );
+
+                                app_state = AppState::HiddenDiscoverBottles {
+                                    trigger_at: Instant::now() + HIDDEN_REVEAL_DETECTION_DELAY,
+                                    current_moves: current_moves.clone(),
+                                };
+                            }
+                        }
                     }
                 }
             }
@@ -309,6 +441,20 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let mystery_colors = count_total_mystery_colors(max_revealed_bottle_state);
                     println!("Total mystery colors still hidden: {}", mystery_colors);
                     if mystery_colors == 0 {
+                        let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
+                        if hidden_count > 0 {
+                            println!(
+                                "All mystery colors revealed, but {} hidden bottle(s) remain locked. Switching to hidden discovery...",
+                                hidden_count
+                            );
+
+                            app_state = AppState::HiddenDiscoverBottles {
+                                trigger_at: now,
+                                current_moves: current_moves.clone(),
+                            };
+                            continue;
+                        }
+
                         println!("All mystery colors revealed! Running solver...");
 
                         maybe_set_resolved_bottles(
@@ -384,21 +530,83 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
-                                println!(
-                                    "While discovering, the puzzle has been solved. Proceeding to next level..."
-                                );
+                                let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
+                                if hidden_count > 0 {
+                                    println!(
+                                        "Mystery discovery finished, but {} hidden bottle(s) remain locked. Switching to hidden discovery...",
+                                        hidden_count
+                                    );
 
-                                maybe_set_resolved_bottles(
-                                    &mut discovery_capture,
-                                    max_revealed_bottle_state,
-                                );
-                                finalize_discovery_capture(&mut discovery_capture);
+                                    app_state = AppState::HiddenDiscoverBottles {
+                                        trigger_at: now,
+                                        current_moves: current_moves.clone(),
+                                    };
+                                } else {
+                                    println!(
+                                        "While discovering, the puzzle has been solved. Proceeding to next level..."
+                                    );
 
-                                app_state = AppState::CheckForRewards {
-                                    trigger_at: now + NEXT_LEVEL_WAIT,
-                                };
+                                    maybe_set_resolved_bottles(
+                                        &mut discovery_capture,
+                                        max_revealed_bottle_state,
+                                    );
+                                    finalize_discovery_capture(&mut discovery_capture);
+
+                                    app_state = AppState::CheckForRewards {
+                                        trigger_at: now + NEXT_LEVEL_WAIT,
+                                    };
+                                }
                             }
                         }
+                    }
+                }
+            }
+            AppState::HiddenExecuteDiscoverMove {
+                trigger_at,
+                moves_to_execute,
+                current_moves,
+            } => {
+                if now >= *trigger_at {
+                    let layout = require_active_layout(&active_layout, "hidden bottle move execution")?;
+
+                    let current_bottles =
+                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+
+                    if let Err(error) = current_bottles {
+                        return Err(anyhow!(
+                            "Error detecting bottles during hidden bottle move execution: {:?}",
+                            error
+                        ));
+                    }
+
+                    let current_bottles = current_bottles.unwrap();
+
+                    if moves_to_execute.is_empty() {
+                        app_state = AppState::HiddenDiscoverBottles {
+                            trigger_at: now + HIDDEN_REVEAL_DETECTION_DELAY,
+                            current_moves: current_moves.clone(),
+                        };
+                    } else {
+                        let next_move = moves_to_execute.remove(0);
+
+                        if !next_move.can_perform_on_bottles(&current_bottles) {
+                            return Err(anyhow!(
+                                "Planned hidden-bottle move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {:?}",
+                                next_move,
+                                current_bottles
+                            ));
+                        }
+
+                        println!("Performing hidden-bottle move: {:?}.", next_move);
+                        #[cfg(feature = "discovery-debugging")]
+                        {
+                            println!("Press enter to perform the next move...");
+                            std::io::stdin().read_line(&mut String::new()).unwrap();
+                        }
+                        next_move.perform_move_on_device(layout, &capture)?;
+
+                        current_moves.push(next_move);
+                        *trigger_at = Instant::now() + HIDDEN_REVEAL_DETECTION_DELAY;
                     }
                 }
             }
@@ -757,6 +965,43 @@ fn build_overlay_snapshot<'a>(
             discovery_total_slots: None,
             discovery_depth: None,
             discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
+        },
+        AppState::HiddenDiscoverBottles {
+            trigger_at,
+            current_moves,
+        } => OverlaySnapshot {
+            phase: "HiddenDiscoverBottles".to_string(),
+            detail: "Scanning bottles to unlock hidden slots".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: Some(current_moves.len()),
+            discovery_queue: Some(0),
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
+        },
+        AppState::HiddenExecuteDiscoverMove {
+            trigger_at,
+            moves_to_execute,
+            current_moves,
+        } => OverlaySnapshot {
+            phase: "HiddenExecuteDiscoverMove".to_string(),
+            detail: "Executing hidden-slot unlock sequence".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: Some(current_moves.len()),
+            discovery_queue: Some(moves_to_execute.len()),
             solve_moves: &[],
             solve_performed_moves: 0,
             #[cfg(feature = "solver-visualization")]
