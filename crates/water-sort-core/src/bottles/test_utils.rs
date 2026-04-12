@@ -102,14 +102,27 @@ impl TestUtils {
         sequence
             .split_whitespace()
             .map(|token| {
-                if token.len() == 2 && token.starts_with('!') {
-                    let requirement = Self::parse_color_char(
-                        token
-                            .chars()
-                            .nth(1)
-                            .expect("Hidden bottle requirement token is missing a color"),
-                    );
-                    Bottle::from_hidden_requirement(requirement)
+                if token.starts_with('!') {
+                    let (requirement_token, fills_token) = token
+                        .split_once(',')
+                        .map_or((token, None), |(requirement, fills)| {
+                            (requirement, Some(fills))
+                        });
+
+                    let requirement_char = requirement_token
+                        .chars()
+                        .nth(1)
+                        .expect("Hidden bottle requirement token is missing a color");
+                    let requirement = Self::parse_color_char(requirement_char);
+
+                    let mut bottle = if let Some(fills) = fills_token {
+                        Bottle::from_fills(TestUtils::parse_bottle_string(fills))
+                    } else {
+                        Bottle::from_hidden_requirement(requirement)
+                    };
+
+                    bottle.set_hidden_requirement(Some(requirement));
+                    bottle
                 } else {
                     Bottle::from_fills(TestUtils::parse_bottle_string(token))
                 }
@@ -156,5 +169,27 @@ mod tests {
         assert!(bottles[2].is_empty());
         assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
         assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::Blue));
+    }
+
+    #[test]
+    fn parse_bottles_sequence_supports_hidden_requirement_with_fills_tokens() {
+        let bottles =
+            TestUtils::parse_bottles_sequence("GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE");
+
+        assert_eq!(bottles.len(), 9);
+        assert_eq!(bottles[1].hidden_requirement(), Some(BottleColor::Purple));
+        assert_eq!(bottles[1].get_fills(), vec![
+            BottleColor::Blue,
+            BottleColor::Red,
+            BottleColor::Green,
+            BottleColor::Yellow,
+        ]);
+        assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
+        assert_eq!(bottles[3].get_fills(), vec![
+            BottleColor::Pink,
+            BottleColor::Purple,
+            BottleColor::Yellow,
+            BottleColor::Red,
+        ]);
     }
 }

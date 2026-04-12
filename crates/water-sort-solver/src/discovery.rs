@@ -16,7 +16,7 @@ pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
 }
 
 pub fn count_hidden_bottles(bottles: &[Bottle]) -> usize {
-    bottles.iter().filter(|bottle| bottle.is_hidden()).count()
+    bottles.iter().filter(|bottle| bottle.is_hidden() && bottle.is_empty()).count()
 }
 
 pub fn collect_hidden_requirements(bottles: &[Bottle]) -> HashSet<BottleColor> {
@@ -137,9 +137,9 @@ pub fn improve_best_revealed_state(
                 .iter_mut()
                 .zip(current_bottle.get_fills().iter())
                 .zip(initial_bottle.get_fills().iter())
-                .for_each(|(((revealed_color, _), current_color), previous_color)| {
+                .for_each(|(((revealed_color, _), current_color), initial_color)| {
                     if *revealed_color == BottleColor::Mystery
-                        && previous_color == &BottleColor::Mystery
+                        && initial_color == &BottleColor::Mystery
                         && current_color != &BottleColor::Mystery
                     {
                         *revealed_color = *current_color;

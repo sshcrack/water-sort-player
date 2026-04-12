@@ -4,9 +4,12 @@ use anyhow::{Result, anyhow};
 use log::{debug, info, warn};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
-use water_sort_core::constants::{
-    NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
-    NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+use water_sort_core::{
+    bottles::test_utils::TestUtils,
+    constants::{
+        NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
+        NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+    },
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
@@ -293,6 +296,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             mystery_count
                         );
 
+                        log::trace!(
+                            "Initial detected bottles: {}",
+                            detected_bottles
+                                .iter()
+                                .map(|b| b.to_string())
+                                .collect::<Vec<_>>()
+                                .join(" ")
+                        );
+
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
                             initial_state: detected_bottles.clone(),
@@ -321,6 +333,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 max_revealed_bottle_state,
             } => {
                 if now >= *trigger_at {
+                    log::trace!(
+                        "Max revealed {}",
+                        max_revealed_bottle_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
                     let layout = require_active_layout(&active_layout, "hidden bottle discovery")?;
 
                     let current_bottles =
@@ -357,7 +377,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let mystery_count = count_total_mystery_colors(max_revealed_bottle_state);
                     let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
 
-                    
                     if hidden_count == 0 {
                         if mystery_count > 0 {
                             info!(
@@ -372,7 +391,18 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 current_moves: vec![],
                             };
                         } else {
-                            info!("All hidden bottles revealed! Running solver...");
+                            info!(
+                                "All hidden bottles revealed! Running solver, Mystery count: {mystery_count}, hidden count: {hidden_count}..."
+                            );
+
+                            log::trace!(
+                                "Final revealed state before solving: {}",
+                                max_revealed_bottle_state
+                                    .iter()
+                                    .map(|b| b.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                            );
 
                             maybe_set_resolved_bottles(&mut discovery_capture, &current_bottles);
                             finalize_discovery_capture(&mut discovery_capture);
@@ -464,6 +494,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 current_moves,
             } => {
                 if now >= *trigger_at {
+                    log::trace!(
+                        "Max revealed {}",
+                        max_revealed_bottle_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
                     let layout = require_active_layout(&active_layout, "discovery move execution")?;
 
                     let current_bottles =
@@ -532,8 +570,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         finalize_discovery_capture(&mut discovery_capture);
 
                         let solution = solve_with_visualization(
-                            &max_revealed_bottle_state,
-                            &initial_state,
+                            max_revealed_bottle_state,
+                            initial_state,
                             &frame_raw,
                             &mut window,
                             width,
@@ -573,7 +611,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
-                                warn!(
+                                log::debug!(
                                     "No discovery move found that reveals new colors. Retrying level..."
                                 );
 
@@ -629,6 +667,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 initial_state,
             } => {
                 if now >= *trigger_at {
+                    log::trace!(
+                        "Max revealed {}",
+                        max_revealed_bottle_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
                     let layout =
                         require_active_layout(&active_layout, "hidden bottle move execution")?;
 
@@ -696,6 +742,14 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 initial_state,
             } => {
                 if now >= *trigger_at {
+                    log::trace!(
+                        "Max revealed {}",
+                        max_revealed_bottle_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
                     let layout = require_active_layout(&active_layout, "discovery move execution")?;
 
                     let current_bottles =
@@ -844,12 +898,15 @@ fn solve_with_visualization(
     let mut solver_bottles = Vec::new();
     max_revealed_bottle_state
         .iter()
-        .enumerate()
-        .for_each(|(i, bottle)| {
-            solver_bottles.push(Bottle::from_fills_with_initial(
-                bottle.get_fills().clone(),
-                initial_state[i].get_fills().clone(),
-            ));
+        .zip(initial_state.iter())
+        .for_each(|(max_revealed_bottle, initial_bottle)| {
+            let mut new_bottle = Bottle::from_fills_with_initial(
+                max_revealed_bottle.get_fills().clone(),
+                initial_bottle.get_fills().clone(),
+            );
+
+            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement());
+            solver_bottles.push(new_bottle);
         });
 
     #[cfg(feature = "solver-visualization")]

@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, iter};
 
+use colored::Colorize;
 use log::warn;
 use opencv::{
     core::{Mat, MatTrait, MatTraitConst, Rect, Scalar, Vec3b},
@@ -205,11 +206,21 @@ impl Bottle {
     }
 
     pub fn from_fills_with_initial(fills: Vec<BottleColor>, initial: Vec<BottleColor>) -> Self {
+        let initial_with_fallback = initial
+            .into_iter()
+            .map(Some)
+            .chain(iter::repeat_with(|| None));
+
         Bottle {
             fills: fills
                 .into_iter()
-                .zip(initial)
-                .map(|(color, initial_color)| (color, initial_color == BottleColor::Mystery))
+                .zip(initial_with_fallback)
+                .map(|(color, initial_color)| {
+                    (
+                        color,
+                        initial_color.is_some_and(|e| e == BottleColor::Mystery),
+                    )
+                })
                 .collect(),
             hidden_requirement: None,
         }
@@ -343,7 +354,7 @@ impl Bottle {
         }
 
         if self_top_color == BottleColor::Mystery || other_top_color == BottleColor::Mystery {
-                warn!("Tried to fill mystery color into bottles");
+            warn!("Tried to fill mystery color into bottles");
             return false;
         }
 
@@ -372,6 +383,10 @@ impl Bottle {
 impl Display for Bottle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_empty() {
+            if let Some(req) = self.hidden_requirement {
+                return write!(f, "!{}", req.to_char());
+            }
+
             return write!(f, "EEEE");
         }
 
@@ -380,9 +395,13 @@ impl Display for Bottle {
             .iter()
             .rev()
             .map(|(color, was_mystery)| {
-                let c = if *was_mystery { "?" } else { "" }.to_string();
+                let c = color.to_char().to_string();
 
-                c + color.to_char().to_string().as_str()
+                if *was_mystery {
+                    c.underline().to_string()
+                } else {
+                    c
+                }
             })
             .collect();
 
