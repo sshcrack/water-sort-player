@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
 use opencv::{
-    core::{Mat, MatTraitConst, Rect, Scalar, Vec3b},
+    core::{Mat, MatTrait, MatTraitConst, Rect, Scalar, Vec3b},
     imgcodecs, imgproc,
 };
 
@@ -113,6 +113,7 @@ fn detect_hidden_requirement_color(
 
 fn is_hidden_curtain_bottle(
     frame_raw: &Mat,
+    frame_display: &mut Mat,
     layout: &BottleLayout,
     bottle_idx: usize,
     has_failed_level: bool,
@@ -120,51 +121,32 @@ fn is_hidden_curtain_bottle(
     let Some(top_pos) = layout.get_sample_position(bottle_idx, 0) else {
         return Ok(false);
     };
-    let Some(bottom_pos) = layout.get_sample_position(bottle_idx, 3) else {
-        return Ok(false);
-    };
 
-    let curtain_reference = if has_failed_level {
-        crate::constants::vec3_from_hex("#17695D")
-    } else {
-        crate::constants::vec3_from_hex("#268072")
-    };
+    let sample_y = top_pos.1 - 50;
+    let sample_x = top_pos.0;
 
-    let min_x = (top_pos.0 - 22).max(0);
-    let max_x = (top_pos.0 + 22).min(frame_raw.cols() - 1);
-    let min_y = (top_pos.1 - 8).max(0);
-    let max_y = (bottom_pos.1 + 32).min(frame_raw.rows() - 1);
+    let min_x = (sample_x - 22).max(0);
+    let max_x = (sample_x + 22).min(frame_raw.cols() - 1);
+    let min_y = (sample_y - 8).max(0);
+    let max_y = (sample_y + 8).min(frame_raw.rows() - 1);
 
-    let mut total_samples = 0usize;
-    let mut curtain_like_samples = 0usize;
-
-    for y in (min_y..=max_y).step_by(4) {
-        for x in (min_x..=max_x).step_by(4) {
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
             let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
-            total_samples += 1;
 
-            let dist = color_distance_sq(pixel, &curtain_reference);
-            let r = pixel[2] as i32;
-            let g = pixel[1] as i32;
-            let b = pixel[0] as i32;
-            let teal_like = g > r + 25 && b > r + 15 && g > 75 && b > 65;
-
-            if dist <= 80 * 80 || teal_like {
-                curtain_like_samples += 1;
+            // Set that pixel at that location to cyan in the display for debugging
+            frame_display
+                .at_2d_mut::<Vec3b>(y, x)?
+                .copy_from_slice(&[255, 255, 0]);
+            if !BottleColor::is_empty_pixel(pixel, has_failed_level)
+                && color_distance_sq(pixel, &crate::constants::CURTAIN_COLOR) <= COLOR_DISTANCE_THRESHOLD_SQ
+            {
+                return Ok(true)
             }
         }
     }
 
-    if total_samples == 0 {
-        return Ok(false);
-    }
-
-    let curtain_ratio = curtain_like_samples as f32 / total_samples as f32;
-    println!(
-        "Bottle {} has curtain-like pixel ratio of {:.2} ({} out of {} samples)",
-        bottle_idx, curtain_ratio, curtain_like_samples, total_samples
-    );
-    Ok(curtain_ratio >= 0.50)
+    Ok(false)
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
@@ -480,7 +462,19 @@ pub fn detect_bottles_with_layout(
             }
         }
 
-        if saw_unknown && is_hidden_curtain_bottle(frame_raw, layout, bottle_idx, has_failed_level)? {
+        let looks_hidden_curtain =
+            is_hidden_curtain_bottle(frame_raw, frame_display, layout, bottle_idx, has_failed_level)?;
+
+        // Some failed-level frames classify curtain pixels as regular colors. Keep hidden
+        // conversion available in that case, but only for full sampled bottles.
+        let allow_failed_level_hidden_fallback = has_failed_level
+            && bottle.fills.len() == 4
+            && !bottle
+                .fills
+                .iter()
+                .any(|(color, _)| *color == BottleColor::Mystery);
+
+        if looks_hidden_curtain && (saw_unknown || allow_failed_level_hidden_fallback) {
             bottle.fills.clear();
             if let Some(requirement) =
                 detect_hidden_requirement_color(frame_raw, layout, bottle_idx)?

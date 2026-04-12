@@ -115,6 +115,7 @@ lazy_static! {
         (BottleColor::Orange, vec3_from_hex("#f37c1c"))
     ];
     pub static ref FAILED_LEVEL_EMPTY_COLOR: Vec3b = vec3_from_hex("#331c14");
+    pub static ref CURTAIN_COLOR: Vec3b = vec3_from_hex("#FFEA4D");
     pub static ref EMPTY_COLORS: Vec<Vec3b> = vec![
         vec3_from_hex("#371D16"),
         vec3_from_hex("#713d2c"),

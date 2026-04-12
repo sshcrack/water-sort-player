@@ -181,5 +181,5 @@ create_bottle_detection_test!(
     test_failed_level_with_hidden,
     "detection/failed-level-with-hidden.png",
     BottleLayout::eight_bottle_layout(),
-    "!R !R EEBB O??G R?YR RY?R EEER EEEY"
+    "!R !R EEBB O??G R?YR RY?R EEEP EEEY"
 );
