@@ -20,10 +20,14 @@ use crate::{
             self, count_total_mystery_colors, find_best_discovery_moves,
             improve_best_revealed_state, improve_current_bottles_with_revealed_state,
         },
-        run_solver,
         visualization::draw_revealed_fill_markers,
     },
 };
+
+#[cfg(feature = "solver-visualization")]
+use crate::app_visualization::draw_solver_search_preview;
+#[cfg(not(feature = "solver-visualization"))]
+use crate::solver::run_solver;
 
 #[cfg(feature = "collect-test-data")]
 use crate::capture::start_discovery_capture;
@@ -36,6 +40,10 @@ const BOTTLE_DETECTION_RETRIES: u8 = 3;
 const POST_DETECTION_WAIT: Duration = Duration::from_secs(1);
 const MOVE_DELAY: Duration = Duration::from_millis(3000);
 const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(3000);
+#[cfg(feature = "solver-visualization")]
+const SOLVER_VISUALIZATION_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
+#[cfg(feature = "solver-visualization")]
+const SOLVER_VISUALIZATION_FRAME_DELAY: Duration = Duration::from_millis(20);
 
 enum AppState {
     WaitingToPressStart {
@@ -232,8 +240,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
                         finalize_discovery_capture(&mut discovery_capture);
 
-                        let solution = run_solver(&detected_bottles)
-                            .expect("Failed to find a solution for the detected bottles");
+                        let solution = solve_with_visualization(
+                            &detected_bottles,
+                            &frame_raw,
+                            &mut window,
+                            width,
+                            height,
+                        )?;
 
                         app_state = AppState::ExecuteFinalSolveMoves {
                             planned_moves: solution,
@@ -316,8 +329,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 ));
                             });
 
-                        let solution = run_solver(&solver_bottles)
-                            .expect("Failed to find a solution for the revealed bottle state");
+                        let solution = solve_with_visualization(
+                            &solver_bottles,
+                            &frame_raw,
+                            &mut window,
+                            width,
+                            height,
+                        )?;
 
                         println!("Resetting level for the solver...");
                         capture.click_at_position(RETRY_BUTTON_POS)?;
@@ -521,6 +539,68 @@ fn require_active_layout<'a>(
     active_layout
         .as_ref()
         .ok_or_else(|| anyhow!("No active layout available for {}.", context))
+}
+
+fn solve_with_visualization(
+    bottles: &[Bottle],
+    frame_raw: &Mat,
+    window: &mut Window,
+    width: usize,
+    height: usize,
+) -> Result<Vec<Move>> {
+    #[cfg(feature = "solver-visualization")]
+    {
+        let baseline_frame = frame_raw.try_clone()?;
+        let mut last_update = Instant::now() - SOLVER_VISUALIZATION_UPDATE_INTERVAL;
+
+        let maybe_solution = crate::solver::run_solver_with_progress(bottles, |snapshot| {
+            if !snapshot.is_goal && last_update.elapsed() < SOLVER_VISUALIZATION_UPDATE_INTERVAL {
+                return;
+            }
+            last_update = Instant::now();
+
+            let mut preview_frame = match baseline_frame.try_clone() {
+                Ok(frame) => frame,
+                Err(error) => {
+                    println!("Solver visualization frame clone failed: {:?}", error);
+                    return;
+                }
+            };
+
+            if let Err(error) = draw_solver_search_preview(
+                &mut preview_frame,
+                snapshot.state,
+                snapshot.explored_states,
+                snapshot.queue_len,
+                snapshot.depth,
+                snapshot.is_goal,
+            ) {
+                println!("Solver visualization draw failed: {:?}", error);
+                return;
+            }
+
+            match frame_to_window_buffer(&preview_frame) {
+                Ok(buffer) => {
+                    if let Err(error) = window.update_with_buffer(&buffer, width, height) {
+                        println!("Solver visualization window update failed: {:?}", error);
+                    }
+                }
+                Err(error) => {
+                    println!("Solver visualization buffer conversion failed: {:?}", error);
+                }
+            }
+
+            std::thread::sleep(SOLVER_VISUALIZATION_FRAME_DELAY);
+        });
+
+        maybe_solution.ok_or_else(|| anyhow!("Failed to find solver solution"))
+    }
+
+    #[cfg(not(feature = "solver-visualization"))]
+    {
+        let _ = (frame_raw, window, width, height);
+        run_solver(bottles).ok_or_else(|| anyhow!("Failed to find solver solution"))
+    }
 }
 
 fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {

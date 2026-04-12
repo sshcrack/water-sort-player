@@ -7,6 +7,8 @@ use opencv::{
 };
 
 #[cfg(feature = "solver-visualization")]
+use crate::bottles::Bottle;
+#[cfg(feature = "solver-visualization")]
 use crate::bottles::BottleLayout;
 use crate::solver::Move;
 
@@ -40,6 +42,21 @@ fn hud_progress_bg() -> Scalar {
 
 fn hud_progress_fill() -> Scalar {
     Scalar::new(78.0, 197.0, 255.0, 0.0)
+}
+
+#[cfg(feature = "solver-visualization")]
+fn solver_preview_bg() -> Scalar {
+    Scalar::new(32.0, 28.0, 24.0, 0.0)
+}
+
+#[cfg(feature = "solver-visualization")]
+fn solver_preview_border() -> Scalar {
+    Scalar::new(128.0, 116.0, 102.0, 0.0)
+}
+
+#[cfg(feature = "solver-visualization")]
+fn solver_empty_fill() -> Scalar {
+    Scalar::new(52.0, 46.0, 40.0, 0.0)
 }
 
 #[cfg(feature = "solver-visualization")]
@@ -230,6 +247,144 @@ pub fn draw_state_hud(
 
     #[cfg(feature = "solver-visualization")]
     draw_solver_move_indicators(frame_display, snapshot)?;
+
+    Ok(())
+}
+
+#[cfg(feature = "solver-visualization")]
+pub fn draw_solver_search_preview(
+    frame_display: &mut Mat,
+    bottles: &[Bottle],
+    explored_states: usize,
+    queue_len: usize,
+    depth: usize,
+    is_goal: bool,
+) -> Result<()> {
+    let bottle_count = bottles.len();
+    if bottle_count == 0 {
+        return Ok(());
+    }
+
+    let per_row = 7usize;
+    let rows = bottle_count.div_ceil(per_row);
+
+    let bottle_width = 24i32;
+    let bottle_height = 76i32;
+    let bottle_gap_x = 10i32;
+    let bottle_gap_y = 16i32;
+    let panel_padding = 12i32;
+
+    let row_width = per_row as i32 * bottle_width + (per_row as i32 - 1) * bottle_gap_x;
+    let panel_width = row_width + panel_padding * 2;
+    let panel_height = 64 + rows as i32 * bottle_height + (rows as i32 - 1) * bottle_gap_y;
+
+    let panel_x = 12;
+    let panel_y = 12;
+
+    imgproc::rectangle(
+        frame_display,
+        Rect::new(panel_x, panel_y, panel_width, panel_height),
+        solver_preview_bg(),
+        imgproc::FILLED,
+        imgproc::LINE_8,
+        0,
+    )?;
+    imgproc::rectangle(
+        frame_display,
+        Rect::new(panel_x, panel_y, panel_width, panel_height),
+        solver_preview_border(),
+        2,
+        imgproc::LINE_8,
+        0,
+    )?;
+
+    let title = if is_goal {
+        "Solver Search (goal reached)"
+    } else {
+        "Solver Search"
+    };
+
+    imgproc::put_text(
+        frame_display,
+        title,
+        Point::new(panel_x + 12, panel_y + 24),
+        imgproc::FONT_HERSHEY_DUPLEX,
+        0.58,
+        hud_title(),
+        1,
+        imgproc::LINE_AA,
+        false,
+    )?;
+
+    imgproc::put_text(
+        frame_display,
+        &format!(
+            "expanded {} | frontier {} | depth {}",
+            explored_states, queue_len, depth
+        ),
+        Point::new(panel_x + 12, panel_y + 46),
+        imgproc::FONT_HERSHEY_SIMPLEX,
+        0.48,
+        if is_goal { hud_progress_fill() } else { hud_muted() },
+        1,
+        imgproc::LINE_AA,
+        false,
+    )?;
+
+    let grid_x = panel_x + panel_padding;
+    let grid_y = panel_y + 58;
+
+    for (index, bottle) in bottles.iter().enumerate() {
+        let col = (index % per_row) as i32;
+        let row = (index / per_row) as i32;
+
+        let x = grid_x + col * (bottle_width + bottle_gap_x);
+        let y = grid_y + row * (bottle_height + bottle_gap_y);
+
+        let solved = bottle.is_solved();
+        let border_color = if solved {
+            hud_progress_fill()
+        } else {
+            solver_preview_border()
+        };
+
+        imgproc::rectangle(
+            frame_display,
+            Rect::new(x, y, bottle_width, bottle_height),
+            border_color,
+            2,
+            imgproc::LINE_AA,
+            0,
+        )?;
+
+        let fills = bottle.get_fills();
+        let slot_height = 16i32;
+        let slot_gap = 2i32;
+
+        for layer in 0..4i32 {
+            let slot_x = x + 3;
+            let slot_y = y + bottle_height - 4 - (layer + 1) * slot_height - layer * slot_gap;
+            let slot_w = bottle_width - 6;
+            let slot_h = slot_height;
+
+            let color = fills
+                .get(layer as usize)
+                .map(|fill| {
+                    let pixel = fill.to_pixel_value();
+                    Scalar::new(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64, 0.0)
+                })
+                .unwrap_or_else(solver_empty_fill);
+
+            imgproc::rectangle(
+                frame_display,
+                Rect::new(slot_x, slot_y, slot_w.max(1), slot_h.max(1)),
+                color,
+                imgproc::FILLED,
+                imgproc::LINE_8,
+                0,
+            )?;
+        }
+    }
 
     Ok(())
 }

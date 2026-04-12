@@ -14,6 +14,18 @@ pub mod discovery;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move(usize, usize);
 
+#[cfg(feature = "solver-visualization")]
+pub struct SolverProgressSnapshot<'a> {
+    pub state: &'a [Bottle],
+    pub explored_states: usize,
+    pub queue_len: usize,
+    pub depth: usize,
+    pub is_goal: bool,
+}
+
+#[cfg(feature = "solver-visualization")]
+type SolverProgressCallback<'a> = &'a mut dyn FnMut(SolverProgressSnapshot<'_>);
+
 pub mod visualization;
 
 const FULL_BOTTLE_COUNT: usize = 4;
@@ -148,6 +160,7 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 pub(crate) fn find_shortest_move_sequence<GoalFn>(
     bottles: Vec<Bottle>,
     mut is_goal: GoalFn,
+    #[cfg(feature = "solver-visualization")] mut on_progress: Option<SolverProgressCallback<'_>>,
 ) -> Option<Vec<Move>>
 where
     GoalFn: FnMut(&[Bottle], usize) -> bool,
@@ -156,6 +169,8 @@ where
     let mut open_set = BinaryHeap::new();
     let mut records = Vec::new();
     let mut best_costs: HashMap<CanonicalStateKey, usize> = HashMap::new();
+    #[cfg(feature = "solver-visualization")]
+    let mut explored_states = 0usize;
 
     let initial_cost = 0;
     let initial_estimate = estimate_remaining_moves(&bottles, target_solved_bottle_count);
@@ -184,7 +199,25 @@ where
             continue;
         }
 
-        if is_goal(&records[record_index].state, record_cost) {
+        #[cfg(feature = "solver-visualization")]
+        {
+            explored_states += 1;
+        }
+
+        let goal_reached = is_goal(&records[record_index].state, record_cost);
+
+        #[cfg(feature = "solver-visualization")]
+        if let Some(progress_callback) = on_progress.as_mut() {
+            progress_callback(SolverProgressSnapshot {
+                state: &records[record_index].state,
+                explored_states,
+                queue_len: open_set.len(),
+                depth: record_cost,
+                is_goal: goal_reached,
+            });
+        }
+
+        if goal_reached {
             return Some(reconstruct_moves(&records, record_index));
         }
 
@@ -307,9 +340,29 @@ impl Move {
 pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
     println!("Solving puzzle with initial state: {:?}", bottles);
 
-    find_shortest_move_sequence(bottles.to_vec(), |state, _move_count| {
-        state.iter().all(|b| b.is_solved() || b.is_empty())
-    })
+    find_shortest_move_sequence(
+        bottles.to_vec(),
+        |state, _move_count| state.iter().all(|b| b.is_solved() || b.is_empty()),
+        #[cfg(feature = "solver-visualization")]
+        None,
+    )
+}
+
+#[cfg(feature = "solver-visualization")]
+pub fn run_solver_with_progress<ProgressFn>(
+    bottles: &[Bottle],
+    mut on_progress: ProgressFn,
+) -> Option<Vec<Move>>
+where
+    ProgressFn: FnMut(SolverProgressSnapshot<'_>),
+{
+    println!("Solving puzzle with initial state: {:?}", bottles);
+
+    find_shortest_move_sequence(
+        bottles.to_vec(),
+        |state, _move_count| state.iter().all(|b| b.is_solved() || b.is_empty()),
+        Some(&mut on_progress),
+    )
 }
 
 pub fn get_possible_moves(

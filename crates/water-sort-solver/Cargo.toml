@@ -11,3 +11,4 @@ anyhow = { workspace = true }
 
 [features]
 discovery-debugging = []
+solver-visualization = []

@@ -30,6 +30,23 @@ pub fn find_best_discovery_moves(
         return DiscoverResult::AlreadySolved;
     }
 
+    #[cfg(feature = "solver-visualization")]
+    let best_moves = find_shortest_move_sequence(
+        current_bottles.to_vec(),
+        |state, move_count| {
+            move_count > 0
+                && state.iter().any(|bottle| {
+                    if let Some((_, top_color)) = bottle.get_top_fill() {
+                        top_color == BottleColor::Mystery
+                    } else {
+                        false
+                    }
+                })
+        },
+        None,
+    );
+
+    #[cfg(not(feature = "solver-visualization"))]
     let best_moves = find_shortest_move_sequence(current_bottles.to_vec(), |state, move_count| {
         move_count > 0
             && state.iter().any(|bottle| {
