@@ -239,6 +239,16 @@
       "layout_name": "eight_bottle_layout",
       "mystery_count_at_start": 8,
       "resolved_bottles": "ERRR WBWO RYWB EEEE EEBB EOOO GGGG YYYW"
+    },
+    {
+      "bottle_count": 8,
+      "captured_at_ms": 1776025210343,
+      "expected_bottles": "!R !R P??B O??G R?YR RY?R EEEE EEEE",
+      "id": 25,
+      "image_filename": "discovery-level-25.png",
+      "layout_name": "eight_bottle_layout",
+      "mystery_count_at_start": 6,
+      "resolved_bottles": "GOPP OBOP PYBB OYBG EEGG EEEE RRRR EEYY"
     }
   ]
 }

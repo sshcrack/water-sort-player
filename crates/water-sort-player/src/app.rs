@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
+use log::{debug, info, warn};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 use water_sort_core::constants::{
@@ -54,6 +55,9 @@ enum AppState {
     ClickNextLevel {
         trigger_at: Instant,
     },
+    ClickRetryOnNewLevel {
+        trigger_at: Instant,
+    },
     CheckForRewards {
         trigger_at: Instant,
     },
@@ -67,10 +71,14 @@ enum AppState {
     },
     HiddenDiscoverBottles {
         trigger_at: Instant,
+        max_revealed_bottle_state: Vec<Bottle>,
+        initial_state: Vec<Bottle>,
         current_moves: Vec<Move>,
     },
     HiddenExecuteDiscoverMove {
         trigger_at: Instant,
+        max_revealed_bottle_state: Vec<Bottle>,
+        initial_state: Vec<Bottle>,
         moves_to_execute: Vec<Move>,
         current_moves: Vec<Move>,
     },
@@ -96,14 +104,14 @@ enum AppState {
 
 pub fn run(quick_mode: bool) -> Result<()> {
     if quick_mode {
-        println!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
+        info!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
     }
     #[cfg(feature = "collect-test-data")]
-    println!("Test data collection enabled (feature: collect-test-data).");
+    info!("Test data collection enabled (feature: collect-test-data).");
 
     let mut capture = construct_capture_backend();
     let (width, height) = capture.start_capture(quick_mode)?;
-    println!("Creating window...");
+    info!("Creating window...");
     let mut window = Window::new("AutoPlayer", width, height, WindowOptions::default())?;
     let mut frame_raw: Mat;
 
@@ -125,13 +133,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut first_frame_read = true;
     while window.is_open() {
         if first_frame_read {
-            println!("Reading first frame...");
+            debug!("Reading first frame...");
             first_frame_read = false;
         }
         match capture.capture_frame() {
             Ok(frame) => frame_raw = frame,
             Err(error) => {
-                println!("Skipping frame read error: {:?}", error);
+                warn!("Skipping frame read error: {:?}", error);
                 continue;
             }
         }
@@ -139,13 +147,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Clamp)
             && window.get_mouse_down(MouseButton::Left)
         {
-            println!("Clicked at: ({}, {})", x, y);
+            debug!("Clicked at: ({}, {})", x, y);
         }
 
         let right_click = window.get_mouse_down(MouseButton::Right);
         if right_click && !previous_right_click {
             let saved_path = save_frame_png(&frame_raw)?;
-            println!("Saved quick-iteration frame to {}", saved_path.display());
+            info!("Saved quick-iteration frame to {}", saved_path.display());
         }
         previous_right_click = right_click;
 
@@ -155,7 +163,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
         match &mut app_state {
             AppState::WaitingToPressStart { trigger_at } => {
                 if now >= *trigger_at {
-                    println!("Starting level...");
+                    info!("Starting level...");
                     capture.click_at_position(START_BUTTON_POS)?;
                     app_state = AppState::DetectAndPlan {
                         trigger_at: now + NEXT_LEVEL_WAIT,
@@ -169,19 +177,29 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         .iter()
                         .find(|pos| {
                             let pixel = frame_raw.at_2d::<Vec3b>(pos.1, pos.0).unwrap();
-                            println!("Checking for next level button at position {:?} with pixel value {:?}...", pos, pixel);
-                            println!("Color distance to expected next level button color: {}", color_distance_sq(pixel, &NEXT_LEVEL_BUTTON_COLOR));
-                            println!("Hex value of pixel: #{:02x}{:02x}{:02x}", pixel[2], pixel[1], pixel[0]);
+                            debug!("Checking for next level button at position {:?} with pixel value {:?}...", pos, pixel);
+                            debug!("Color distance to expected next level button color: {}", color_distance_sq(pixel, &NEXT_LEVEL_BUTTON_COLOR));
+                            debug!("Hex value of pixel: #{:02x}{:02x}{:02x}", pixel[2], pixel[1], pixel[0]);
                             color_distance_sq(pixel, &NEXT_LEVEL_BUTTON_COLOR)
                                 <= 50 * 50
                         })
                         .copied()
                         .unwrap_or(NEXT_LEVEL_BUTTON_POSITIONS[0]);
-                    println!("Pressing next level button at {button_pos:?}...");
+                    info!("Pressing next level button at {button_pos:?}...");
 
                     capture.click_at_position(button_pos)?;
-                    app_state = AppState::DetectAndPlan {
+                    app_state = AppState::ClickRetryOnNewLevel {
                         trigger_at: now + NEXT_LEVEL_WAIT,
+                    };
+                }
+            }
+            AppState::ClickRetryOnNewLevel { trigger_at } => {
+                if now >= *trigger_at {
+                    info!("Clicking retry button for new level...");
+                    capture.click_at_position(RETRY_BUTTON_POS)?;
+
+                    app_state = AppState::DetectAndPlan {
+                        trigger_at: now + DISCOVERY_MOVE_DELAY,
                         retries_remaining: BOTTLE_DETECTION_RETRIES,
                     };
                 }
@@ -191,7 +209,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 retries_remaining,
             } => {
                 if now >= *trigger_at {
-                    println!("Detecting bottles for new level...");
+                    info!("Detecting bottles for new level...");
                     let layout = match BottleLayout::detect_layout(&frame_raw) {
                         Ok(layout) => layout,
                         Err(error) => {
@@ -214,7 +232,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         }
                         Err(error) => {
                             if *retries_remaining == 0 {
-                                println!("No retries left for bottle detection. Restarting app...");
+                                warn!("No retries left for bottle detection. Restarting app...");
                                 capture.restart_app()?;
                                 app_state = AppState::WaitingToPressStart {
                                     trigger_at: Instant::now() + START_WAIT,
@@ -223,7 +241,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             }
 
                             let next_retries_remaining = *retries_remaining - 1;
-                            println!(
+                            warn!(
                                 "Could not detect bottles: {:?}. Retrying in 1 second ({} retries left)...",
                                 error, next_retries_remaining
                             );
@@ -250,12 +268,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let mystery_count = discovery::count_total_mystery_colors(&detected_bottles);
                     let hidden_count = count_hidden_bottles(&detected_bottles);
                     if mystery_count == 0 && hidden_count == 0 {
-                        println!("No mystery colors detected, running solver directly...");
+                        info!("No mystery colors detected, running solver directly...");
 
                         maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
                         finalize_discovery_capture(&mut discovery_capture);
 
                         let solution = solve_with_visualization(
+                            &detected_bottles,
                             &detected_bottles,
                             &frame_raw,
                             &mut window,
@@ -269,7 +288,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             next_move_at: Instant::now() + MOVE_DELAY,
                         };
                     } else if mystery_count > 0 {
-                        println!(
+                        info!(
                             "Detected {} mystery colors, starting discovery process...",
                             mystery_count
                         );
@@ -281,13 +300,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             current_moves: vec![],
                         };
                     } else {
-                        println!(
+                        info!(
                             "Detected {} hidden bottle(s), starting unlock discovery...",
                             hidden_count
                         );
 
                         app_state = AppState::HiddenDiscoverBottles {
                             trigger_at: now,
+                            initial_state: detected_bottles.clone(),
+                            max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
                         };
                     }
@@ -296,6 +317,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
             AppState::HiddenDiscoverBottles {
                 trigger_at,
                 current_moves,
+                initial_state,
+                max_revealed_bottle_state,
             } => {
                 if now >= *trigger_at {
                     let layout = require_active_layout(&active_layout, "hidden bottle discovery")?;
@@ -304,11 +327,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
-                        println!(
+                        warn!(
                             "Error detecting bottles during hidden bottle discovery: {:?}",
                             error
                         );
-                        println!("Restarting app and hoping for the best...");
+                        warn!("Restarting app and hoping for the best...");
 
                         capture.restart_app()?;
                         app_state = AppState::WaitingToPressStart {
@@ -318,14 +341,26 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         continue;
                     }
 
-                    let current_bottles = current_bottles.unwrap();
-                    latest_detected_bottles = Some(current_bottles.clone());
-                    let mystery_count = count_total_mystery_colors(&current_bottles);
-                    let hidden_count = count_hidden_bottles(&current_bottles);
+                    let mut current_bottles = current_bottles.unwrap();
+                    improve_current_bottles_with_revealed_state(
+                        &mut current_bottles,
+                        max_revealed_bottle_state,
+                    );
+                    improve_best_revealed_state(
+                        max_revealed_bottle_state,
+                        initial_state,
+                        &current_bottles,
+                    );
 
+                    latest_detected_bottles = Some(current_bottles.clone());
+
+                    let mystery_count = count_total_mystery_colors(max_revealed_bottle_state);
+                    let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
+
+                    
                     if hidden_count == 0 {
                         if mystery_count > 0 {
-                            println!(
+                            info!(
                                 "Hidden bottles unlocked and {} mystery colors remain. Starting mystery discovery...",
                                 mystery_count
                             );
@@ -333,17 +368,20 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
                                 initial_state: current_bottles.clone(),
-                                max_revealed_bottle_state: current_bottles.clone(),
+                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 current_moves: vec![],
                             };
                         } else {
-                            println!("All hidden bottles revealed! Running solver...");
+                            info!("All hidden bottles revealed! Running solver...");
 
                             maybe_set_resolved_bottles(&mut discovery_capture, &current_bottles);
                             finalize_discovery_capture(&mut discovery_capture);
 
+                            capture.click_at_position(RETRY_BUTTON_POS)?;
+
                             let solution = solve_with_visualization(
-                                &current_bottles,
+                                max_revealed_bottle_state,
+                                initial_state,
                                 &frame_raw,
                                 &mut window,
                                 width,
@@ -357,7 +395,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             };
                         }
                     } else if mystery_count > 0 {
-                        println!(
+                        info!(
                             "Hidden bottles are still locked, but {} mystery colors remain. Switching to mystery discovery first...",
                             mystery_count
                         );
@@ -365,7 +403,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
                             initial_state: current_bottles.clone(),
-                            max_revealed_bottle_state: current_bottles.clone(),
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: vec![],
                         };
                     } else {
@@ -374,21 +412,23 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             let buffer = frame_to_window_buffer(&frame_display)?;
                             window.update_with_buffer(&buffer, width, height)?;
 
-                            println!("Press enter to continue hidden-bottle discovery...");
+                            info!("Press enter to continue hidden-bottle discovery...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
 
                         match find_best_hidden_unlock_moves(&current_bottles) {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
-                                println!("Best hidden unlock sequence found: {:?}", best_moves);
+                                info!("Best hidden unlock sequence found: {:?}", best_moves);
                                 app_state = AppState::HiddenExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
+                                    initial_state: initial_state.clone(),
                                     current_moves: current_moves.clone(),
                                     trigger_at: now,
+                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
-                                println!(
+                                warn!(
                                     "No move found that unlocks hidden bottles. Retrying level..."
                                 );
 
@@ -396,17 +436,21 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                 app_state = AppState::HiddenDiscoverBottles {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                    initial_state: initial_state.clone(),
                                     current_moves: vec![],
+                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
-                                println!(
+                                info!(
                                     "A hidden bottle requirement is already satisfied. Waiting for reveal..."
                                 );
 
                                 app_state = AppState::HiddenDiscoverBottles {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                    initial_state: initial_state.clone(),
                                     current_moves: current_moves.clone(),
+                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 };
                             }
                         }
@@ -426,17 +470,16 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
-                        println!(
+                        warn!(
                             "Error detecting bottles during discovery process: {:?}",
                             error
                         );
 
-                        println!("Restarting app and hoping for the best...");
+                        warn!("Restarting app and hoping for the best...");
                         capture.restart_app()?;
                         app_state = AppState::WaitingToPressStart {
                             trigger_at: Instant::now() + START_WAIT,
                         };
-
                         continue;
                     }
 
@@ -461,23 +504,25 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     latest_detected_bottles = Some(current_bottles.clone());
 
                     let mystery_colors = count_total_mystery_colors(max_revealed_bottle_state);
-                    println!("Total mystery colors still hidden: {}", mystery_colors);
+                    info!("Total mystery colors still hidden: {}", mystery_colors);
                     if mystery_colors == 0 {
                         let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
                         if hidden_count > 0 {
-                            println!(
+                            info!(
                                 "All mystery colors revealed, but {} hidden bottle(s) remain locked. Switching to hidden discovery...",
                                 hidden_count
                             );
 
                             app_state = AppState::HiddenDiscoverBottles {
+                                initial_state: initial_state.clone(),
                                 trigger_at: now,
                                 current_moves: current_moves.clone(),
+                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             };
                             continue;
                         }
 
-                        println!("All mystery colors revealed! Running solver...");
+                        info!("All mystery colors revealed! Running solver...");
 
                         maybe_set_resolved_bottles(
                             &mut discovery_capture,
@@ -486,26 +531,16 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         finalize_discovery_capture(&mut discovery_capture);
 
-                        let mut solver_bottles = Vec::new();
-                        max_revealed_bottle_state
-                            .iter()
-                            .enumerate()
-                            .for_each(|(i, bottle)| {
-                                solver_bottles.push(Bottle::from_fills_with_initial(
-                                    bottle.get_fills().clone(),
-                                    initial_state[i].get_fills().clone(),
-                                ));
-                            });
-
                         let solution = solve_with_visualization(
-                            &solver_bottles,
+                            &max_revealed_bottle_state,
+                            &initial_state,
                             &frame_raw,
                             &mut window,
                             width,
                             height,
                         )?;
 
-                        println!("Resetting level for the solver...");
+                        info!("Resetting level for the solver...");
                         capture.click_at_position(RETRY_BUTTON_POS)?;
                         app_state = AppState::ExecuteFinalSolveMoves {
                             planned_moves: solution,
@@ -518,7 +553,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             let buffer = frame_to_window_buffer(&frame_display)?;
                             window.update_with_buffer(&buffer, width, height)?;
 
-                            println!("Press enter to continue discovery...");
+                            info!("Press enter to continue discovery...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
 
@@ -528,7 +563,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         match best_move {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
-                                println!("Best discovery move sequence found: {:?}", best_moves);
+                                info!("Best discovery move sequence found: {:?}", best_moves);
                                 app_state = AppState::MysteryExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
                                     initial_state: initial_state.clone(),
@@ -538,7 +573,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
-                                println!(
+                                warn!(
                                     "No discovery move found that reveals new colors. Retrying level..."
                                 );
 
@@ -554,17 +589,20 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             discovery::DiscoverResult::AlreadySolved => {
                                 let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
                                 if hidden_count > 0 {
-                                    println!(
+                                    info!(
                                         "Mystery discovery finished, but {} hidden bottle(s) remain locked. Switching to hidden discovery...",
                                         hidden_count
                                     );
 
                                     app_state = AppState::HiddenDiscoverBottles {
+                                        initial_state: initial_state.clone(),
                                         trigger_at: now,
                                         current_moves: current_moves.clone(),
+                                        max_revealed_bottle_state: max_revealed_bottle_state
+                                            .clone(),
                                     };
                                 } else {
-                                    println!(
+                                    info!(
                                         "While discovering, the puzzle has been solved. Proceeding to next level..."
                                     );
 
@@ -587,6 +625,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 trigger_at,
                 moves_to_execute,
                 current_moves,
+                max_revealed_bottle_state,
+                initial_state,
             } => {
                 if now >= *trigger_at {
                     let layout =
@@ -605,10 +645,17 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let current_bottles = current_bottles.unwrap();
                     latest_detected_bottles = Some(current_bottles.clone());
 
+                    improve_best_revealed_state(
+                        max_revealed_bottle_state,
+                        initial_state,
+                        &current_bottles,
+                    );
                     if moves_to_execute.is_empty() {
                         app_state = AppState::HiddenDiscoverBottles {
+                            initial_state: initial_state.clone(),
                             trigger_at: now,
                             current_moves: current_moves.clone(),
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
@@ -623,10 +670,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             ));
                         }
 
-                        println!("Performing hidden-bottle move: {:?}.", next_move);
+                        info!("Performing hidden-bottle move: {:?}.", next_move);
                         #[cfg(feature = "discovery-debugging")]
                         {
-                            println!("Press enter to perform the next move...");
+                            info!("Press enter to perform the next move...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
                         next_move.perform_move_on_device(layout, &capture)?;
@@ -704,10 +751,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             ));
                         }
 
-                        println!("Performing discovery move: {:?}.", next_move);
+                        info!("Performing discovery move: {:?}.", next_move);
                         #[cfg(feature = "discovery-debugging")]
                         {
-                            println!("Press enter to perform the next move...");
+                            info!("Press enter to perform the next move...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
                         next_move.perform_move_on_device(layout, &capture)?;
@@ -727,7 +774,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             } => {
                 if let Some(next) = planned_moves.get(*performed_moves).copied() {
                     if now >= *next_move_at {
-                        println!("Performing move: {:?}.", next);
+                        info!("Performing move: {:?}.", next);
                         let layout = require_active_layout(&active_layout, "solve move execution")?;
                         next.perform_move_on_device(layout, &capture)?;
                         *performed_moves += 1;
@@ -748,10 +795,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     });
 
                     if has_no_thank_you {
-                        println!("Reward screen detected, clicking 'No, thank you'...");
+                        info!("Reward screen detected, clicking 'No, thank you'...");
                         capture.click_at_position(NO_THANK_YOU_POSITIONS[0])?;
                     } else {
-                        println!("No reward screen detected, proceeding to next level...");
+                        info!("No reward screen detected, proceeding to next level...");
                     }
 
                     app_state = AppState::ClickNextLevel {
@@ -787,18 +834,30 @@ fn require_active_layout<'a>(
 }
 
 fn solve_with_visualization(
-    bottles: &[Bottle],
+    max_revealed_bottle_state: &[Bottle],
+    initial_state: &[Bottle],
     frame_raw: &Mat,
     window: &mut Window,
     width: usize,
     height: usize,
 ) -> Result<Vec<Move>> {
+    let mut solver_bottles = Vec::new();
+    max_revealed_bottle_state
+        .iter()
+        .enumerate()
+        .for_each(|(i, bottle)| {
+            solver_bottles.push(Bottle::from_fills_with_initial(
+                bottle.get_fills().clone(),
+                initial_state[i].get_fills().clone(),
+            ));
+        });
+
     #[cfg(feature = "solver-visualization")]
     {
         let baseline_frame = frame_raw.try_clone()?;
         let mut last_update = Instant::now() - SOLVER_VISUALIZATION_UPDATE_INTERVAL;
 
-        let maybe_solution = crate::solver::run_solver_with_progress(bottles, |snapshot| {
+        let maybe_solution = crate::solver::run_solver_with_progress(&solver_bottles, |snapshot| {
             if !snapshot.is_goal && last_update.elapsed() < SOLVER_VISUALIZATION_UPDATE_INTERVAL {
                 return;
             }
@@ -807,7 +866,7 @@ fn solve_with_visualization(
             let mut preview_frame = match baseline_frame.try_clone() {
                 Ok(frame) => frame,
                 Err(error) => {
-                    println!("Solver visualization frame clone failed: {:?}", error);
+                    warn!("Solver visualization frame clone failed: {:?}", error);
                     return;
                 }
             };
@@ -820,18 +879,18 @@ fn solve_with_visualization(
                 snapshot.depth,
                 snapshot.is_goal,
             ) {
-                println!("Solver visualization draw failed: {:?}", error);
+                warn!("Solver visualization draw failed: {:?}", error);
                 return;
             }
 
             match frame_to_window_buffer(&preview_frame) {
                 Ok(buffer) => {
                     if let Err(error) = window.update_with_buffer(&buffer, width, height) {
-                        println!("Solver visualization window update failed: {:?}", error);
+                        warn!("Solver visualization window update failed: {:?}", error);
                     }
                 }
                 Err(error) => {
-                    println!("Solver visualization buffer conversion failed: {:?}", error);
+                    warn!("Solver visualization buffer conversion failed: {:?}", error);
                 }
             }
 
@@ -844,7 +903,7 @@ fn solve_with_visualization(
     #[cfg(not(feature = "solver-visualization"))]
     {
         let _ = (frame_raw, window, width, height);
-        run_solver(bottles).ok_or_else(|| anyhow!("Failed to find solver solution"))
+        run_solver(&solver_bottles).ok_or_else(|| anyhow!("Failed to find solver solution"))
     }
 }
 
@@ -882,7 +941,7 @@ fn maybe_start_discovery_capture(
         match start_discovery_capture(frame_raw, layout, detected_bottles) {
             Ok(capture_context) => Some(capture_context),
             Err(error) => {
-                println!("Warning: Failed to start discovery capture: {:?}", error);
+                warn!("Failed to start discovery capture: {:?}", error);
                 None
             }
         }
@@ -925,8 +984,8 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
         };
 
         if let Err(error) = capture_context.finalize() {
-            println!(
-                "Warning: Failed to persist discovery capture manifest entry: {:?}",
+            warn!(
+                "Failed to persist discovery capture manifest entry: {:?}",
                 error
             );
         }
@@ -943,6 +1002,21 @@ fn build_overlay_snapshot<'a>(
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
             phase: "WaitingToPressStart".to_string(),
             detail: "Preparing initial level start tap".to_string(),
+            until_ready: remaining_until(*trigger_at, now),
+            discovery_hidden: None,
+            discovery_total_slots: None,
+            discovery_depth: None,
+            discovery_queue: None,
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
+        },
+        AppState::ClickRetryOnNewLevel { trigger_at } => OverlaySnapshot {
+            phase: "ClickRetryOnNewLevel".to_string(),
+            detail: "Preparing retry tap for new level start".to_string(),
             until_ready: remaining_until(*trigger_at, now),
             discovery_hidden: None,
             discovery_total_slots: None,
@@ -1028,6 +1102,7 @@ fn build_overlay_snapshot<'a>(
         AppState::HiddenDiscoverBottles {
             trigger_at,
             current_moves,
+            ..
         } => OverlaySnapshot {
             phase: "HiddenDiscoverBottles".to_string(),
             detail: "Scanning bottles to unlock hidden slots".to_string(),
@@ -1047,6 +1122,7 @@ fn build_overlay_snapshot<'a>(
             trigger_at,
             moves_to_execute,
             current_moves,
+            ..
         } => OverlaySnapshot {
             phase: "HiddenExecuteDiscoverMove".to_string(),
             detail: "Executing hidden-slot unlock sequence".to_string(),

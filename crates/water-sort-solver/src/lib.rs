@@ -2,6 +2,9 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use anyhow::Result;
+use log::info;
+#[cfg(feature = "discovery-debugging")]
+use log::debug;
 use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,
@@ -320,12 +323,12 @@ impl Move {
         if !destination_bottle.can_fill_from(source_bottle) {
             #[cfg(feature = "discovery-debugging")]
             {
-                println!(
+                debug!(
                     "Invalid move: cannot pour from bottle {} to bottle {}",
                     self.0, self.1
                 );
-                println!("Source bottle: {:?}", source_bottle);
-                println!("Destination bottle: {:?}", destination_bottle);
+                debug!("Source bottle: {:?}", source_bottle);
+                debug!("Destination bottle: {:?}", destination_bottle);
                 std::io::stdin().read_line(&mut String::new()).unwrap();
             }
             panic!(
@@ -340,12 +343,21 @@ impl Move {
 
 #[allow(dead_code)]
 pub fn run_solver(bottles: &[Bottle]) -> Option<Vec<Move>> {
-    println!("Solving puzzle with initial state: {:?}", bottles);
+    info!(
+        "Solving puzzle with initial state: {}",
+        bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
 
     find_shortest_move_sequence(
         bottles.to_vec(),
         |state, _move_count| {
-            state.iter().all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
+            state
+                .iter()
+                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
         },
         #[cfg(feature = "solver-visualization")]
         None,
@@ -360,12 +372,21 @@ pub fn run_solver_with_progress<ProgressFn>(
 where
     ProgressFn: FnMut(SolverProgressSnapshot<'_>),
 {
-    println!("Solving puzzle with initial state: {:?}", bottles);
+    info!(
+        "Solving puzzle with initial state: {}",
+        bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
 
     find_shortest_move_sequence(
         bottles.to_vec(),
         |state, _move_count| {
-            state.iter().all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
+            state
+                .iter()
+                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
         },
         Some(&mut on_progress),
     )

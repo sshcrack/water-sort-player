@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
+use log::warn;
 use opencv::{
     core::{Mat, MatTrait, MatTraitConst, Rect, Scalar, Vec3b},
     imgcodecs, imgproc,
@@ -121,29 +122,61 @@ fn is_hidden_curtain_bottle(
     let Some(top_pos) = layout.get_sample_position(bottle_idx, 0) else {
         return Ok(false);
     };
+    let Some(bottom_pos) = layout.get_sample_position(bottle_idx, 3) else {
+        return Ok(false);
+    };
 
-    let sample_y = top_pos.1 - 50;
     let sample_x = top_pos.0;
+    let sample_y = top_pos.1 - 50;
+    let curtain_reference = crate::constants::vec3_from_hex("#268072");
 
     let min_x = (sample_x - 22).max(0);
     let max_x = (sample_x + 22).min(frame_raw.cols() - 1);
     let min_y = (sample_y - 8).max(0);
-    let max_y = (sample_y + 8).min(frame_raw.rows() - 1);
+    let max_y = (bottom_pos.1 + 32).min(frame_raw.rows() - 1);
 
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
+    let mut total_samples = 0usize;
+    let mut curtain_like_samples = 0usize;
+
+    for y in (min_y..=max_y).step_by(4) {
+        for x in (min_x..=max_x).step_by(4) {
             let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
+            total_samples += 1;
+
+            let dist = color_distance_sq(pixel, &curtain_reference);
+            let r = pixel[2] as i32;
+            let g = pixel[1] as i32;
+            let b = pixel[0] as i32;
+            let teal_like = g > r + 25 && b > r + 15 && g > 75 && b > 65;
 
             // Set that pixel at that location to cyan in the display for debugging
             frame_display
                 .at_2d_mut::<Vec3b>(y, x)?
                 .copy_from_slice(&[255, 255, 0]);
+
             if !BottleColor::is_empty_pixel(pixel, has_failed_level)
-                && color_distance_sq(pixel, &crate::constants::CURTAIN_COLOR) <= COLOR_DISTANCE_THRESHOLD_SQ
+                && (dist <= 80 * 80 || teal_like)
             {
-                return Ok(true)
+                curtain_like_samples += 1;
             }
         }
+    }
+
+    if total_samples == 0 {
+        return Ok(false);
+    }
+
+    let ratio = curtain_like_samples as f32 / total_samples as f32;
+    if ratio >= 0.45 {
+        let _ = imgproc::rectangle(
+            frame_display,
+            Rect::new(sample_x - 4, sample_y - 4, 8, 8),
+            Scalar::new(0.0, 255.0, 255.0, 255.0),
+            2,
+            imgproc::LINE_8,
+            0,
+        );
+        return Ok(true);
     }
 
     Ok(false)
@@ -207,6 +240,10 @@ impl Bottle {
 
     pub fn get_fills_mut(&mut self) -> &mut Vec<(BottleColor, bool)> {
         &mut self.fills
+    }
+
+    pub fn set_fills_from_bottle(&mut self, other: &Bottle) {
+        self.fills = other.fills.clone();
     }
 
     pub fn get_fills(&self) -> Vec<BottleColor> {
@@ -306,7 +343,7 @@ impl Bottle {
         }
 
         if self_top_color == BottleColor::Mystery || other_top_color == BottleColor::Mystery {
-            println!("Tried to fill mystery color into bottles");
+                warn!("Tried to fill mystery color into bottles");
             return false;
         }
 
@@ -338,10 +375,6 @@ impl Display for Bottle {
             return write!(f, "EEEE");
         }
 
-        if let Some(requirement) = self.hidden_requirement {
-            return write!(f, "!{}", requirement.to_char());
-        }
-
         let fill_str: String = self
             .fills
             .iter()
@@ -354,7 +387,7 @@ impl Display for Bottle {
             .collect();
 
         if let Some(requirement) = self.hidden_requirement {
-            write!(f, "!{}{}", requirement.to_char(), fill_str)
+            write!(f, "!{},{}", requirement.to_char(), fill_str)
         } else {
             write!(f, "{}", fill_str)
         }
@@ -438,6 +471,7 @@ pub fn detect_bottles_with_layout(
                     LayerSample::Unknown => {
                         saw_unknown = true;
                         unresolved_unknown = true;
+                        /*
                         let best_pixel_hex = format!(
                             "#{:02x}{:02x}{:02x}",
                             best_pixel[2], best_pixel[1], best_pixel[0]
@@ -445,7 +479,7 @@ pub fn detect_bottles_with_layout(
                         println!(
                             "WARN: Pixel at ({}, {}) did not match any known color: {:?}. Treating bottle as invalid.",
                             x, y, best_pixel_hex
-                        );
+                        ); */
                         // Unknown color - draw black marker
                         imgproc::rectangle(
                             frame_display,
@@ -462,8 +496,13 @@ pub fn detect_bottles_with_layout(
             }
         }
 
-        let looks_hidden_curtain =
-            is_hidden_curtain_bottle(frame_raw, frame_display, layout, bottle_idx, has_failed_level)?;
+        let looks_hidden_curtain = is_hidden_curtain_bottle(
+            frame_raw,
+            frame_display,
+            layout,
+            bottle_idx,
+            has_failed_level,
+        )?;
 
         // Some failed-level frames classify curtain pixels as regular colors. Keep hidden
         // conversion available in that case, but only for full sampled bottles.
@@ -517,7 +556,7 @@ pub fn detect_bottles_with_layout(
             &opencv::core::Vector::new(),
         );
 
-        println!(
+        warn!(
             "Detection files have been saved to {} and {}",
             raw_filename, display_filename
         );
@@ -526,7 +565,6 @@ pub fn detect_bottles_with_layout(
         ));
     }
 
-    // Reverse fills so bottom colors are at index 0
     for bottle in &mut bottles {
         bottle.fills.reverse();
     }

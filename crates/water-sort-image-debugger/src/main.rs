@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Result, anyhow, bail};
 use clap::Parser;
+use log::{error, info};
 use opencv::{
     core::{Mat, MatTraitConst},
     imgcodecs,
@@ -97,9 +98,9 @@ fn run() -> Result<()> {
     let args = CliArgs::parse();
 
     if args.list_layouts {
-        println!("Available layouts:");
+        info!("Available layouts:");
         for layout in BottleLayout::get_layouts() {
-            println!("  - {}", layout.name);
+            info!("  - {}", layout.name);
         }
 
         if args.input.is_none() {
@@ -117,18 +118,18 @@ fn run() -> Result<()> {
     let layout = match args.layout_name.as_deref() {
         Some(name) => {
             let layout = find_layout_by_name(name)?;
-            println!("Using specified layout: {}", layout.name);
+            info!("Using specified layout: {}", layout.name);
             layout
         }
         None => {
             let layout = BottleLayout::detect_layout(&frame_raw)?;
-            println!("Auto-detected layout: {}", layout.name);
+            info!("Auto-detected layout: {}", layout.name);
             layout
         }
     };
 
     let bottles = detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout)?;
-    println!("Detected bottles: {}", bottles_to_sequence(&bottles));
+    info!("Detected bottles: {}", bottles_to_sequence(&bottles));
 
     let output_path = match args.output {
         Some(path) => path,
@@ -136,14 +137,20 @@ fn run() -> Result<()> {
     };
 
     save_image(&output_path, &frame_display)?;
-    println!("Saved frame display to {}", output_path.display());
+    info!("Saved frame display to {}", output_path.display());
 
     Ok(())
 }
 
 fn main() {
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info"),
+    )
+    .format_timestamp_millis()
+    .init();
+
     if let Err(error) = run() {
-        eprintln!("Error: {error:#}");
+        error!("Error: {error:#}");
         std::process::exit(1);
     }
 }

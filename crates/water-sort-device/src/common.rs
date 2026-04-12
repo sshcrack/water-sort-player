@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
+use log::{error, info};
 
 pub struct ScrcpyChild(pub(crate) Child);
 
@@ -18,7 +19,7 @@ impl ScrcpyChild {
 impl Drop for ScrcpyChild {
     fn drop(&mut self) {
         if let Err(error) = self.0.kill() {
-            eprintln!("Failed to kill scrcpy process: {}", error);
+            error!("Failed to kill scrcpy process: {}", error);
         }
     }
 }
@@ -75,6 +76,6 @@ pub(crate) fn measure_window_to_mobile_scale(
     let scale_x = mobile_width / width as f32;
     let scale_y = mobile_height / height as f32;
 
-    println!("Computed scale factors - X: {}, Y: {}", scale_x, scale_y);
+    info!("Computed scale factors - X: {}, Y: {}", scale_x, scale_y);
     Ok((scale_x, scale_y))
 }

@@ -3,9 +3,17 @@ use crate::{
     constants::{color_distance_sq, vec3_from_hex},
     position::Pos,
 };
+use log::debug;
 use opencv::core::{Mat, MatTraitConst};
 
 use super::{LayerSample, best_matching_surrounding_pixel, classify_bottle_layer};
+
+#[derive(Debug, Clone, Copy)]
+struct LayoutFit {
+    score: i32,
+    unknown_bottles: usize,
+    empty_bottles: usize,
+}
 
 /// Macro to create bottle layouts from a declarative specification.
 ///
@@ -147,13 +155,48 @@ impl BottleLayout {
 
         let mut best_layout = layouts[0].clone();
         let mut best_score = i32::MIN;
+        let mut best_raw_score = i32::MIN;
+        let mut best_unknown_bottles = usize::MAX;
+        let mut best_empty_bottles = usize::MAX;
         let has_failed_level = has_failed_level(image)?;
 
         for layout in layouts {
-            let score = Self::score_layout_fit(image, &layout, has_failed_level)?;
-            println!("Layout '{}' fit score: {}", layout.name, score);
-            if score > best_score || (score == best_score && layout.bottle_count() > best_layout.bottle_count()) {
-                best_score = score;
+            let fit = Self::score_layout_fit(image, &layout, has_failed_level)?;
+            let raw_score = fit.score;
+            let normalized_score = raw_score.saturating_mul(100) / layout.bottle_count() as i32;
+            let effective_score = if has_failed_level {
+                normalized_score
+            } else {
+                raw_score
+            };
+            debug!(
+                "Layout '{}' fit score: {} (normalized: {}, effective: {}, unknown_bottles: {}, empty_bottles: {})",
+                layout.name,
+                raw_score,
+                normalized_score,
+                effective_score,
+                fit.unknown_bottles,
+                fit.empty_bottles,
+            );
+            if effective_score > best_score
+                || (effective_score == best_score && raw_score > best_raw_score)
+                || (effective_score == best_score
+                    && raw_score == best_raw_score
+                    && fit.unknown_bottles < best_unknown_bottles)
+                || (effective_score == best_score
+                    && raw_score == best_raw_score
+                    && fit.unknown_bottles == best_unknown_bottles
+                    && fit.empty_bottles < best_empty_bottles)
+                || (effective_score == best_score
+                    && raw_score == best_raw_score
+                    && fit.unknown_bottles == best_unknown_bottles
+                    && fit.empty_bottles == best_empty_bottles
+                    && layout.bottle_count() > best_layout.bottle_count())
+            {
+                best_score = effective_score;
+                best_raw_score = raw_score;
+                best_unknown_bottles = fit.unknown_bottles;
+                best_empty_bottles = fit.empty_bottles;
                 best_layout = layout;
             }
         }
@@ -166,8 +209,10 @@ impl BottleLayout {
         image: &Mat,
         layout: &BottleLayout,
         has_failed_level: bool,
-    ) -> anyhow::Result<i32> {
+    ) -> anyhow::Result<LayoutFit> {
         let mut score = 0;
+        let mut unknown_bottles = 0usize;
+        let mut empty_bottles = 0usize;
 
         for bottle_idx in 0..layout.bottle_count() {
             let mut color_amount = 0;
@@ -202,23 +247,38 @@ impl BottleLayout {
                     }
                 }
             }
-            if Self::bottle_looks_like_hidden_curtain(image, layout, bottle_idx)? {
+            let looks_hidden_curtain =
+                Self::bottle_looks_like_hidden_curtain(image, layout, bottle_idx)?;
+
+            if looks_hidden_curtain {
                 // Reward potential hidden-bottle curtains so hidden levels pick the right layout.
                 score += 3;
             } else if bottle_is_valid && color_amount > 0 {
                 score += color_amount;
+                if saw_unknown {
+                    unknown_bottles += 1;
+                }
             } else if saw_unknown && color_amount == 0 {
                 score -= 2;
+                unknown_bottles += 1;
             } else if !bottle_is_valid {
                 // Penalize layouts that place many sampling points on non-bottle content.
                 score -= 2;
+                if saw_unknown {
+                    unknown_bottles += 1;
+                }
             } else if color_amount == 0 {
                 // Penalize layouts that miss bottles entirely.
                 score -= 1;
+                empty_bottles += 1;
             }
         }
 
-        Ok(score)
+        Ok(LayoutFit {
+            score,
+            unknown_bottles,
+            empty_bottles,
+        })
     }
 }
 

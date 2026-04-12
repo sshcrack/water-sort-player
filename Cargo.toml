@@ -21,6 +21,8 @@ opencv = { version = "0.98.2", features = ["videoio", "imgproc"] }
 paste = "1.0.15"
 serde_json = "1.0.145"
 ctrlc = "3.5.1"
+log = "0.4.28"
+env_logger = "0.11.8"
 
 [profile.test]
 # Disable solver-visualization feature during testing

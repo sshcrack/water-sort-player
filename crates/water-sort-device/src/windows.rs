@@ -1,6 +1,7 @@
-use std::{io::Write, sync::Mutex, time::Duration};
+use std::{sync::Mutex, time::Duration};
 
 use anyhow::{Result, anyhow};
+use log::info;
 use opencv::core::{Mat, MatTraitConst};
 use win_screenshot::{
     prelude::{Using, capture_window_ex},
@@ -61,10 +62,8 @@ impl CaptureDeviceBackend for ScrcpyRecordBackend {
         let child = spawn_scrcpy(quick_mode)?;
 
         self.scrcpy_child = Some(child);
-        print!("Waiting for scrcpy window to appear..");
+        info!("Waiting for scrcpy window to appear...");
         loop {
-            print!(".");
-            std::io::stdout().flush().unwrap();
             let window = find_window("WaterSortPlayer");
             if let Ok(window) = window {
                 self.scrcpy_window = Some(window);
@@ -86,7 +85,7 @@ impl CaptureDeviceBackend for ScrcpyRecordBackend {
 
         let width = capture.width as usize;
         let height = capture.height as usize;
-        println!(
+        info!(
             "Found scrcpy window with dimensions: {}x{}",
             capture.width, capture.height
         );
@@ -96,7 +95,7 @@ impl CaptureDeviceBackend for ScrcpyRecordBackend {
             *scale_lock = measure_window_to_mobile_scale(width, height)?;
         }
 
-        println!("\nFound scrcpy window!");
+        info!("Found scrcpy window!");
         Ok((width, height))
     }
 

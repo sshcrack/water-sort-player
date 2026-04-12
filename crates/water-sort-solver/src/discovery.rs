@@ -131,12 +131,12 @@ pub fn improve_best_revealed_state(
         .iter_mut()
         .zip(current_bottles.iter())
         .zip(initial_bottles.iter())
-        .for_each(|((revealed_bottle, current_bottle), previous_bottle)| {
+        .for_each(|((revealed_bottle, current_bottle), initial_bottle)| {
             revealed_bottle
                 .get_fills_mut()
                 .iter_mut()
                 .zip(current_bottle.get_fills().iter())
-                .zip(previous_bottle.get_fills().iter())
+                .zip(initial_bottle.get_fills().iter())
                 .for_each(|(((revealed_color, _), current_color), previous_color)| {
                     if *revealed_color == BottleColor::Mystery
                         && previous_color == &BottleColor::Mystery
@@ -145,6 +145,10 @@ pub fn improve_best_revealed_state(
                         *revealed_color = *current_color;
                     }
                 });
+
+            if revealed_bottle.is_empty() && revealed_bottle.is_hidden() && !current_bottle.is_hidden() {
+                revealed_bottle.set_fills_from_bottle(current_bottle);
+            }
         });
 }
 
@@ -165,14 +169,19 @@ pub fn improve_current_bottles_with_revealed_state(
                         *current_color = *revealed_color;
                     }
                 });
+
+            if current_bottle.is_empty() && current_bottle.is_hidden() && revealed_bottle.is_hidden() {
+                current_bottle.set_fills_from_bottle(revealed_bottle);
+                current_bottle.set_hidden_requirement(revealed_bottle.hidden_requirement());
+            }
         });
 }
 
 #[cfg(test)]
 mod tests {
     use crate::discovery::{
-        collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors,
-        find_best_hidden_unlock_moves, improve_best_revealed_state, DiscoverResult,
+        DiscoverResult, collect_hidden_requirements, count_hidden_bottles,
+        count_total_mystery_colors, find_best_hidden_unlock_moves, improve_best_revealed_state,
     };
     use water_sort_core::bottles::test_utils::TestUtils;
     use water_sort_core::constants::BottleColor;
@@ -199,15 +208,21 @@ mod tests {
     fn test_find_best_hidden_unlock_moves() {
         let bottles = TestUtils::parse_bottles_sequence("OOOR EEEO EEEE EEEE !O");
 
-
         match find_best_hidden_unlock_moves(&bottles) {
             DiscoverResult::MoveToDiscover(moves) => {
                 assert_eq!(moves.len(), 1);
                 let mut next_state = bottles.clone();
                 moves[0].perform_move_on_bottles(&mut next_state);
-                assert!(next_state.iter().any(|bottle| bottle.solved_color() == Some(BottleColor::Orange)));
+                assert!(
+                    next_state
+                        .iter()
+                        .any(|bottle| bottle.solved_color() == Some(BottleColor::Orange))
+                );
             }
-            other => panic!("Expected a move sequence to unlock hidden bottle, got {:?}", other),
+            other => panic!(
+                "Expected a move sequence to unlock hidden bottle, got {:?}",
+                other
+            ),
         }
     }
 

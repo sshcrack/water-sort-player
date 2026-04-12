@@ -1,5 +1,5 @@
 use std::{
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader},
     path::PathBuf,
     process::{Child, ChildStdout, Command, Stdio},
     sync::{
@@ -11,6 +11,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
+use log::{debug, error, info};
 use opencv::{
     core::{Mat, MatTraitConst},
     videoio::{self, VideoCapture, VideoCaptureTrait, VideoCaptureTraitConst},
@@ -45,8 +46,7 @@ fn spawn_scrcpy_stdout_logger<R: BufRead + Send + 'static>(mut reader: R) -> Rec
                 }
                 Ok(_) => {
                     // Mirror scrcpy stdout so logs remain visible for the whole process lifetime.
-                    print!("{line}");
-                    std::io::stdout().flush().unwrap();
+                    debug!("{}", line.trim_end());
 
                     if !ready_sent && line.contains("v4l2 sink started to device:") {
                         let _ = ready_tx.send(Ok(()));
@@ -67,18 +67,17 @@ fn spawn_scrcpy_stdout_logger<R: BufRead + Send + 'static>(mut reader: R) -> Rec
 }
 
 pub fn wait_for_video_stream(ready_rx: Receiver<Result<()>>) -> Result<()> {
-    print!("Waiting for scrcpy to initialize video stream...");
+    info!("Waiting for scrcpy to initialize video stream...");
 
     loop {
         match ready_rx.recv_timeout(Duration::from_millis(250)) {
             Ok(result) => {
                 result?;
-                println!("\nscrcpy is ready, starting video capture...");
+                info!("scrcpy is ready, starting video capture...");
                 break;
             }
             Err(RecvTimeoutError::Timeout) => {
-                print!(".");
-                std::io::stdout().flush().unwrap();
+                debug!("Waiting for scrcpy video stream...");
             }
             Err(RecvTimeoutError::Disconnected) => {
                 return Err(anyhow!("scrcpy stdout logger disconnected unexpectedly"));
@@ -100,7 +99,7 @@ impl ScrcpyChild {
 impl Drop for ScrcpyChild {
     fn drop(&mut self) {
         if let Err(error) = self.0.kill() {
-            eprintln!("Failed to kill scrcpy process: {}", error);
+            error!("Failed to kill scrcpy process: {}", error);
         }
     }
 }
@@ -202,11 +201,11 @@ impl ScrcpyVirtualCamBackend {
 
 impl CaptureDeviceBackend for ScrcpyVirtualCamBackend {
     fn start_capture(&mut self, quick_mode: bool) -> Result<(usize, usize)> {
-        println!("Loading loopback video device...");
+        info!("Loading loopback video device...");
         load_loopback_device();
 
         self.start_scrcpy(quick_mode)?;
-        println!("scrcpy started successfully.");
+        info!("scrcpy started successfully.");
 
         let child_stdout = self
             .take_stdout()
@@ -227,7 +226,7 @@ impl CaptureDeviceBackend for ScrcpyVirtualCamBackend {
             *scale_lock = (scale_x, scale_y);
         }
 
-        println!("Video stream dimensions: {}x{}", width, height);
+        info!("Video stream dimensions: {}x{}", width, height);
         self.cam = Some(cam);
         Ok((width, height))
     }
