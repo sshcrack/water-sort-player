@@ -158,7 +158,7 @@ create_bottle_detection_test!(
 create_bottle_detection_test!(
     test_hidden_bottle_detection,
     "detection/hidden-detection.png",
-    BottleLayout::five_bottle_layout(),
+    BottleLayout::six_bottle_layout(),
     "OORR OOBB EEEE !O !B !B"
 );
 

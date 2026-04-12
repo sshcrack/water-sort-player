@@ -59,7 +59,11 @@ pub struct BottlePosition {
 }
 
 impl BottleLayout {
-    fn bottle_looks_like_hidden_curtain(image: &Mat, layout: &BottleLayout, bottle_idx: usize) -> anyhow::Result<bool> {
+    fn bottle_looks_like_hidden_curtain(
+        image: &Mat,
+        layout: &BottleLayout,
+        bottle_idx: usize,
+    ) -> anyhow::Result<bool> {
         let Some(top_pos) = layout.get_sample_position(bottle_idx, 0) else {
             return Ok(false);
         };
@@ -198,18 +202,18 @@ impl BottleLayout {
                     }
                 }
             }
-
-            if bottle_is_valid && color_amount > 0 {
+            if Self::bottle_looks_like_hidden_curtain(image, layout, bottle_idx)? {
+                // Reward potential hidden-bottle curtains so hidden levels pick the right layout.
+                score += 3;
+            } else if bottle_is_valid && color_amount > 0 {
                 score += color_amount;
             } else if saw_unknown && color_amount == 0 {
-                if Self::bottle_looks_like_hidden_curtain(image, layout, bottle_idx)? {
-                    // Reward potential hidden-bottle curtains so hidden levels pick the right layout.
-                    score += 3;
-                } else {
-                    score -= 1;
-                }
+                score -= 2;
             } else if !bottle_is_valid {
                 // Penalize layouts that place many sampling points on non-bottle content.
+                score -= 2;
+            } else if color_amount == 0 {
+                // Penalize layouts that miss bottles entirely.
                 score -= 1;
             }
         }

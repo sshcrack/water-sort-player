@@ -23,7 +23,7 @@ This repository is a Rust workspace for automating and solving Water Sort levels
 ## Build And Test
 
 - Build with `cargo build`.
-- Run tests with `cargo nextest r -r`.
+- Run tests with `cargo nextest r -r --workspace`.
 - The CI workflow installs OpenCV and related system packages on Ubuntu before building and testing.
 - The default test profile disables the solver visualization overhead.
 - An android emulator is connected right now. You can run the main binary with `cargo run` as a final check if the implementation is working properly.

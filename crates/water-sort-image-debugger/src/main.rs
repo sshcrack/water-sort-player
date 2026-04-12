@@ -52,7 +52,7 @@ fn find_layout_by_name(name: &str) -> Result<BottleLayout> {
 fn default_output_path() -> Result<PathBuf> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     Ok(PathBuf::from(format!(
-        "captures/frame_display-{timestamp}.png"
+        "target/frame_display-{timestamp}.png"
     )))
 }
 

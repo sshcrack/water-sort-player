@@ -197,10 +197,8 @@ mod tests {
 
     #[test]
     fn test_find_best_hidden_unlock_moves() {
-        let mut bottles = TestUtils::parse_bottles_sequence("OOOR EEEE EEEE EEEE");
-        bottles.push(water_sort_core::bottles::Bottle::from_hidden_requirement(
-            BottleColor::Orange,
-        ));
+        let bottles = TestUtils::parse_bottles_sequence("OOOR EEEO EEEE EEEE !O");
+
 
         match find_best_hidden_unlock_moves(&bottles) {
             DiscoverResult::MoveToDiscover(moves) => {

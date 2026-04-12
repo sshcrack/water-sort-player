@@ -2,9 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "cargo build",
+            "label": "Build with cargo",
             "type": "shell",
-            "command": "cargo build",
+            "command": "cargo build --workspace",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -14,9 +14,9 @@
             ]
         },
         {
-            "label": "cargo test",
+            "label": "Test with cargo nextest",
             "type": "shell",
-            "command": "cargo nextest r -r",
+            "command": "cargo nextest r -r --workspace",
             "group": {
                 "kind": "test",
                 "isDefault": true
