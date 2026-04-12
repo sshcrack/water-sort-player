@@ -122,6 +122,10 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
 
 #[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn bottle_to_string(bottle: &Bottle) -> String {
+    if let Some(requirement) = bottle.hidden_requirement() {
+        return format!("!{}", color_to_char(requirement));
+    }
+
     // Bottle fills are stored bottom->top. Test strings are top->bottom with 'E' for empty slots.
     let fills = bottle.get_fills();
     let mut slots = [BottleColor::Mystery; 4];
@@ -323,4 +327,22 @@ pub fn frame_to_window_buffer(frame: &Mat) -> Result<Vec<u32>> {
 pub fn save_frame_png(frame: &Mat) -> Result<PathBuf> {
     let timestamp = current_time_ms()?;
     save_png_with_filename(frame, &format!("frame-{timestamp}.png"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bottles_to_sequence;
+    use water_sort_core::{bottles::Bottle, constants::BottleColor};
+
+    #[test]
+    fn bottles_to_sequence_includes_hidden_requirement_tokens() {
+        let bottles = vec![
+            Bottle::from_fills(vec![BottleColor::Orange, BottleColor::Red]),
+            Bottle::from_hidden_requirement(BottleColor::Orange),
+            Bottle::from_hidden_requirement(BottleColor::Blue),
+            Bottle::default(),
+        ];
+
+        assert_eq!(bottles_to_sequence(&bottles), "EERO !O !B EEEE");
+    }
 }

@@ -17,7 +17,7 @@ use crate::{
     solver::{
         Move,
         discovery::{
-            self, count_hidden_bottles, count_total_mystery_colors, find_best_discovery_moves,
+            self, collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors, find_best_discovery_moves,
             find_best_hidden_unlock_moves,
             improve_best_revealed_state, improve_current_bottles_with_revealed_state,
         },
@@ -392,7 +392,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 );
 
                                 app_state = AppState::HiddenDiscoverBottles {
-                                    trigger_at: Instant::now() + HIDDEN_REVEAL_DETECTION_DELAY,
+                                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                     current_moves: current_moves.clone(),
                                 };
                             }
@@ -583,11 +583,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     if moves_to_execute.is_empty() {
                         app_state = AppState::HiddenDiscoverBottles {
-                            trigger_at: now + HIDDEN_REVEAL_DETECTION_DELAY,
+                            trigger_at: now,
                             current_moves: current_moves.clone(),
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
+                        let reveal_wait_needed = move_satisfies_hidden_requirement(&current_bottles, next_move);
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
@@ -606,7 +607,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         next_move.perform_move_on_device(layout, &capture)?;
 
                         current_moves.push(next_move);
-                        *trigger_at = Instant::now() + HIDDEN_REVEAL_DETECTION_DELAY;
+                        *trigger_at = Instant::now()
+                            + if reveal_wait_needed {
+                                HIDDEN_REVEAL_DETECTION_DELAY
+                            } else {
+                                DISCOVERY_MOVE_DELAY
+                            };
                     }
                 }
             }
@@ -817,6 +823,22 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
     } else {
         None
     }
+}
+
+fn move_satisfies_hidden_requirement(current_bottles: &[Bottle], mv: Move) -> bool {
+    let hidden_requirements = collect_hidden_requirements(current_bottles);
+    if hidden_requirements.is_empty() || !mv.can_perform_on_bottles(current_bottles) {
+        return false;
+    }
+
+    let mut simulated = current_bottles.to_vec();
+    mv.perform_move_on_bottles(&mut simulated);
+
+    simulated.iter().any(|bottle| {
+        bottle
+            .solved_color()
+            .is_some_and(|color| hidden_requirements.contains(&color))
+    })
 }
 
 fn maybe_start_discovery_capture(
