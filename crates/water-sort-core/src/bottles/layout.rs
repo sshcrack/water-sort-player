@@ -152,7 +152,7 @@ impl BottleLayout {
         for layout in layouts {
             let score = Self::score_layout_fit(image, &layout, has_failed_level)?;
             println!("Layout '{}' fit score: {}", layout.name, score);
-            if score > best_score {
+            if score > best_score || (score == best_score && layout.bottle_count() > best_layout.bottle_count()) {
                 best_score = score;
                 best_layout = layout;
             }

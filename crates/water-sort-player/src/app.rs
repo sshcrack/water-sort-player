@@ -304,10 +304,18 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
-                        return Err(anyhow!(
+                        println!(
                             "Error detecting bottles during hidden bottle discovery: {:?}",
                             error
-                        ));
+                        );
+                        println!("Restarting app and hoping for the best...");
+
+                        capture.restart_app()?;
+                        app_state = AppState::WaitingToPressStart {
+                            trigger_at: Instant::now() + START_WAIT,
+                        };
+
+                        continue;
                     }
 
                     let current_bottles = current_bottles.unwrap();
@@ -418,10 +426,18 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
-                        return Err(anyhow!(
+                        println!(
                             "Error detecting bottles during discovery process: {:?}",
                             error
-                        ));
+                        );
+
+                        println!("Restarting app and hoping for the best...");
+                        capture.restart_app()?;
+                        app_state = AppState::WaitingToPressStart {
+                            trigger_at: Instant::now() + START_WAIT,
+                        };
+
+                        continue;
                     }
 
                     let mut current_bottles = current_bottles.unwrap();
@@ -747,7 +763,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
         let overlay_snapshot = build_overlay_snapshot(&app_state, now, &active_layout);
 
-        if let (Some(layout), Some(bottles)) = (&active_layout, latest_detected_bottles.as_deref()) {
+        if let (Some(layout), Some(bottles)) = (&active_layout, latest_detected_bottles.as_deref())
+        {
             draw_detected_bottles_overlay(&mut frame_display, layout, bottles)?;
         }
 

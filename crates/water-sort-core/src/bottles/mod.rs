@@ -115,6 +115,7 @@ fn is_hidden_curtain_bottle(
     frame_raw: &Mat,
     layout: &BottleLayout,
     bottle_idx: usize,
+    has_failed_level: bool,
 ) -> anyhow::Result<bool> {
     let Some(top_pos) = layout.get_sample_position(bottle_idx, 0) else {
         return Ok(false);
@@ -123,7 +124,12 @@ fn is_hidden_curtain_bottle(
         return Ok(false);
     };
 
-    let curtain_reference = crate::constants::vec3_from_hex("#268072");
+    let curtain_reference = if has_failed_level {
+        crate::constants::vec3_from_hex("#17695D")
+    } else {
+        crate::constants::vec3_from_hex("#268072")
+    };
+
     let min_x = (top_pos.0 - 22).max(0);
     let max_x = (top_pos.0 + 22).min(frame_raw.cols() - 1);
     let min_y = (top_pos.1 - 8).max(0);
@@ -154,7 +160,11 @@ fn is_hidden_curtain_bottle(
     }
 
     let curtain_ratio = curtain_like_samples as f32 / total_samples as f32;
-    Ok(curtain_ratio >= 0.30)
+    println!(
+        "Bottle {} has curtain-like pixel ratio of {:.2} ({} out of {} samples)",
+        bottle_idx, curtain_ratio, curtain_like_samples, total_samples
+    );
+    Ok(curtain_ratio >= 0.50)
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
@@ -470,7 +480,7 @@ pub fn detect_bottles_with_layout(
             }
         }
 
-        if saw_unknown && is_hidden_curtain_bottle(frame_raw, layout, bottle_idx)? {
+        if saw_unknown && is_hidden_curtain_bottle(frame_raw, layout, bottle_idx, has_failed_level)? {
             bottle.fills.clear();
             if let Some(requirement) =
                 detect_hidden_requirement_color(frame_raw, layout, bottle_idx)?
@@ -526,10 +536,6 @@ pub fn detect_bottles_with_layout(
     for bottle in &mut bottles {
         bottle.fills.reverse();
     }
-
-    // Save layout visualization for debugging
-    let _ = imgcodecs::imwrite("layout.png", frame_display, &Default::default());
-    let _ = imgcodecs::imwrite("layout-raw.png", frame_raw, &Default::default());
 
     Ok(bottles)
 }
