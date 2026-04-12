@@ -10,11 +10,9 @@ pub use water_sort_core::{bottles, constants, position};
 pub use water_sort_solver as solver;
 
 fn main() {
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info"),
-    )
-    .format_timestamp_millis()
-    .init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp_millis()
+        .init();
 
     let quick_mode = std::env::args().any(|arg| arg == "--quick");
 

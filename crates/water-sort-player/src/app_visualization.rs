@@ -412,7 +412,11 @@ pub fn draw_solver_search_preview(
         Point::new(panel_x + 12, panel_y + 46),
         imgproc::FONT_HERSHEY_SIMPLEX,
         0.48,
-        if is_goal { hud_progress_fill() } else { hud_muted() },
+        if is_goal {
+            hud_progress_fill()
+        } else {
+            hud_muted()
+        },
         1,
         imgproc::LINE_AA,
         false,

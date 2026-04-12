@@ -162,7 +162,6 @@ create_bottle_detection_test!(
     "OORR OOBB EEEE !O !B !B"
 );
 
-
 create_bottle_detection_test!(
     test_hidden_bottle_detection_2,
     "detection/hidden-detection-2.png",

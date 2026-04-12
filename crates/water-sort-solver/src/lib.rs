@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use anyhow::Result;
-use log::info;
 #[cfg(feature = "discovery-debugging")]
 use log::debug;
+use log::info;
 use water_sort_core::{
     bottles::{Bottle, BottleLayout},
     constants::BottleColor,

@@ -16,7 +16,10 @@ pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
 }
 
 pub fn count_hidden_bottles(bottles: &[Bottle]) -> usize {
-    bottles.iter().filter(|bottle| bottle.is_hidden() && bottle.is_empty()).count()
+    bottles
+        .iter()
+        .filter(|bottle| bottle.is_hidden() && bottle.is_empty())
+        .count()
 }
 
 pub fn collect_hidden_requirements(bottles: &[Bottle]) -> HashSet<BottleColor> {
@@ -146,7 +149,10 @@ pub fn improve_best_revealed_state(
                     }
                 });
 
-            if revealed_bottle.is_empty() && revealed_bottle.is_hidden() && !current_bottle.is_hidden() {
+            if revealed_bottle.is_empty()
+                && revealed_bottle.is_hidden()
+                && !current_bottle.is_hidden()
+            {
                 revealed_bottle.set_fills_from_bottle(current_bottle);
             }
         });
@@ -170,7 +176,10 @@ pub fn improve_current_bottles_with_revealed_state(
                     }
                 });
 
-            if current_bottle.is_empty() && current_bottle.is_hidden() && revealed_bottle.is_hidden() {
+            if current_bottle.is_empty()
+                && current_bottle.is_hidden()
+                && revealed_bottle.is_hidden()
+            {
                 current_bottle.set_fills_from_bottle(revealed_bottle);
                 current_bottle.set_hidden_requirement(revealed_bottle.hidden_requirement());
             }

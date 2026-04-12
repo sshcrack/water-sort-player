@@ -4,12 +4,9 @@ use anyhow::{Result, anyhow};
 use log::{debug, info, warn};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
-use water_sort_core::{
-    bottles::test_utils::TestUtils,
-    constants::{
-        NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
-        NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
-    },
+use water_sort_core::constants::{
+    NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
+    NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 

@@ -164,8 +164,14 @@ mod tests {
         let bottles = TestUtils::parse_bottles_sequence("OR OB EEEE !O !B");
 
         assert_eq!(bottles.len(), 5);
-        assert_eq!(bottles[0].get_fills(), vec![BottleColor::Red, BottleColor::Orange]);
-        assert_eq!(bottles[1].get_fills(), vec![BottleColor::Blue, BottleColor::Orange]);
+        assert_eq!(
+            bottles[0].get_fills(),
+            vec![BottleColor::Red, BottleColor::Orange]
+        );
+        assert_eq!(
+            bottles[1].get_fills(),
+            vec![BottleColor::Blue, BottleColor::Orange]
+        );
         assert!(bottles[2].is_empty());
         assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
         assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::Blue));
@@ -178,18 +184,24 @@ mod tests {
 
         assert_eq!(bottles.len(), 9);
         assert_eq!(bottles[1].hidden_requirement(), Some(BottleColor::Purple));
-        assert_eq!(bottles[1].get_fills(), vec![
-            BottleColor::Blue,
-            BottleColor::Red,
-            BottleColor::Green,
-            BottleColor::Yellow,
-        ]);
+        assert_eq!(
+            bottles[1].get_fills(),
+            vec![
+                BottleColor::Blue,
+                BottleColor::Red,
+                BottleColor::Green,
+                BottleColor::Yellow,
+            ]
+        );
         assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
-        assert_eq!(bottles[3].get_fills(), vec![
-            BottleColor::Pink,
-            BottleColor::Purple,
-            BottleColor::Yellow,
-            BottleColor::Red,
-        ]);
+        assert_eq!(
+            bottles[3].get_fills(),
+            vec![
+                BottleColor::Pink,
+                BottleColor::Purple,
+                BottleColor::Yellow,
+                BottleColor::Red,
+            ]
+        );
     }
 }

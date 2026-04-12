@@ -275,7 +275,8 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         reveal_hidden_observed(&mut current_state, resolved);
         improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
 
-        if count_hidden_bottles(&max_revealed) > 0 && count_total_mystery_colors(&max_revealed) == 0 {
+        if count_hidden_bottles(&max_revealed) > 0 && count_total_mystery_colors(&max_revealed) == 0
+        {
             match find_best_hidden_unlock_moves(&current_state) {
                 DiscoverResult::MoveToDiscover(moves_to_apply) => {
                     if moves_to_apply.is_empty() {
@@ -345,7 +346,10 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         let initial_fills = initial[i].get_fills();
 
         if revealed_fills.len() == initial_fills.len() {
-            solver_bottles.push(Bottle::from_fills_with_initial(revealed_fills, initial_fills));
+            solver_bottles.push(Bottle::from_fills_with_initial(
+                revealed_fills,
+                initial_fills,
+            ));
         } else {
             solver_bottles.push(Bottle::from_fills(revealed_fills));
         }
@@ -382,10 +386,8 @@ fn reveal_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
 }
 
 fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
-    let solved_colors: HashSet<BottleColor> = current
-        .iter()
-        .filter_map(Bottle::solved_color)
-        .collect();
+    let solved_colors: HashSet<BottleColor> =
+        current.iter().filter_map(Bottle::solved_color).collect();
 
     current
         .iter_mut()
