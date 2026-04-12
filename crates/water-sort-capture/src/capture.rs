@@ -334,7 +334,7 @@ mod tests {
     use super::bottles_to_sequence;
     use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
-    #[test]
+    #[test_log::test]
     fn bottles_to_sequence_includes_hidden_requirement_tokens() {
         let bottles = vec![
             Bottle::from_fills(vec![BottleColor::Orange, BottleColor::Red]),

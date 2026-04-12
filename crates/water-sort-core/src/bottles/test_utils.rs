@@ -159,7 +159,7 @@ mod tests {
     use super::TestUtils;
     use crate::constants::BottleColor;
 
-    #[test]
+    #[test_log::test]
     fn parse_bottles_sequence_supports_hidden_requirement_tokens() {
         let bottles = TestUtils::parse_bottles_sequence("OR OB EEEE !O !B");
 
@@ -177,7 +177,7 @@ mod tests {
         assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::Blue));
     }
 
-    #[test]
+    #[test_log::test]
     fn parse_bottles_sequence_supports_hidden_requirement_with_fills_tokens() {
         let bottles =
             TestUtils::parse_bottles_sequence("GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE");

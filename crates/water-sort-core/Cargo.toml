@@ -10,6 +10,7 @@ opencv = { workspace = true }
 paste = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
+test-log = { workspace = true }
 colored = "3.1.1"
 
 [build-dependencies]

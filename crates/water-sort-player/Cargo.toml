@@ -16,6 +16,7 @@ water-sort-core = { path = "../water-sort-core" }
 water-sort-device = { path = "../water-sort-device" }
 water-sort-solver = { path = "../water-sort-solver" }
 water-sort-capture = { path = "../water-sort-capture" }
+test-log = { workspace = true }
 
 [features]
 default = ["solver-visualization"]

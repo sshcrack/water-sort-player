@@ -7,7 +7,7 @@ macro_rules! detect_bottles_with_saved_frame {
 macro_rules! create_bottle_detection_test {
     ($test_name:ident, $image_filename:expr, $layout:expr, $expected_bottles:expr) => {
         paste::paste! {
-            #[test]
+            #[test_log::test]
             fn $test_name() {
                 let image = TestUtils::load_test_image($image_filename)
                     .expect(concat!("Failed to load ", $image_filename));
@@ -44,7 +44,7 @@ macro_rules! create_bottle_detection_test {
             }
 
 
-            #[test]
+            #[test_log::test]
             fn [<$test_name _layout>]() {
                 let image = TestUtils::load_test_image($image_filename)
                     .expect(concat!("Failed to load ", $image_filename));
@@ -64,7 +64,7 @@ macro_rules! create_bottle_detection_test {
     };
 }
 
-#[test]
+#[test_log::test]
 fn test_layout_comparison() {
     let layouts = BottleLayout::get_layouts();
     // Make sure that each layout is unique and has the expected number of bottles

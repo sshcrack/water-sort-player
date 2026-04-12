@@ -195,14 +195,14 @@ mod tests {
     use water_sort_core::bottles::test_utils::TestUtils;
     use water_sort_core::constants::BottleColor;
 
-    #[test]
+    #[test_log::test]
     fn test_count_total_mystery_colors() {
         let bottles = TestUtils::parse_bottles_sequence("P??? YGBR G???");
 
         assert_eq!(count_total_mystery_colors(&bottles), 6);
     }
 
-    #[test]
+    #[test_log::test]
     fn test_hidden_requirement_helpers() {
         let mut bottles = TestUtils::parse_bottles_sequence("OOOR B??R EEEE");
         bottles.push(water_sort_core::bottles::Bottle::from_hidden_requirement(
@@ -213,7 +213,7 @@ mod tests {
         assert!(collect_hidden_requirements(&bottles).contains(&BottleColor::Orange));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_find_best_hidden_unlock_moves() {
         let bottles = TestUtils::parse_bottles_sequence("OOOR EEEO EEEE EEEE !O");
 
@@ -235,7 +235,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn test_improve_best_revealed_state() {
         let mut revealed_state = TestUtils::parse_bottles_sequence("PY?? Y??? G???");
         let previous_bottles = TestUtils::parse_bottles_sequence("PY?? Y??? G???");

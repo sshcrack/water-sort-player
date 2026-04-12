@@ -54,7 +54,7 @@ macro_rules! create_test_level {
                     static ref PARSED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($bottles);
                 }
 
-                #[test]
+                #[test_log::test]
                 fn solve() {
                     if $no_solve {
                         return;
@@ -71,7 +71,7 @@ macro_rules! create_test_level {
                     }
                 }
 
-                #[test]
+                #[test_log::test]
                 fn layout_detection() {
                     let image = load_level_image!();
 
@@ -82,7 +82,7 @@ macro_rules! create_test_level {
                     assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for level {}", $level);
                 }
 
-                #[test]
+                #[test_log::test]
                 fn bottle_detection() {
                     let image = load_level_image!();
 
@@ -135,7 +135,7 @@ macro_rules! create_generated_test_level {
                     static ref RESOLVED_BOTTLES: Vec<crate::bottles::Bottle> = crate::bottles::test_utils::TestUtils::parse_bottles_sequence($resolved_bottles);
                 }
 
-                #[test]
+                #[test_log::test]
                 fn discovery_reveal_and_solve() {
                     let initial_mystery_count = count_total_mystery_colors(PARSED_BOTTLES.as_slice());
                     let final_revealed = run_discovery_simulation(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
@@ -176,30 +176,12 @@ macro_rules! create_generated_test_level {
                     solve_and_assert(&final_revealed, PARSED_BOTTLES.as_slice());
                 }
 
-                #[test]
+                #[test_log::test]
                 fn run_solver() {
-                    if crate::solver::run_solver(RESOLVED_BOTTLES.as_slice(), PARSED_BOTTLES.as_slice()).is_some() {
-                        solve_and_assert(RESOLVED_BOTTLES.as_slice(), PARSED_BOTTLES.as_slice());
-                        return;
-                    }
-
-                    let discovered_revealed =
-                        run_discovery_simulation(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
-
-                    assert!(
-                        crate::solver::run_solver(&discovered_revealed, PARSED_BOTTLES.as_slice()).is_some(),
-                        "No solver solution found for captured level {} using resolved or discovery-derived revealed state",
-                        $capture_id
-                    );
-
-                    println!(
-                        "Warning: Using discovery-derived revealed state for captured level {} run_solver test",
-                        $capture_id
-                    );
-                    solve_and_assert(&discovered_revealed, PARSED_BOTTLES.as_slice());
+                    solve_and_assert(RESOLVED_BOTTLES.as_slice(), PARSED_BOTTLES.as_slice());
                 }
 
-                #[test]
+                #[test_log::test]
                 fn layout_detection() {
                     let image = load_capture_image!();
 
@@ -210,7 +192,7 @@ macro_rules! create_generated_test_level {
                     assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for captured level {}", $capture_id);
                 }
 
-                #[test]
+                #[test_log::test]
                 fn bottle_detection() {
                     let image = load_capture_image!();
 
@@ -241,13 +223,6 @@ macro_rules! create_generated_test_level {
     };
 }
 
-#[test]
-fn init() {
-    let _ = env_logger::builder()
-        .is_test(true)
-        .filter_level(log::LevelFilter::Trace)
-        .try_init();
-}
 #[allow(dead_code)]
 fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle]) {
     let mut current_bottles =
@@ -307,20 +282,6 @@ fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle])
             .collect::<Vec<String>>()
             .join(" ")
     );
-}
-
-#[test]
-#[ignore = "debug-only exploratory test case"]
-fn test_lol() {
-    let initial = water_sort_core::bottles::test_utils::TestUtils::parse_bottles_sequence(
-        "EG??W !P P??B !O O??B RPOP OORG EEEE EEEE",
-    );
-    let resolved = water_sort_core::bottles::test_utils::TestUtils::parse_bottles_sequence(
-        "GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE",
-    );
-
-    let solved = run_solver(&resolved, &initial);
-    assert!(solved.is_some(), "Should find solution after discovery");
 }
 
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
@@ -448,6 +409,7 @@ fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
 
             if solved_colors.contains(&requirement) {
                 *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
+                current_bottle.set_hidden_requirement(Some(requirement));
             }
         });
 }

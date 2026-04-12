@@ -1,6 +1,6 @@
 use crate::{bottles::Bottle, constants::BottleColor};
 
-#[test]
+#[test_log::test]
 fn test_bottle_is_full() {
     let fills = vec![
         BottleColor::Red,
@@ -17,7 +17,7 @@ fn test_bottle_is_full() {
     assert!(!bottle.is_full());
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_solved() {
     BottleColor::values().iter().for_each(|&color| {
         if color == BottleColor::Mystery {
@@ -42,7 +42,7 @@ fn test_bottle_solved() {
     assert!(!unsolved_bottle.is_solved());
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_can_fill_from() {
     let source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red]);
 
@@ -61,7 +61,7 @@ fn test_bottle_can_fill_from() {
     assert!(!destination.can_fill_from(&source));
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_get_top_fill() {
     let bottle = Bottle::from_fills(vec![
         BottleColor::Red,
@@ -75,7 +75,7 @@ fn test_bottle_get_top_fill() {
     assert_eq!(color, BottleColor::Green);
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_get_top_fill_all_same() {
     let bottle = Bottle::from_fills(vec![
         BottleColor::Red,
@@ -89,7 +89,7 @@ fn test_bottle_get_top_fill_all_same() {
     assert_eq!(color, BottleColor::Red);
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_fill_from_simple() {
     let mut destination = Bottle::from_fills(vec![]);
     let mut source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red]);
@@ -103,7 +103,7 @@ fn test_bottle_fill_from_simple() {
     assert!(source.is_empty());
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_fill_from_partial() {
     let mut destination = Bottle::from_fills(vec![BottleColor::Red]);
     let mut source = Bottle::from_fills(vec![BottleColor::Red, BottleColor::Red, BottleColor::Red]);
@@ -125,7 +125,7 @@ fn test_bottle_fill_from_partial() {
     assert!(source.is_empty());
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_is_empty() {
     let empty = Bottle::default();
     assert!(empty.is_empty());
@@ -134,7 +134,7 @@ fn test_bottle_is_empty() {
     assert!(!not_empty.is_empty());
 }
 
-#[test]
+#[test_log::test]
 fn test_bottle_fill_count() {
     let bottle = Bottle::from_fills(vec![
         BottleColor::Red,
