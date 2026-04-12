@@ -164,8 +164,15 @@ create_bottle_detection_test!(
 
 
 create_bottle_detection_test!(
-    test_hidden_bottle_detection_alternative,
+    test_hidden_bottle_detection_2,
     "detection/hidden-detection-2.png",
     BottleLayout::eight_bottle_layout(),
     "!O !O !B !B BBOY OYBB EEEE EEEE"
+);
+
+create_bottle_detection_test!(
+    test_hidden_bottle_detection_3,
+    "detection/hidden-detection-3.png",
+    BottleLayout::eight_bottle_layout(),
+    "!O !O !B !R BOYB OBYB EEEE EEEE"
 );

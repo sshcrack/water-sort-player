@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use opencv::{
     core::{Mat, MatTraitConst, Rect, Scalar, Vec3b},
@@ -70,43 +70,45 @@ fn detect_hidden_requirement_color(
     layout: &BottleLayout,
     bottle_idx: usize,
 ) -> anyhow::Result<Option<BottleColor>> {
-    let Some(top_pos) = layout.get_sample_position(bottle_idx, 0) else {
-        return Ok(None);
-    };
-    let Some(bottom_pos) = layout.get_sample_position(bottle_idx, 3) else {
+    let Some(center_pos) = layout.get_sample_position(bottle_idx, 1) else {
         return Ok(None);
     };
 
-    let center_x = top_pos.0;
-    let search_radius_x = 24;
-    let search_y_start = top_pos.1.saturating_add(18);
-    let search_y_end = bottom_pos.1.saturating_sub(10);
+    let search_radius = 24;
+    let min_x = (center_pos.0 - search_radius).max(0);
+    let max_x = (center_pos.0 + search_radius).min(frame_raw.cols() - 1);
+    let min_y = (center_pos.1 - search_radius).max(0);
+    let max_y = (center_pos.1 + search_radius).min(frame_raw.rows() - 1);
 
-    let mut best_color = None;
-    let mut best_dist = u32::MAX;
-
-    let min_x = (center_x - search_radius_x).max(0);
-    let max_x = (center_x + search_radius_x).min(frame_raw.cols() - 1);
-    let min_y = search_y_start.max(0).min(frame_raw.rows() - 1);
-    let max_y = search_y_end.max(0).min(frame_raw.rows() - 1);
-
+    let mut color_distances = HashMap::new();
     for y in min_y..=max_y {
         for x in min_x..=max_x {
             let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
+
             for (color, target_pixel) in COLOR_VALUES.iter() {
                 let dist = color_distance_sq(pixel, target_pixel);
-                if dist < best_dist {
-                    best_dist = dist;
-                    best_color = Some(*color);
+                if dist < COLOR_DISTANCE_THRESHOLD_SQ {
+                    color_distances
+                        .entry(color)
+                        .and_modify(|(count, total_dist)| {
+                            *count += 1;
+                            *total_dist += dist as u64;
+                        })
+                        .or_insert((1usize, dist as u64));
                 }
             }
         }
     }
 
-    Ok(match best_color {
-        Some(color) if best_dist <= COLOR_DISTANCE_THRESHOLD_SQ => Some(color),
-        _ => None,
-    })
+    let mut best_color: Option<(&BottleColor, f64)> = None;
+    for (color, (count, total_dist)) in color_distances {
+        let score = (count as f64) / ((total_dist as f64) + 1.0);
+        if best_color.is_none_or(|(_, best_score)| score > best_score) {
+            best_color = Some((color, score));
+        }
+    }
+
+    Ok(best_color.map(|(color, _)| *color))
 }
 
 fn is_hidden_curtain_bottle(
@@ -405,17 +407,6 @@ pub fn detect_bottles_with_layout(
             if let Some(sample_pos) = layout.get_sample_position(bottle_idx, layer_idx) {
                 let x = sample_pos.0;
                 let y = sample_pos.1;
-
-                // Draw detection rectangle for visualization
-                imgproc::rectangle(
-                    frame_display,
-                    Rect::new(x - 20, y - 20, 40, 40),
-                    Scalar::new(0.0, 255.0, 0.0, 255.0),
-                    2,
-                    imgproc::LINE_8,
-                    0,
-                )
-                .unwrap();
 
                 let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 4)?;
                 let sample = classify_bottle_layer(best_pixel, has_failed_level);

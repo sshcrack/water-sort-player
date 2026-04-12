@@ -5,76 +5,87 @@ use opencv::{
     core::{Mat, Point, Rect, Scalar},
     imgproc,
 };
+use water_sort_core::constants::scalar_from_hex;
 
-#[cfg(feature = "solver-visualization")]
-use crate::bottles::Bottle;
-#[cfg(feature = "solver-visualization")]
-use crate::bottles::BottleLayout;
+use crate::bottles::{Bottle, BottleLayout};
 use crate::solver::Move;
 
 fn hud_background() -> Scalar {
-    Scalar::new(22.0, 18.0, 14.0, 0.0)
+    scalar_from_hex("#0e1216")
 }
 
 fn hud_border() -> Scalar {
-    Scalar::new(160.0, 146.0, 128.0, 0.0)
+    scalar_from_hex("#8092a0")
 }
 
 fn hud_title() -> Scalar {
-    Scalar::new(235.0, 228.0, 215.0, 0.0)
+    scalar_from_hex("#d7e4eb")
 }
 
 fn hud_text() -> Scalar {
-    Scalar::new(205.0, 196.0, 184.0, 0.0)
+    scalar_from_hex("#b8c4cd")
 }
 
 fn hud_muted() -> Scalar {
-    Scalar::new(148.0, 138.0, 122.0, 0.0)
+    scalar_from_hex("#7a8a94")
 }
 
 fn hud_accent() -> Scalar {
-    Scalar::new(242.0, 172.0, 44.0, 0.0)
+    scalar_from_hex("#2cacf2")
 }
 
 fn hud_progress_bg() -> Scalar {
-    Scalar::new(82.0, 73.0, 62.0, 0.0)
+    scalar_from_hex("#3e4952")
 }
 
 fn hud_progress_fill() -> Scalar {
-    Scalar::new(78.0, 197.0, 255.0, 0.0)
+    scalar_from_hex("#ffc54e")
+}
+
+fn detected_empty_fill() -> Scalar {
+    scalar_from_hex("#3a4248")
+}
+
+fn detected_slot_border() -> Scalar {
+    scalar_from_hex("#1c2024")
+}
+
+fn color_to_scalar(color: water_sort_core::constants::BottleColor) -> Scalar {
+    let pixel = color.to_pixel_value();
+    Scalar::new(pixel[0] as f64, pixel[1] as f64, pixel[2] as f64, 0.0)
 }
 
 #[cfg(feature = "solver-visualization")]
 fn solver_preview_bg() -> Scalar {
-    Scalar::new(32.0, 28.0, 24.0, 0.0)
+    scalar_from_hex("#181c20")
 }
 
 #[cfg(feature = "solver-visualization")]
 fn solver_preview_border() -> Scalar {
-    Scalar::new(128.0, 116.0, 102.0, 0.0)
+    scalar_from_hex("#667480")
 }
 
 #[cfg(feature = "solver-visualization")]
 fn solver_empty_fill() -> Scalar {
-    Scalar::new(52.0, 46.0, 40.0, 0.0)
+    scalar_from_hex("#282e34")
 }
 
 #[cfg(feature = "solver-visualization")]
 fn solver_source_highlight() -> Scalar {
     // Bright red (BGR format)
-    Scalar::new(0.0, 0.0, 255.0, 0.0)
+    scalar_from_hex("#ff0000")
 }
 
 #[cfg(feature = "solver-visualization")]
 fn solver_destination_highlight() -> Scalar {
     // Bright cyan (BGR format)
-    Scalar::new(255.0, 255.0, 0.0, 0.0)
+    scalar_from_hex("#00ffff")
 }
 
 #[cfg(feature = "solver-visualization")]
 fn solver_arrow_color() -> Scalar {
     // Bright yellow (BGR format)
-    Scalar::new(0.0, 255.0, 255.0, 0.0)
+    scalar_from_hex("#ffff00")
 }
 
 pub struct OverlaySnapshot<'a> {
@@ -247,6 +258,82 @@ pub fn draw_state_hud(
 
     #[cfg(feature = "solver-visualization")]
     draw_solver_move_indicators(frame_display, snapshot)?;
+
+    Ok(())
+}
+
+pub fn draw_detected_bottles_overlay(
+    frame_display: &mut Mat,
+    layout: &BottleLayout,
+    bottles: &[Bottle],
+) -> Result<()> {
+    let bottle_count = layout.bottle_count().min(bottles.len());
+
+    for (bottle_idx, bottle) in bottles.iter().enumerate().take(bottle_count) {
+        if let Some(water_sort_core::position::Pos(cx, cy)) = layout.get_click_position(bottle_idx)
+        {
+            imgproc::circle(
+                frame_display,
+                Point::new(cx, cy),
+                11,
+                if bottle.is_hidden() {
+                    hud_progress_bg()
+                } else {
+                    detected_slot_border()
+                },
+                2,
+                imgproc::LINE_AA,
+                0,
+            )?;
+
+            if let Some(req) = bottle.hidden_requirement() {
+                imgproc::circle(
+                    frame_display,
+                    Point::new(cx, cy),
+                    5,
+                    color_to_scalar(req),
+                    imgproc::FILLED,
+                    imgproc::LINE_AA,
+                    0,
+                )?;
+                continue;
+            }
+        }
+
+        let fills = bottle.get_fills();
+        for layer_idx in 0..4 {
+            let Some(water_sort_core::position::Pos(x, y)) =
+                layout.get_sample_position(bottle_idx, layer_idx)
+            else {
+                continue;
+            };
+
+            let color = fills
+                .get(3 - layer_idx)
+                .copied()
+                .map(color_to_scalar)
+                .unwrap_or_else(detected_empty_fill);
+
+            imgproc::circle(
+                frame_display,
+                Point::new(x, y),
+                9,
+                color,
+                imgproc::FILLED,
+                imgproc::LINE_AA,
+                0,
+            )?;
+            imgproc::circle(
+                frame_display,
+                Point::new(x, y),
+                9,
+                detected_slot_border(),
+                1,
+                imgproc::LINE_AA,
+                0,
+            )?;
+        }
+    }
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use opencv::core::Vec3b;
+use opencv::core::{Scalar, Vec3b};
 
 use crate::position::Pos;
 
@@ -92,6 +92,13 @@ pub fn vec3_from_hex(hex: &str) -> Vec3b {
     let g = u8::from_str_radix(&hex[3..5], 16).unwrap();
     let b = u8::from_str_radix(&hex[5..7], 16).unwrap();
     Vec3b::from([b, g, r])
+}
+
+pub fn scalar_from_hex(hex: &str) -> Scalar {
+    let r = u8::from_str_radix(&hex[1..3], 16).unwrap();
+    let g = u8::from_str_radix(&hex[3..5], 16).unwrap();
+    let b = u8::from_str_radix(&hex[5..7], 16).unwrap();
+    Scalar::from([b as f64, g as f64, r as f64, 0.0])
 }
 
 lazy_static! {

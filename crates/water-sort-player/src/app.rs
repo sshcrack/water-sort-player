@@ -10,7 +10,7 @@ use water_sort_core::constants::{
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
 use crate::{
-    app_visualization::{OverlaySnapshot, draw_state_hud},
+    app_visualization::{OverlaySnapshot, draw_detected_bottles_overlay, draw_state_hud},
     bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
     capture::{DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png},
     constants::{RETRY_BUTTON_POS, START_BUTTON_POS},
@@ -119,6 +119,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
     };
     let mut previous_right_click = false;
     let mut active_layout: Option<BottleLayout> = None;
+    let mut latest_detected_bottles: Option<Vec<Bottle>> = None;
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
 
     let mut first_frame_read = true;
@@ -205,6 +206,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     match bottles {
                         Ok(detected_bottles) => {
                             active_layout = Some(layout.clone());
+                            latest_detected_bottles = Some(detected_bottles.clone());
                             app_state = AppState::AwaitPostDetectionPlan {
                                 trigger_at: now + POST_DETECTION_WAIT,
                                 detected_bottles,
@@ -309,6 +311,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
 
                     let current_bottles = current_bottles.unwrap();
+                    latest_detected_bottles = Some(current_bottles.clone());
                     let mystery_count = count_total_mystery_colors(&current_bottles);
                     let hidden_count = count_hidden_bottles(&current_bottles);
 
@@ -439,6 +442,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         &mut current_bottles,
                         max_revealed_bottle_state,
                     );
+                    latest_detected_bottles = Some(current_bottles.clone());
 
                     let mystery_colors = count_total_mystery_colors(max_revealed_bottle_state);
                     println!("Total mystery colors still hidden: {}", mystery_colors);
@@ -583,6 +587,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
 
                     let current_bottles = current_bottles.unwrap();
+                    latest_detected_bottles = Some(current_bottles.clone());
 
                     if moves_to_execute.is_empty() {
                         app_state = AppState::HiddenDiscoverBottles {
@@ -657,6 +662,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
 
                     let current_bottles = current_bottles.unwrap();
+                    latest_detected_bottles = Some(current_bottles.clone());
                     draw_revealed_fill_markers(
                         &mut frame_display,
                         layout,
@@ -740,6 +746,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
         }
 
         let overlay_snapshot = build_overlay_snapshot(&app_state, now, &active_layout);
+
+        if let (Some(layout), Some(bottles)) = (&active_layout, latest_detected_bottles.as_deref()) {
+            draw_detected_bottles_overlay(&mut frame_display, layout, bottles)?;
+        }
 
         draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
 
