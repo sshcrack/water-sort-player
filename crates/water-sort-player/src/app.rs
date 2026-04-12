@@ -503,7 +503,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
         }
 
-        let overlay_snapshot = build_overlay_snapshot(&app_state, now);
+        let overlay_snapshot = build_overlay_snapshot(&app_state, now, &active_layout);
 
         draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
 
@@ -592,7 +592,14 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
     }
 }
 
-fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlaySnapshot<'a> {
+fn build_overlay_snapshot<'a>(
+    app_state: &'a AppState,
+    now: Instant,
+    #[cfg(feature = "solver-visualization")]
+    active_layout: &'a Option<BottleLayout>,
+    #[cfg(not(feature = "solver-visualization"))]
+    _active_layout: &'a Option<BottleLayout>,
+) -> OverlaySnapshot<'a> {
     match app_state {
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
             phase: "WaitingToPressStart".to_string(),
@@ -604,6 +611,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::ClickNextLevel { trigger_at } => OverlaySnapshot {
             phase: "ClickNextLevel".to_string(),
@@ -615,6 +626,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::CheckForRewards { trigger_at } => OverlaySnapshot {
             phase: "CheckForRewards".to_string(),
@@ -626,6 +641,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::DetectAndPlan {
             trigger_at,
@@ -647,6 +666,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::AwaitPostDetectionPlan { trigger_at, .. } => OverlaySnapshot {
             phase: "AwaitPostDetectionPlan".to_string(),
@@ -658,6 +681,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::MysteryDiscoverColors {
             trigger_at,
@@ -674,6 +701,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: Some(0),
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::MysteryExecuteDiscoverMove {
             trigger_at,
@@ -691,6 +722,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: Some(moves_to_execute.len()),
             solve_moves: &[],
             solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: None,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
         },
         AppState::ExecuteFinalSolveMoves {
             next_move_at,
@@ -710,6 +745,10 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_queue: None,
             solve_moves: planned_moves.as_slice(),
             solve_performed_moves: *performed_moves,
+            #[cfg(feature = "solver-visualization")]
+            solve_layout: active_layout.as_ref(),
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: *performed_moves,
         },
     }
 }

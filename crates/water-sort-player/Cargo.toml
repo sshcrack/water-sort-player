@@ -16,6 +16,8 @@ water-sort-solver = { path = "../water-sort-solver" }
 water-sort-capture = { path = "../water-sort-capture" }
 
 [features]
+default = ["solver-visualization"]
+solver-visualization = []
 discovery-debugging = ["water-sort-solver/discovery-debugging"]
 collect-test-data = ["water-sort-capture/collect-test-data"]
 

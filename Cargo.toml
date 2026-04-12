@@ -21,3 +21,7 @@ opencv = { version = "0.98.2", features = ["videoio", "imgproc"] }
 paste = "1.0.15"
 serde_json = "1.0.145"
 ctrlc = "3.5.1"
+
+[profile.test]
+# Disable solver-visualization feature during testing
+# Tests don't need the visualization overhead
