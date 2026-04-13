@@ -41,7 +41,8 @@ const BOTTLE_DETECTION_RETRY_DELAY: Duration = Duration::from_secs(1);
 const BOTTLE_DETECTION_RETRIES: u8 = 3;
 const POST_DETECTION_WAIT: Duration = Duration::from_secs(1);
 const MOVE_DELAY: Duration = Duration::from_millis(3000);
-const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(3000);
+// Just turned this up to also have the reveal bottle animation be detected (was 3000ms)
+const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(5500);
 const HIDDEN_REVEAL_DETECTION_DELAY: Duration = Duration::from_millis(5500);
 #[cfg(feature = "solver-visualization")]
 const SOLVER_VISUALIZATION_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
@@ -75,6 +76,7 @@ enum AppState {
         initial_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         force_hidden_discovery: bool,
+        hidden_level_retried: bool,
         retries_remaining: u8,
     },
     HiddenExecuteDiscoverMove {
@@ -84,6 +86,7 @@ enum AppState {
         moves_to_execute: Vec<Move>,
         current_moves: Vec<Move>,
         force_hidden_discovery: bool,
+        hidden_level_retried: bool,
         retries_remaining: u8,
     },
     MysteryDiscoverColors {
@@ -166,6 +169,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 prev_app_state_name,
                 app_state.get_name()
             );
+            debug!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             prev_app_state_name = app_state.get_name();
         }
 
@@ -359,6 +363,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
                             force_hidden_discovery: false,
+                            hidden_level_retried: false,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     }
@@ -370,6 +375,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 initial_state,
                 max_revealed_bottle_state,
                 force_hidden_discovery,
+                hidden_level_retried,
                 retries_remaining,
             } => {
                 if now >= *trigger_at {
@@ -414,6 +420,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             force_hidden_discovery: *force_hidden_discovery,
+                            hidden_level_retried: *hidden_level_retried,
                             retries_remaining: next_retries_remaining,
                         };
                         continue;
@@ -521,24 +528,64 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     trigger_at: now,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     force_hidden_discovery: *force_hidden_discovery,
+                                    hidden_level_retried: *hidden_level_retried,
                                     retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
-                                warn!(
-                                    "No move found that unlocks hidden bottles. Retrying level..."
-                                );
+                                if *hidden_level_retried {
+                                    let mystery_count =
+                                        count_total_mystery_colors(max_revealed_bottle_state);
 
-                                capture.click_at_position(RETRY_BUTTON_POS)?;
+                                    if mystery_count > 0 {
+                                        info!(
+                                            "No hidden unlock move found after retry; returning to mystery discovery..."
+                                        );
+                                        app_state = AppState::MysteryDiscoverColors {
+                                            trigger_at: now,
+                                            initial_state: current_bottles.clone(),
+                                            max_revealed_bottle_state: max_revealed_bottle_state
+                                                .clone(),
+                                            current_moves: vec![],
+                                            mystery_level_retried: true,
+                                            retries_remaining: BOTTLE_DETECTION_RETRIES,
+                                        };
+                                    } else {
+                                        warn!(
+                                            "No hidden unlock move found after retry and no mystery colors remain. Retrying level..."
+                                        );
 
-                                app_state = AppState::HiddenDiscoverBottles {
-                                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
-                                    initial_state: initial_state.clone(),
-                                    current_moves: vec![],
-                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
-                                    force_hidden_discovery: *force_hidden_discovery,
-                                    retries_remaining: BOTTLE_DETECTION_RETRIES,
-                                };
+                                        capture.click_at_position(RETRY_BUTTON_POS)?;
+
+                                        app_state = AppState::HiddenDiscoverBottles {
+                                            trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                            initial_state: initial_state.clone(),
+                                            current_moves: vec![],
+                                            max_revealed_bottle_state: max_revealed_bottle_state
+                                                .clone(),
+                                            force_hidden_discovery: *force_hidden_discovery,
+                                            hidden_level_retried: false,
+                                            retries_remaining: BOTTLE_DETECTION_RETRIES,
+                                        };
+                                    }
+                                } else {
+                                    warn!(
+                                        "No move found that unlocks hidden bottles. Retrying level..."
+                                    );
+
+                                    capture.click_at_position(RETRY_BUTTON_POS)?;
+
+                                    app_state = AppState::HiddenDiscoverBottles {
+                                        trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                        initial_state: initial_state.clone(),
+                                        current_moves: vec![],
+                                        max_revealed_bottle_state: max_revealed_bottle_state
+                                            .clone(),
+                                        force_hidden_discovery: *force_hidden_discovery,
+                                        hidden_level_retried: true,
+                                        retries_remaining: BOTTLE_DETECTION_RETRIES,
+                                    };
+                                }
                             }
                             discovery::DiscoverResult::AlreadySolved => {
                                 info!(
@@ -569,6 +616,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     current_moves: current_moves.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     force_hidden_discovery: *force_hidden_discovery,
+                                    hidden_level_retried: *hidden_level_retried,
                                     retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
@@ -666,6 +714,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 current_moves: current_moves.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 force_hidden_discovery: false,
+                                hidden_level_retried: false,
                                 retries_remaining: BOTTLE_DETECTION_RETRIES,
                             };
                             continue;
@@ -752,6 +801,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                             .clone(),
                                         current_moves: vec![],
                                         force_hidden_discovery: true,
+                                        hidden_level_retried: false,
                                         retries_remaining: BOTTLE_DETECTION_RETRIES,
                                     };
                                 } else {
@@ -787,6 +837,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                         max_revealed_bottle_state: max_revealed_bottle_state
                                             .clone(),
                                         force_hidden_discovery: false,
+                                        hidden_level_retried: false,
                                         retries_remaining: BOTTLE_DETECTION_RETRIES,
                                     };
                                 } else {
@@ -816,6 +867,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 max_revealed_bottle_state,
                 initial_state,
                 force_hidden_discovery,
+                hidden_level_retried,
                 retries_remaining,
             } => {
                 if now >= *trigger_at {
@@ -854,6 +906,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             initial_state: initial_state.clone(),
                             force_hidden_discovery: *force_hidden_discovery,
+                            hidden_level_retried: *hidden_level_retried,
                             retries_remaining: next_retries_remaining,
                         };
                         continue;
@@ -874,6 +927,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             current_moves: current_moves.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             force_hidden_discovery: *force_hidden_discovery,
+                            hidden_level_retried: *hidden_level_retried,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     } else {
@@ -901,6 +955,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         }
                         next_move.perform_move_on_device(layout, &capture)?;
 
+                        log::trace!("Reveal wait needed: {}", reveal_wait_needed);
                         current_moves.push(next_move);
                         *trigger_at = Instant::now()
                             + if reveal_wait_needed {

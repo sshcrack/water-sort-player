@@ -25,7 +25,7 @@ pub fn count_hidden_bottles(bottles: &[Bottle]) -> usize {
 pub fn collect_hidden_requirements(bottles: &[Bottle]) -> HashSet<BottleColor> {
     bottles
         .iter()
-        .filter(|bottle| bottle.is_hidden_and_locked())
+        .filter(|bottle| bottle.is_hidden_and_locked() && bottle.is_empty())
         .filter_map(Bottle::hidden_requirement)
         .collect()
 }
@@ -38,6 +38,14 @@ pub enum DiscoverResult {
 }
 
 pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResult {
+    log::debug!(
+        "Finding best hidden unlock moves for current bottles: {}",
+        current_bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     let hidden_requirements = collect_hidden_requirements(current_bottles);
     if hidden_requirements.is_empty() {
         return DiscoverResult::AlreadySolved;
@@ -353,6 +361,35 @@ mod tests {
                     m.perform_move_on_bottles(&mut new_state);
                     unlock_hidden_bottles_with_solved_colors(&mut new_state);
 
+                    log::debug!(
+                        "State after move: {}",
+                        new_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                }
+            }
+            DiscoverResult::AlreadySolved => println!("AlreadySolved"),
+        }
+    }
+
+    #[test_log::test]
+    fn test_discov_1() {
+        let c = TestUtils::parse_bottles_sequence("!O !G,BRLP PYO WGG GP? OB? PY? WL? GOB R??");
+        let max = TestUtils::parse_bottles_sequence("!O !G,BRLP PYO GG GP? OB? PY? WWL? GOB R??");
+
+        let m = find_best_discovery_moves(&c, &max);
+
+        match m {
+            DiscoverResult::NoMove => println!("NoMove"),
+            DiscoverResult::MoveToDiscover(items) => {
+                println!("MoveToDiscover with moves:");
+                let mut new_state = c.clone();
+                for m in items {
+                    println!("{:?}", m);
+                    m.perform_move_on_bottles(&mut new_state);
                     log::debug!(
                         "State after move: {}",
                         new_state

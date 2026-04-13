@@ -229,6 +229,16 @@
       "layout_name": "nine_bottle_layout",
       "mystery_count_at_start": 6,
       "resolved_bottles": "GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE"
+    },
+    {
+      "bottle_count": 9,
+      "captured_at_ms": 1776121910185,
+      "expected_bottles": "P??? !B W??? !Y Y??? BRYO YYBR EEEE EEEE",
+      "id": 29,
+      "image_filename": "discovery-level-29.png",
+      "layout_name": "nine_bottle_layout",
+      "mystery_count_at_start": 9,
+      "resolved_bottles": "POGW !B,ORRG WGPP !Y,BOBW YPWG BRYO YYBR EEEE EEEE"
     }
   ]
 }
