@@ -164,18 +164,8 @@ macro_rules! create_generated_test_level {
 
                 #[test_log::test]
                 fn invalid_level_test() {
-                    for (initial, resolved) in PARSED_BOTTLES.iter().zip(RESOLVED_BOTTLES.iter()) {
-                        if !initial.is_hidden_and_empty() && !resolved.is_hidden_and_empty() {
-                            initial.get_fills().iter().zip(resolved.get_fills().iter()).for_each(|(initial_color, resolved_color)| {
-                                if *initial_color != BottleColor::Mystery && *initial_color != *resolved_color {
-                                    panic!(
-                                        "Invalid test data for captured level {}: initial color {:?} does not match resolved color {:?} for bottle {}",
-                                        $capture_id, initial_color, resolved_color, initial
-                                    );
-                                }
-                            });
-                        }
-                    }
+                    let is_valid = water_sort_capture::is_level_valid(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
+                    assert!(!is_valid, "Level should be invalid for captured level {}", $capture_id);
                 }
 
                 #[test_log::test]

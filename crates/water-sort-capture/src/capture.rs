@@ -15,14 +15,14 @@ use opencv::{
 use serde_json::{Value, json};
 
 use water_sort_core::{
-    bottles::{Bottle, BottleLayout},
+    bottles::{Bottle, BottleLayout, test_utils::TestUtils},
     constants::BottleColor,
 };
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
+use crate::is_level_valid;
+
 const DISCOVERY_MANIFEST_PATH: &str = "captures/discovery_levels.json";
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct DiscoveryLevelCapture {
     pub id: u64,
@@ -35,21 +35,30 @@ pub struct DiscoveryLevelCapture {
     pub captured_at_ms: u64,
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 #[derive(Debug, Clone, Default)]
 pub struct DiscoveryCaptureManifest {
     pub levels: Vec<DiscoveryLevelCapture>,
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct DiscoveryCaptureContext {
     pub level: DiscoveryLevelCapture,
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 impl DiscoveryCaptureContext {
     pub fn finalize(self) -> Result<()> {
+        // Validate level
+        let initial = TestUtils::parse_bottles_sequence(&self.level.expected_bottles);
+        let resolved = if let Some(resolved_str) = &self.level.resolved_bottles {
+            TestUtils::parse_bottles_sequence(resolved_str)
+        } else {
+            return Err(anyhow!("Cannot finalize capture without resolved bottles"));
+        };
+
+        if !is_level_valid(&initial, &resolved) {
+            return Err(anyhow!("Captured level is not valid"));
+        }
+
         upsert_discovery_capture(self.level)
     }
 
@@ -79,7 +88,6 @@ fn current_time_ms() -> Result<u64> {
     )?)
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn next_discovery_capture_id() -> Result<u64> {
     let manifest = read_discovery_manifest()?;
     let next_id = manifest
@@ -111,7 +119,6 @@ fn save_png_with_filename(frame: &Mat, filename: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
     bottles
         .iter()
@@ -120,7 +127,6 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
         .join(" ")
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn bottle_to_string(bottle: &Bottle) -> String {
     if let Some(requirement) = bottle.hidden_requirement()
         && bottle.is_empty()
@@ -154,7 +160,6 @@ fn bottle_to_string(bottle: &Bottle) -> String {
     out
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn count_mystery_colors(bottles: &[Bottle]) -> usize {
     bottles
         .iter()
@@ -168,7 +173,6 @@ fn count_mystery_colors(bottles: &[Bottle]) -> usize {
         .sum()
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn read_discovery_manifest() -> Result<DiscoveryCaptureManifest> {
     match fs::read_to_string(DISCOVERY_MANIFEST_PATH) {
         Ok(content) => {
@@ -182,7 +186,6 @@ fn read_discovery_manifest() -> Result<DiscoveryCaptureManifest> {
     }
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn write_discovery_manifest(manifest: &DiscoveryCaptureManifest) -> Result<()> {
     fs::create_dir_all("captures")?;
     let manifest_json = manifest_to_json(manifest);
@@ -191,7 +194,6 @@ fn write_discovery_manifest(manifest: &DiscoveryCaptureManifest) -> Result<()> {
     Ok(())
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn manifest_to_json(manifest: &DiscoveryCaptureManifest) -> Value {
     json!({
         "levels": manifest
@@ -202,7 +204,6 @@ fn manifest_to_json(manifest: &DiscoveryCaptureManifest) -> Value {
     })
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn level_to_json(level: &DiscoveryLevelCapture) -> Value {
     json!({
         "id": level.id,
@@ -216,7 +217,6 @@ fn level_to_json(level: &DiscoveryLevelCapture) -> Value {
     })
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn manifest_from_json(value: &Value) -> DiscoveryCaptureManifest {
     let levels = value
         .get("levels")
@@ -232,7 +232,6 @@ fn manifest_from_json(value: &Value) -> DiscoveryCaptureManifest {
     DiscoveryCaptureManifest { levels }
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn level_from_json(value: &Value) -> Option<DiscoveryLevelCapture> {
     Some(DiscoveryLevelCapture {
         id: value.get("id")?.as_u64()?,
@@ -262,7 +261,6 @@ fn level_from_json(value: &Value) -> Option<DiscoveryLevelCapture> {
     })
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn upsert_discovery_capture(capture: DiscoveryLevelCapture) -> Result<()> {
     let mut manifest = read_discovery_manifest()?;
 
@@ -280,7 +278,6 @@ fn upsert_discovery_capture(capture: DiscoveryLevelCapture) -> Result<()> {
     write_discovery_manifest(&manifest)
 }
 
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 pub fn start_discovery_capture(
     frame: &Mat,
     layout: &BottleLayout,
@@ -336,5 +333,55 @@ mod tests {
         ];
 
         assert_eq!(bottles_to_sequence(&bottles), "EERO !O !B EEEE");
+    }
+
+    #[test_log::test]
+    fn bottles_to_sequence_formats_regular_bottles_with_hidden_filled() {
+        let mut bottles = vec![
+            Bottle::from_fills(vec![BottleColor::Red, BottleColor::Green]),
+            Bottle::from_fills(vec![BottleColor::Blue, BottleColor::Mystery]),
+        ];
+
+        let mut b = Bottle::from_fills(vec![BottleColor::Green, BottleColor::Yellow]);
+        b.set_hidden_requirement(Some(BottleColor::LightBlue));
+        bottles.push(b);
+
+        assert_eq!(bottles_to_sequence(&bottles), "EEGR EE?B !L,EEYG");
+    }
+
+    #[test_log::test]
+    fn test_bottle_parsing() {
+        let possible_colors = [
+            BottleColor::Red,
+            BottleColor::Green,
+            BottleColor::Blue,
+            BottleColor::Yellow,
+            BottleColor::Orange,
+            BottleColor::LightBlue,
+            BottleColor::Pink,
+            BottleColor::Mystery,
+        ];
+
+        for color in possible_colors {
+            let bottle = Bottle::from_fills(vec![color]);
+            let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
+            let expected_char = color.to_char();
+            assert_eq!(sequence, format!("EEE{expected_char}"));
+
+            for requirement in possible_colors {
+                let mut bottle = Bottle::from_fills(vec![color]);
+                bottle.set_hidden_requirement(Some(requirement));
+                let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
+                let expected_requirement_char = requirement.to_char();
+                assert_eq!(
+                    sequence,
+                    format!("!{expected_requirement_char},EEE{expected_char}")
+                );
+            }
+        }
+
+        let bottle = Bottle::from_hidden_requirement(BottleColor::Green);
+        let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
+        assert_eq!(sequence, "!G");
     }
 }
