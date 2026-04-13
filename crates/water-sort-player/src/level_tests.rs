@@ -139,38 +139,11 @@ macro_rules! create_generated_test_level {
                 fn discovery_reveal_and_solve() {
                     let initial_mystery_count = count_total_mystery_colors(PARSED_BOTTLES.as_slice());
                     let final_revealed = run_discovery_simulation(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
-                    let final_mystery_count = count_total_mystery_colors(&final_revealed);
-                    let final_hidden_count = count_hidden_bottles(&final_revealed);
 
                     // Hidden-only captures do not need discovery-validation assertions.
                     if initial_mystery_count == 0 {
                         return;
                     }
-
-                    // Some captured states currently cannot fully reveal via simulation due missing/ambiguous
-                    // fixture information. Keep the test informative without failing the full suite.
-                    if final_mystery_count > 0 {
-                        panic!(
-                            "Warning: Discovery simulation left {} mystery color(s) for captured level {}",
-                            final_mystery_count,
-                            $capture_id
-                        );
-                    }
-
-                    if final_hidden_count > 0 {
-                        panic!(
-                            "Warning: Discovery simulation left {} hidden bottle(s) for captured level {}",
-                            final_hidden_count,
-                            $capture_id
-                        );
-                    }
-
-                    assert_eq!(
-                        final_mystery_count,
-                        0,
-                        "Discovery simulation should reveal all mystery colors for captured level {}",
-                        $capture_id
-                    );
 
                     let are_equal = crate::bottles::test_utils::TestUtils::are_bottles_equal(final_revealed.as_slice(), RESOLVED_BOTTLES.as_slice());
                     assert!(
@@ -187,6 +160,22 @@ macro_rules! create_generated_test_level {
                 #[test_log::test]
                 fn run_solver() {
                     solve_and_assert(RESOLVED_BOTTLES.as_slice(), PARSED_BOTTLES.as_slice());
+                }
+
+                #[test_log::test]
+                fn invalid_level_test() {
+                    for (initial, resolved) in PARSED_BOTTLES.iter().zip(RESOLVED_BOTTLES.iter()) {
+                        if !initial.is_hidden_and_empty() && !resolved.is_hidden_and_empty() {
+                            initial.get_fills().iter().zip(resolved.get_fills().iter()).for_each(|(initial_color, resolved_color)| {
+                                if *initial_color != BottleColor::Mystery && *initial_color != *resolved_color {
+                                    panic!(
+                                        "Invalid test data for captured level {}: initial color {:?} does not match resolved color {:?} for bottle {}",
+                                        $capture_id, initial_color, resolved_color, initial
+                                    );
+                                }
+                            });
+                        }
+                    }
                 }
 
                 #[test_log::test]

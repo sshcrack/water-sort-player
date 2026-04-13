@@ -212,46 +212,6 @@
     },
     {
       "bottle_count": 9,
-      "captured_at_ms": 1776016898485,
-      "expected_bottles": "RBOP OYBY !B !R !Y PPRR BYRO EEEE EEEE",
-      "id": 22,
-      "image_filename": "discovery-level-22.png",
-      "layout_name": "nine_bottle_layout",
-      "mystery_count_at_start": 0,
-      "resolved_bottles": "OOOP EEEO GWGP EEEW GGWW RRRR BBBB EEPP YYYY"
-    },
-    {
-      "bottle_count": 10,
-      "captured_at_ms": 1776017002261,
-      "expected_bottles": "BYOR MPYO PMPG GRRO PGBW !B !P !P EEEE EEEE",
-      "id": 23,
-      "image_filename": "discovery-level-23.png",
-      "layout_name": "ten_bottle_layout",
-      "mystery_count_at_start": 0,
-      "resolved_bottles": "EYOR EEYO EEGG GRRO EEEW WWYY BBBB ROGW MMMM PPPP"
-    },
-    {
-      "bottle_count": 8,
-      "captured_at_ms": 1776018382817,
-      "expected_bottles": "R??R !G !G O??G G??B EEEE EEEE O??W",
-      "id": 24,
-      "image_filename": "discovery-level-24.png",
-      "layout_name": "eight_bottle_layout",
-      "mystery_count_at_start": 8,
-      "resolved_bottles": "ERRR WBWO RYWB EEEE EEBB EOOO GGGG YYYW"
-    },
-    {
-      "bottle_count": 8,
-      "captured_at_ms": 1776025210343,
-      "expected_bottles": "!R !R P??B O??G R?YR RY?R EEEE EEEE",
-      "id": 25,
-      "image_filename": "discovery-level-25.png",
-      "layout_name": "eight_bottle_layout",
-      "mystery_count_at_start": 6,
-      "resolved_bottles": "GOPP OBOP PYBB OYBG EEGG EEEE RRRR EEYY"
-    },
-    {
-      "bottle_count": 9,
       "captured_at_ms": 1776025210343,
       "expected_bottles": "EG??W !P P??B !O O??B RPOP OORG EEEE EEEE",
       "id": 27,

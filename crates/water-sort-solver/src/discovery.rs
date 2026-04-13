@@ -169,7 +169,8 @@ pub fn improve_current_bottles_with_revealed_state(
 mod tests {
     use crate::discovery::{
         DiscoverResult, collect_hidden_requirements, count_hidden_bottles,
-        count_total_mystery_colors, find_best_hidden_unlock_moves, improve_best_revealed_state,
+        count_total_mystery_colors, find_best_discovery_moves, find_best_hidden_unlock_moves,
+        improve_best_revealed_state,
     };
     use water_sort_core::bottles::test_utils::TestUtils;
     use water_sort_core::constants::BottleColor;
@@ -228,5 +229,29 @@ mod tests {
             revealed_state,
             expected_revealed_state
         );
+    }
+
+    #[test_log::test]
+    fn test_find_best_discovery_moves_for_level24_restart_state() {
+        let bottles = TestUtils::parse_bottles_sequence("RRRR !G !G O??G G??B EEEE EEEE OYYW");
+
+        match find_best_discovery_moves(&bottles, &bottles) {
+            DiscoverResult::MoveToDiscover(moves) => {
+                assert!(!moves.is_empty());
+            }
+            other => panic!("Expected discovery moves, got {:?}", other),
+        }
+    }
+
+    #[test_log::test]
+    fn test_find_best_discovery_moves_for_level25_restart_state() {
+        let bottles = TestUtils::parse_bottles_sequence("!R !R PYBB OYBG R?YR RY?R EEEE EEEE");
+
+        match find_best_discovery_moves(&bottles, &bottles) {
+            DiscoverResult::MoveToDiscover(moves) => {
+                assert!(!moves.is_empty());
+            }
+            other => panic!("Expected discovery moves, got {:?}", other),
+        }
     }
 }

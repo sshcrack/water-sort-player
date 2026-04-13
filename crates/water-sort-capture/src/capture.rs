@@ -122,8 +122,11 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
 
 #[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
 fn bottle_to_string(bottle: &Bottle) -> String {
-    if let Some(requirement) = bottle.hidden_requirement() {
-        return format!("!{}", color_to_char(requirement));
+    if let Some(requirement) = bottle.hidden_requirement()
+        && bottle.is_empty()
+    {
+        log::warn!("Captured a hidden requirement bottle with no fills...");
+        return format!("!{}", requirement.to_char());
     }
 
     // Bottle fills are stored bottom->top. Test strings are top->bottom with 'E' for empty slots.
@@ -133,33 +136,22 @@ fn bottle_to_string(bottle: &Bottle) -> String {
         slots[index] = *color;
     }
 
-    let mut out = String::with_capacity(4);
+    let mut out = String::with_capacity(7);
+    if let Some(requirement) = bottle.hidden_requirement() {
+        out.push('!');
+        out.push(requirement.to_char());
+        out.push(',');
+    }
+
     for slot in (0..4).rev() {
         if slot >= fills.len() {
             out.push('E');
             continue;
         }
 
-        out.push(color_to_char(slots[slot]));
+        out.push(slots[slot].to_char());
     }
     out
-}
-
-#[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]
-fn color_to_char(color: BottleColor) -> char {
-    match color {
-        BottleColor::Yellow => 'Y',
-        BottleColor::Red => 'R',
-        BottleColor::Green => 'G',
-        BottleColor::Lime => 'g',
-        BottleColor::LightBlue => 'L',
-        BottleColor::MediumBlue => 'M',
-        BottleColor::Blue => 'B',
-        BottleColor::Purple => 'P',
-        BottleColor::Orange => 'O',
-        BottleColor::Pink => 'W',
-        BottleColor::Mystery => '?',
-    }
 }
 
 #[cfg_attr(not(feature = "collect-test-data"), allow(dead_code))]

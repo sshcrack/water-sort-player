@@ -401,7 +401,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     .join(" ")
                             );
 
-                            maybe_set_resolved_bottles(&mut discovery_capture, &current_bottles);
+                            maybe_set_resolved_bottles(&mut discovery_capture, max_revealed_bottle_state);
                             finalize_discovery_capture(&mut discovery_capture);
 
                             capture.click_at_position(RETRY_BUTTON_POS)?;
