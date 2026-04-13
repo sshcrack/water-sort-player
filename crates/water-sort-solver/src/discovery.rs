@@ -18,13 +18,14 @@ pub fn count_total_mystery_colors(bottles: &[Bottle]) -> usize {
 pub fn count_hidden_bottles(bottles: &[Bottle]) -> usize {
     bottles
         .iter()
-        .filter(|bottle| bottle.is_hidden() && bottle.is_empty())
+        .filter(|bottle| bottle.is_hidden_and_empty())
         .count()
 }
 
 pub fn collect_hidden_requirements(bottles: &[Bottle]) -> HashSet<BottleColor> {
     bottles
         .iter()
+        .filter(|bottle| bottle.is_hidden_and_empty())
         .filter_map(Bottle::hidden_requirement)
         .collect()
 }
@@ -50,7 +51,6 @@ pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResu
         return DiscoverResult::AlreadySolved;
     }
 
-    #[cfg(feature = "solver-visualization")]
     let best_moves = find_shortest_move_sequence(
         current_bottles.to_vec(),
         |state, move_count| {
@@ -61,18 +61,9 @@ pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResu
                         .is_some_and(|color| hidden_requirements.contains(&color))
                 })
         },
+        #[cfg(feature = "solver-visualization")]
         None,
     );
-
-    #[cfg(not(feature = "solver-visualization"))]
-    let best_moves = find_shortest_move_sequence(current_bottles.to_vec(), |state, move_count| {
-        move_count > 0
-            && state.iter().any(|bottle| {
-                bottle
-                    .solved_color()
-                    .is_some_and(|color| hidden_requirements.contains(&color))
-            })
-    });
 
     match best_moves {
         Some(moves) => DiscoverResult::MoveToDiscover(moves),
@@ -91,7 +82,6 @@ pub fn find_best_discovery_moves(
         return DiscoverResult::AlreadySolved;
     }
 
-    #[cfg(feature = "solver-visualization")]
     let best_moves = find_shortest_move_sequence(
         current_bottles.to_vec(),
         |state, move_count| {
@@ -104,20 +94,9 @@ pub fn find_best_discovery_moves(
                     }
                 })
         },
+        #[cfg(feature = "solver-visualization")]
         None,
     );
-
-    #[cfg(not(feature = "solver-visualization"))]
-    let best_moves = find_shortest_move_sequence(current_bottles.to_vec(), |state, move_count| {
-        move_count > 0
-            && state.iter().any(|bottle| {
-                if let Some((_, top_color)) = bottle.get_top_fill() {
-                    top_color == BottleColor::Mystery
-                } else {
-                    false
-                }
-            })
-    });
 
     match best_moves {
         Some(moves) => DiscoverResult::MoveToDiscover(moves),
@@ -150,8 +129,8 @@ pub fn improve_best_revealed_state(
                 });
 
             if revealed_bottle.is_empty()
-                && revealed_bottle.is_hidden()
-                && !current_bottle.is_hidden()
+                && revealed_bottle.is_hidden_and_empty()
+                && !current_bottle.is_hidden_and_empty()
             {
                 revealed_bottle.set_fills_from_bottle(current_bottle);
             }
@@ -177,8 +156,8 @@ pub fn improve_current_bottles_with_revealed_state(
                 });
 
             if current_bottle.is_empty()
-                && current_bottle.is_hidden()
-                && revealed_bottle.is_hidden()
+                && current_bottle.is_hidden_and_empty()
+                && revealed_bottle.is_hidden_and_empty()
             {
                 current_bottle.set_fills_from_bottle(revealed_bottle);
                 current_bottle.set_hidden_requirement(revealed_bottle.hidden_requirement());

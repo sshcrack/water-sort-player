@@ -133,9 +133,9 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 
             if source_bottle.is_solved()
                 || source_bottle.is_empty()
-                || source_bottle.is_hidden()
+                || source_bottle.is_hidden_and_empty()
                 || destination_bottle.is_solved()
-                || destination_bottle.is_hidden()
+                || destination_bottle.is_hidden_and_empty()
             {
                 continue;
             }
@@ -384,7 +384,7 @@ pub fn run_solver(
         |state, _move_count| {
             state
                 .iter()
-                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
+                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_empty()))
         },
         #[cfg(feature = "solver-visualization")]
         None,
@@ -428,7 +428,7 @@ where
         |state, _move_count| {
             state
                 .iter()
-                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden()))
+                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_empty()))
         },
         Some(&mut on_progress),
     )

@@ -140,6 +140,7 @@ macro_rules! create_generated_test_level {
                     let initial_mystery_count = count_total_mystery_colors(PARSED_BOTTLES.as_slice());
                     let final_revealed = run_discovery_simulation(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
                     let final_mystery_count = count_total_mystery_colors(&final_revealed);
+                    let final_hidden_count = count_hidden_bottles(&final_revealed);
 
                     // Hidden-only captures do not need discovery-validation assertions.
                     if initial_mystery_count == 0 {
@@ -149,12 +150,19 @@ macro_rules! create_generated_test_level {
                     // Some captured states currently cannot fully reveal via simulation due missing/ambiguous
                     // fixture information. Keep the test informative without failing the full suite.
                     if final_mystery_count > 0 {
-                        println!(
+                        panic!(
                             "Warning: Discovery simulation left {} mystery color(s) for captured level {}",
                             final_mystery_count,
                             $capture_id
                         );
-                        return;
+                    }
+
+                    if final_hidden_count > 0 {
+                        panic!(
+                            "Warning: Discovery simulation left {} hidden bottle(s) for captured level {}",
+                            final_hidden_count,
+                            $capture_id
+                        );
                     }
 
                     assert_eq!(
@@ -274,7 +282,7 @@ fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle])
     assert!(
         current_bottles
             .iter()
-            .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden())),
+            .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_empty())),
         "Final bottle state should be solved after replay. Final state: {}",
         current_bottles
             .iter()
@@ -287,7 +295,6 @@ fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle])
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
     let mut max_revealed = initial.to_vec();
 
-    let mut current_moves = Vec::new();
     let mut current_state = initial.to_vec();
     for _ in 0..300 {
         let hidden_count = count_hidden_bottles(&max_revealed);
@@ -299,35 +306,84 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         reveal_hidden_observed(&mut current_state, resolved);
         improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
 
+        improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+        if count_total_mystery_colors(&current_state) > 0 {
+            match find_best_discovery_moves(&current_state, &max_revealed) {
+                DiscoverResult::MoveToDiscover(moves_to_apply) => {
+                    if moves_to_apply.is_empty() {
+                        panic!("Moves should not be empty");
+                    }
+
+                    for mv in moves_to_apply {
+                        if !mv.can_perform_on_bottles(&current_state) {
+                            panic!(
+                                "Discovery move became invalid during simulation ({}->{}), restarting...",
+                                mv.source_index(),
+                                mv.destination_index()
+                            );
+                        }
+
+                        mv.perform_move_on_bottles(&mut current_state);
+
+                        reveal_observed(&mut current_state, resolved);
+                        improve_best_revealed_state(&mut max_revealed, initial, &current_state);
+                    }
+                }
+                DiscoverResult::NoMove => {
+                    println!("No more discovery moves found, simulating restart...");
+                    current_state = initial.to_vec();
+                    improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+                    println!(
+                        "State after restart: {}",
+                        current_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    );
+                }
+                DiscoverResult::AlreadySolved => {
+                    break;
+                }
+            }
+        }
+
         if count_hidden_bottles(&max_revealed) > 0 && count_total_mystery_colors(&max_revealed) == 0
         {
             match find_best_hidden_unlock_moves(&current_state) {
                 DiscoverResult::MoveToDiscover(moves_to_apply) => {
                     if moves_to_apply.is_empty() {
-                        break;
+                        panic!("Moves should not be empty");
                     }
 
                     for mv in moves_to_apply {
+                        log::debug!("Applying hidden unlock move {}->{} on state {}", mv.source_index(), mv.destination_index(), current_state.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(" "));
+                        if !mv.can_perform_on_bottles(&current_state) {
+                            panic!(
+                                "Hidden unlock move became invalid during simulation ({}->{}), restarting...",
+                                mv.source_index(),
+                                mv.destination_index()
+                            );
+                        }
+
                         mv.perform_move_on_bottles(&mut current_state);
-                        current_moves.push(mv);
 
                         reveal_hidden_observed(&mut current_state, resolved);
                         improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
                     }
                 }
                 DiscoverResult::NoMove => {
-                    if count_total_mystery_colors(&max_revealed) == 0 {
-                        reveal_all_hidden_from_resolved(&mut current_state, resolved);
-                        improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
-
-                        if count_hidden_bottles(&max_revealed) == 0 {
-                            continue;
-                        }
-                    }
-
                     println!("No hidden unlock moves found, simulating restart...");
-                    current_moves.clear();
                     current_state = initial.to_vec();
+                    improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+                    println!(
+                        "State after restart: {}",
+                        current_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    );
                 }
                 DiscoverResult::AlreadySolved => {
                     reveal_hidden_observed(&mut current_state, resolved);
@@ -336,31 +392,6 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
             }
 
             continue;
-        }
-
-        improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
-        match find_best_discovery_moves(&current_state, &max_revealed) {
-            DiscoverResult::MoveToDiscover(moves_to_apply) => {
-                if moves_to_apply.is_empty() {
-                    break;
-                }
-
-                for mv in moves_to_apply {
-                    mv.perform_move_on_bottles(&mut current_state);
-                    current_moves.push(mv);
-
-                    reveal_observed(&mut current_state, resolved);
-                    improve_best_revealed_state(&mut max_revealed, initial, &current_state);
-                }
-            }
-            DiscoverResult::NoMove => {
-                println!("No more discovery moves found, simulating restart...");
-                current_moves.clear();
-                current_state = initial.to_vec();
-            }
-            DiscoverResult::AlreadySolved => {
-                break;
-            }
         }
     }
 
@@ -407,7 +438,7 @@ fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
                 return;
             };
 
-            if solved_colors.contains(&requirement) {
+            if solved_colors.contains(&requirement) && current_bottle.is_hidden_and_empty() {
                 *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
                 current_bottle.set_hidden_requirement(Some(requirement));
             }
@@ -419,22 +450,12 @@ fn improve_revealed_hidden_bottles(max_revealed: &mut [Bottle], current: &[Bottl
         .iter_mut()
         .zip(current.iter())
         .for_each(|(revealed_bottle, current_bottle)| {
-            if revealed_bottle.is_hidden() && !current_bottle.is_hidden() {
+            if revealed_bottle.is_hidden_and_empty() && !current_bottle.is_hidden_and_empty() {
                 *revealed_bottle = current_bottle.clone();
             }
         });
 }
 
-fn reveal_all_hidden_from_resolved(current: &mut [Bottle], fully_resolved: &[Bottle]) {
-    current
-        .iter_mut()
-        .zip(fully_resolved.iter())
-        .for_each(|(current_bottle, resolved_bottle)| {
-            if current_bottle.is_hidden() {
-                *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
-            }
-        });
-}
 
 create_test_level!(213, "YRGM BPWO OBPG ROPM YRPW MWBG BGRY YMWO EEEE EEEE");
 create_test_level!(

@@ -237,8 +237,8 @@ impl Bottle {
         self.hidden_requirement
     }
 
-    pub fn is_hidden(&self) -> bool {
-        self.hidden_requirement.is_some()
+    pub fn is_hidden_and_empty(&self) -> bool {
+        self.hidden_requirement.is_some() && self.fills.is_empty()
     }
 
     pub fn clear_hidden_requirement(&mut self) {
@@ -262,7 +262,7 @@ impl Bottle {
     }
 
     pub fn get_top_fill(&self) -> Option<(usize, BottleColor)> {
-        if self.is_hidden() {
+        if self.is_hidden_and_empty() {
             return None;
         }
 
@@ -302,7 +302,7 @@ impl Bottle {
     }
 
     pub fn is_solved(&self) -> bool {
-        if self.is_hidden() {
+        if self.is_hidden_and_empty() {
             return false;
         }
 
@@ -325,7 +325,7 @@ impl Bottle {
     }
 
     pub fn can_fill_from(&self, other: &Bottle) -> bool {
-        if self.is_hidden() || other.is_hidden() {
+        if self.is_hidden_and_empty() || other.is_hidden_and_empty() {
             return false;
         }
 
@@ -354,7 +354,6 @@ impl Bottle {
         }
 
         if self_top_color == BottleColor::Mystery || other_top_color == BottleColor::Mystery {
-            warn!("Tried to fill mystery color into bottles");
             return false;
         }
 
