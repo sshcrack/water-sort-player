@@ -1,5 +1,7 @@
 mod capture;
 
+use std::collections::HashMap;
+
 pub use capture::*;
 use water_sort_core::{Bottle, BottleColor};
 
@@ -55,5 +57,22 @@ pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
         }
     }
 
-    true
+    let mut resolved_color_count: HashMap<BottleColor, usize> = HashMap::new();
+    resolved.iter().for_each(|bottle| {
+        bottle.get_fills().iter().for_each(|color| {
+            if *color != BottleColor::Mystery {
+                *resolved_color_count.entry(*color).or_insert(0) += 1;
+            }
+        });
+    });
+
+    let res = resolved_color_count.values().all(|&count| count % 4 == 0);
+    if !res {
+        log::debug!(
+            "Invalid level: resolved state has colors that are not in multiples of 4 (resolved color count: {:?})",
+            resolved_color_count
+        );
+    }
+
+    res
 }

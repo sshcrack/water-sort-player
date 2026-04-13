@@ -218,7 +218,7 @@
       "image_filename": "discovery-level-26.png",
       "layout_name": "eight_bottle_layout",
       "mystery_count_at_start": 6,
-      "resolved_bottles": "!R,GOPP !R,OBOP PYYB OYBG RGYR RYGR EEEE EEEE"
+      "resolved_bottles": "!R,GOPP !R,OBOP PYBB OYBG RGYR RYGR EEEE EEEE"
     },
     {
       "bottle_count": 9,

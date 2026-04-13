@@ -1,0 +1,16 @@
+[package]
+name = "water-sort-discovery-solver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { version = "4.5.39", features = ["derive"] }
+env_logger = { workspace = true }
+log = { workspace = true }
+minifb = { workspace = true }
+opencv = { workspace = true }
+serde_json = { workspace = true }
+water-sort-capture = { path = "../water-sort-capture" }
+water-sort-core = { path = "../water-sort-core" }
+water-sort-solver = { path = "../water-sort-solver", features = ["solver-visualization", "discovery-debugging"] }

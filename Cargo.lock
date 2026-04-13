@@ -1990,6 +1990,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "water-sort-discovery-solver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "log",
+ "minifb",
+ "opencv",
+ "serde_json",
+ "water-sort-capture",
+ "water-sort-core",
+ "water-sort-solver",
+]
+
+[[package]]
 name = "water-sort-image-debugger"
 version = "0.1.0"
 dependencies = [

@@ -122,6 +122,11 @@ fn is_single_color_bottle(bottle: &Bottle) -> bool {
 fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
     let mut possible_moves = Vec::new();
 
+    let solved_bottles = bottles
+        .iter()
+        .filter_map(|b| b.solved_color())
+        .collect::<Vec<_>>();
+
     for source_idx in 0..bottles.len() {
         for destination_idx in 0..bottles.len() {
             if source_idx == destination_idx {
@@ -139,6 +144,16 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
             {
                 continue;
             }
+
+            if let Some(source_req) = source_bottle.hidden_requirement()
+                && !solved_bottles.contains(&source_req) {
+                    continue;
+                }
+
+            if let Some(destination_req) = destination_bottle.hidden_requirement()
+                && !solved_bottles.contains(&destination_req) {
+                    continue;
+                }
 
             if is_single_color_bottle(source_bottle) && destination_bottle.is_empty() {
                 continue;
