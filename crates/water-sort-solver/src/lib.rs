@@ -550,6 +550,8 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 
 #[cfg(test)]
 mod tests {
+    use crate::discovery::improve_best_revealed_state;
+
     use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::{
         bottles::{HiddenRequirement, test_utils::TestUtils},
@@ -587,5 +589,25 @@ mod tests {
 
         assert!(solution.is_some());
         assert_eq!(solution.expect("solver should return a solution").len(), 1);
+    }
+
+    #[test_log::test]
+    fn quick_improvement_test() {
+        let current_bottles =
+            TestUtils::parse_bottles_sequence("P??? ORR? W??? W P?? OO RR YYYY BBBB");
+        let initial = TestUtils::parse_bottles_sequence("P??? !B W??? !Y Y??? BRYO YYBR EEEE EEEE");
+        let mut max_revealed_bottles =
+            TestUtils::parse_bottles_sequence("POGW !B,ORRG WGPP !Y,BOB? YPWG BRYO YYBR EEEE EEEE");
+
+        improve_best_revealed_state(&mut max_revealed_bottles, &initial, &current_bottles);
+
+        println!(
+            "After improvement: {}",
+            max_revealed_bottles
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
     }
 }

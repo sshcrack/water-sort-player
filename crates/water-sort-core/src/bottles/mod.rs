@@ -643,5 +643,13 @@ pub fn detect_bottles_with_layout(
         bottle.fills.reverse();
     }
 
+    log::debug!(
+        "Detected bottles: {}",
+        bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     Ok(bottles)
 }

@@ -139,6 +139,12 @@ pub fn improve_best_revealed_state(
         .zip(current_bottles.iter())
         .zip(initial_bottles.iter())
         .for_each(|((revealed_bottle, current_bottle), initial_bottle)| {
+            // We'll need to fill initial hidden bottle fills
+            let mut initial_bottle = initial_bottle.clone();
+            if initial_bottle.is_hidden_and_locked() && initial_bottle.is_empty() {
+                initial_bottle.set_fills_from_bottle(revealed_bottle);
+            }
+
             revealed_bottle
                 .get_fills_mut()
                 .iter_mut()
@@ -168,6 +174,11 @@ pub fn improve_current_bottles_with_revealed_state(
     current_bottles: &mut [Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) {
+    let solved_bottles = max_revealed_bottle_state
+        .iter()
+        .filter_map(|bottle| bottle.solved_color())
+        .collect::<Vec<_>>();
+
     current_bottles
         .iter_mut()
         .zip(max_revealed_bottle_state.iter())
@@ -184,11 +195,13 @@ pub fn improve_current_bottles_with_revealed_state(
 
             if current_bottle.is_empty()
                 && current_bottle.is_hidden_and_locked()
-                && revealed_bottle.hidden_requirement().is_some()
+                && let Some(req_color) = revealed_bottle.hidden_requirement()
             {
                 current_bottle.set_fills_from_bottle(revealed_bottle);
                 // We are unlocking it to show that we have discovered the hidden bottle, we'll need to reset when solving
-                current_bottle.unlock_hidden_requirement();
+                if solved_bottles.contains(&req_color) {
+                    current_bottle.unlock_hidden_requirement();
+                }
             }
         });
 }
@@ -200,6 +213,7 @@ mod tests {
         count_total_mystery_colors, find_best_discovery_moves, find_best_hidden_unlock_moves,
         improve_best_revealed_state, improve_current_bottles_with_revealed_state,
     };
+    use crate::unlock_hidden_bottles_with_solved_colors;
     use water_sort_core::bottles::test_utils::TestUtils;
     use water_sort_core::constants::BottleColor;
 
@@ -337,6 +351,7 @@ mod tests {
                 for m in items {
                     println!("{:?}", m);
                     m.perform_move_on_bottles(&mut new_state);
+                    unlock_hidden_bottles_with_solved_colors(&mut new_state);
 
                     log::debug!(
                         "State after move: {}",

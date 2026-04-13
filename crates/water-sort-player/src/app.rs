@@ -110,6 +110,25 @@ enum AppState {
     },
 }
 
+impl AppState {
+    fn get_name(&self) -> String {
+        match self {
+            AppState::WaitingToPressStart { .. } => "WaitingToPressStart",
+            AppState::ClickNextLevel { .. } => "ClickNextLevel",
+            AppState::ClickRetryOnNewLevel { .. } => "ClickRetryOnNewLevel",
+            AppState::CheckForRewards { .. } => "CheckForRewards",
+            AppState::DetectAndPlan { .. } => "DetectAndPlan",
+            AppState::AwaitPostDetectionPlan { .. } => "AwaitPostDetectionPlan",
+            AppState::HiddenDiscoverBottles { .. } => "HiddenDiscoverBottles",
+            AppState::HiddenExecuteDiscoverMove { .. } => "HiddenExecuteDiscoverMove",
+            AppState::MysteryDiscoverColors { .. } => "MysteryDiscoverColors",
+            AppState::MysteryExecuteDiscoverMove { .. } => "MysteryExecuteDiscoverMove",
+            AppState::ExecuteFinalSolveMoves { .. } => "ExecuteFinalSolveMoves",
+        }
+        .to_string()
+    }
+}
+
 pub fn run(quick_mode: bool) -> Result<()> {
     if quick_mode {
         info!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
@@ -139,7 +158,17 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
 
     let mut first_frame_read = true;
+    let mut prev_app_state_name = app_state.get_name();
     while window.is_open() {
+        if prev_app_state_name != app_state.get_name() {
+            debug!(
+                "Transitioning from state {} to state {}...",
+                prev_app_state_name,
+                app_state.get_name()
+            );
+            prev_app_state_name = app_state.get_name();
+        }
+
         if first_frame_read {
             debug!("Reading first frame...");
             first_frame_read = false;
@@ -967,7 +996,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
-
+                        let reveal_wait_needed =
+                            move_satisfies_hidden_requirement(&current_bottles, next_move);
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
                                 "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
@@ -1000,7 +1030,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         current_moves.push(next_move);
 
                         // Schedule the next move or go back to discovery state after a delay
-                        *trigger_at = Instant::now() + DISCOVERY_MOVE_DELAY;
+                        *trigger_at = Instant::now()
+                            + if reveal_wait_needed {
+                                HIDDEN_REVEAL_DETECTION_DELAY
+                            } else {
+                                DISCOVERY_MOVE_DELAY
+                            };
                     }
                 }
             }
