@@ -261,7 +261,7 @@ fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle])
     assert!(
         current_bottles
             .iter()
-            .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_empty())),
+            .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_locked())),
         "Final bottle state should be solved after replay. Final state: {}",
         current_bottles
             .iter()
@@ -422,13 +422,15 @@ fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
         .iter_mut()
         .zip(fully_resolved.iter())
         .for_each(|(current_bottle, resolved_bottle)| {
-            let Some(requirement) = current_bottle.hidden_requirement() else {
+            let Some(requirement) = current_bottle.locked_hidden_requirement() else {
                 return;
             };
 
-            if solved_colors.contains(&requirement) && current_bottle.is_hidden_and_empty() {
+            if solved_colors.contains(&requirement) && current_bottle.is_hidden_and_locked() {
                 *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
-                current_bottle.set_hidden_requirement(Some(requirement));
+                current_bottle.set_hidden_requirement(crate::bottles::HiddenRequirement::Unlocked(
+                    requirement,
+                ));
             }
         });
 }
@@ -438,7 +440,7 @@ fn improve_revealed_hidden_bottles(max_revealed: &mut [Bottle], current: &[Bottl
         .iter_mut()
         .zip(current.iter())
         .for_each(|(revealed_bottle, current_bottle)| {
-            if revealed_bottle.is_hidden_and_empty() && !current_bottle.is_hidden_and_empty() {
+            if revealed_bottle.is_hidden_and_locked() && !current_bottle.is_hidden_and_locked() {
                 *revealed_bottle = current_bottle.clone();
             }
         });

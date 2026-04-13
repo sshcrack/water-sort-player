@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::bottles::{Bottle, BottleLayout};
+use crate::bottles::{Bottle, BottleLayout, HiddenRequirement};
 use crate::constants::BottleColor;
 use crate::detect_bottles_with_layout;
 use opencv::{core::Mat, imgcodecs, prelude::*};
@@ -121,7 +121,11 @@ impl TestUtils {
                         Bottle::from_hidden_requirement(requirement)
                     };
 
-                    bottle.set_hidden_requirement(Some(requirement));
+                    bottle.set_hidden_requirement(if fills_token.is_some() {
+                        HiddenRequirement::Unlocked(requirement)
+                    } else {
+                        HiddenRequirement::Locked(requirement)
+                    });
                     bottle
                 } else {
                     Bottle::from_fills(TestUtils::parse_bottle_string(token))
@@ -157,6 +161,7 @@ impl TestUtils {
 #[cfg(test)]
 mod tests {
     use super::TestUtils;
+    use crate::bottles::HiddenRequirement;
     use crate::constants::BottleColor;
 
     #[test_log::test]
@@ -175,6 +180,14 @@ mod tests {
         assert!(bottles[2].is_empty());
         assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
         assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::Blue));
+        assert_eq!(
+            bottles[3].hidden_requirement_state(),
+            HiddenRequirement::Locked(BottleColor::Orange)
+        );
+        assert_eq!(
+            bottles[4].hidden_requirement_state(),
+            HiddenRequirement::Locked(BottleColor::Blue)
+        );
     }
 
     #[test_log::test]
@@ -185,6 +198,10 @@ mod tests {
         assert_eq!(bottles.len(), 9);
         assert_eq!(bottles[1].hidden_requirement(), Some(BottleColor::Purple));
         assert_eq!(
+            bottles[1].hidden_requirement_state(),
+            HiddenRequirement::Unlocked(BottleColor::Purple)
+        );
+        assert_eq!(
             bottles[1].get_fills(),
             vec![
                 BottleColor::Blue,
@@ -194,6 +211,10 @@ mod tests {
             ]
         );
         assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
+        assert_eq!(
+            bottles[3].hidden_requirement_state(),
+            HiddenRequirement::Unlocked(BottleColor::Orange)
+        );
         assert_eq!(
             bottles[3].get_fills(),
             vec![

@@ -3,7 +3,7 @@ mod capture;
 use std::collections::HashMap;
 
 pub use capture::*;
-use water_sort_core::{Bottle, BottleColor};
+use water_sort_core::{Bottle, BottleColor, HiddenRequirement};
 
 pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
     if initial.len() != resolved.len() {
@@ -11,7 +11,7 @@ pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
     }
 
     for (initial, resolved) in initial.iter().zip(resolved.iter()) {
-        if !initial.is_hidden_and_empty() && !resolved.is_hidden_and_empty() {
+        if !initial.is_hidden_and_locked() && !resolved.is_hidden_and_locked() {
             for (initial_color, resolved_color) in
                 initial.get_fills().iter().zip(resolved.get_fills().iter())
             {
@@ -37,7 +37,11 @@ pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
             return false;
         }
 
-        if initial.hidden_requirement().is_some() && !initial.is_empty() {
+        if matches!(
+            initial.hidden_requirement_state(),
+            HiddenRequirement::Locked(_)
+        ) && !initial.is_empty()
+        {
             log::debug!(
                 "Invalid level: bottle has hidden requirement but is not empty (initial: {:?})",
                 initial
@@ -46,7 +50,7 @@ pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
             return false;
         }
 
-        if initial.is_hidden_and_empty() && resolved.is_hidden_and_empty() {
+        if initial.is_hidden_and_locked() && resolved.is_hidden_and_locked() {
             log::debug!(
                 "Invalid level: bottle is hidden and empty in both initial and resolved states (initial: {:?}, resolved: {:?})",
                 initial,

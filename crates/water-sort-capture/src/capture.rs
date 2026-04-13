@@ -15,6 +15,7 @@ use opencv::{
 use serde_json::{Value, json};
 
 use water_sort_core::{
+    HiddenRequirement,
     bottles::{Bottle, BottleLayout, test_utils::TestUtils},
     constants::BottleColor,
 };
@@ -128,9 +129,7 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
 }
 
 fn bottle_to_string(bottle: &Bottle) -> String {
-    if let Some(requirement) = bottle.hidden_requirement()
-        && bottle.is_empty()
-    {
+    if let HiddenRequirement::Locked(requirement) = bottle.hidden_requirement_state() {
         log::warn!("Captured a hidden requirement bottle with no fills...");
         return format!("!{}", requirement.to_char());
     }
@@ -321,7 +320,7 @@ pub fn save_frame_png(frame: &Mat) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::bottles_to_sequence;
-    use water_sort_core::{bottles::Bottle, constants::BottleColor};
+    use water_sort_core::{Bottle, HiddenRequirement, constants::BottleColor};
 
     #[test_log::test]
     fn bottles_to_sequence_includes_hidden_requirement_tokens() {
@@ -343,7 +342,7 @@ mod tests {
         ];
 
         let mut b = Bottle::from_fills(vec![BottleColor::Green, BottleColor::Yellow]);
-        b.set_hidden_requirement(Some(BottleColor::LightBlue));
+        b.set_hidden_requirement(HiddenRequirement::Unlocked(BottleColor::LightBlue));
         bottles.push(b);
 
         assert_eq!(bottles_to_sequence(&bottles), "EEGR EE?B !L,EEYG");
@@ -370,7 +369,7 @@ mod tests {
 
             for requirement in possible_colors {
                 let mut bottle = Bottle::from_fills(vec![color]);
-                bottle.set_hidden_requirement(Some(requirement));
+                bottle.set_hidden_requirement(HiddenRequirement::Unlocked(requirement));
                 let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
                 let expected_requirement_char = requirement.to_char();
                 assert_eq!(

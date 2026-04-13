@@ -6,7 +6,7 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 use water_sort_core::{
-    bottles::{Bottle, BottleLayout},
+    bottles::{Bottle, BottleLayout, HiddenRequirement},
     constants::BottleColor,
 };
 use water_sort_device::CaptureDeviceBackend;
@@ -33,7 +33,7 @@ pub mod visualization;
 
 const FULL_BOTTLE_COUNT: usize = 4;
 
-type CanonicalStateKey = Vec<(Option<BottleColor>, Vec<BottleColor>)>;
+type CanonicalStateKey = Vec<(HiddenRequirement, Vec<BottleColor>)>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct SearchRecord {
@@ -69,7 +69,12 @@ impl PartialOrd for QueueEntry {
 fn canonical_state_key(bottles: &[Bottle]) -> CanonicalStateKey {
     let mut key = bottles
         .iter()
-        .map(|bottle| (bottle.hidden_requirement(), bottle.get_fills().clone()))
+        .map(|bottle| {
+            (
+                bottle.hidden_requirement_state(),
+                bottle.get_fills().clone(),
+            )
+        })
         .collect::<Vec<_>>();
     key.sort();
     key
@@ -119,6 +124,26 @@ fn is_single_color_bottle(bottle: &Bottle) -> bool {
     hash_set.len() == 1 && hash_set.iter().next() != Some(&&BottleColor::Mystery)
 }
 
+fn unlock_hidden_bottles_with_solved_colors(bottles: &mut [Bottle]) {
+    let solved_colors = bottles
+        .iter()
+        .filter_map(Bottle::solved_color)
+        .collect::<HashSet<_>>();
+
+    if solved_colors.is_empty() {
+        return;
+    }
+
+    for bottle in bottles.iter_mut() {
+        if bottle
+            .locked_hidden_requirement()
+            .is_some_and(|required_color| solved_colors.contains(&required_color))
+        {
+            bottle.unlock_hidden_requirement();
+        }
+    }
+}
+
 fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
     let mut possible_moves = Vec::new();
 
@@ -130,6 +155,7 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
     for source_idx in 0..bottles.len() {
         for destination_idx in 0..bottles.len() {
             if source_idx == destination_idx {
+                log::trace!("Skipping move from bottle {} to itself", source_idx);
                 continue;
             }
 
@@ -138,38 +164,85 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 
             if source_bottle.is_solved()
                 || source_bottle.is_empty()
-                || source_bottle.is_hidden_and_empty()
+                || source_bottle.is_hidden_and_locked()
                 || destination_bottle.is_solved()
-                || destination_bottle.is_hidden_and_empty()
+                || destination_bottle.is_hidden_and_locked()
             {
+                log::trace!(
+                    "Skipping move from bottle {} to bottle {} because one of them is solved, empty, or hidden and empty",
+                    source_idx,
+                    destination_idx
+                );
+                log::trace!("Source bottle: {:?}", source_bottle);
+                log::trace!("Destination bottle: {:?}", destination_bottle);
                 continue;
             }
 
-            if let Some(source_req) = source_bottle.hidden_requirement()
-                && !solved_bottles.contains(&source_req) {
-                    continue;
-                }
+            if let Some(source_req) = source_bottle.locked_hidden_requirement()
+                && !solved_bottles.contains(&source_req)
+            {
+                log::trace!(
+                    "Skipping move from bottle {} to bottle {} because source bottle has hidden requirement {:?} that is not yet solved",
+                    source_idx,
+                    destination_idx,
+                    source_req
+                );
+                continue;
+            }
 
-            if let Some(destination_req) = destination_bottle.hidden_requirement()
-                && !solved_bottles.contains(&destination_req) {
-                    continue;
-                }
+            if let Some(destination_req) = destination_bottle.locked_hidden_requirement()
+                && !solved_bottles.contains(&destination_req)
+            {
+                log::trace!(
+                    "Skipping move from bottle {} to bottle {} because destination bottle has hidden requirement {:?} that is not yet solved",
+                    source_idx,
+                    destination_idx,
+                    destination_req
+                );
+                continue;
+            }
 
             if is_single_color_bottle(source_bottle) && destination_bottle.is_empty() {
+                log::trace!(
+                    "Skipping move from bottle {} to bottle {} because source is single-color and destination is empty",
+                    source_idx,
+                    destination_idx
+                );
+
                 continue;
             }
 
             if !destination_bottle.can_fill_from(source_bottle) {
+                log::trace!(
+                    "Skipping move from bottle {} to bottle {} because it cannot fill from the source",
+                    source_idx,
+                    destination_idx
+                );
                 continue;
             }
 
             let mut new_bottles = bottles.to_owned();
             let move_to_try = Move(source_idx, destination_idx);
             if !move_to_try.can_perform_on_bottles(&new_bottles) {
+                log::trace!(
+                    "Skipping move from bottle {} to bottle {} because it cannot be performed on the current state",
+                    source_idx,
+                    destination_idx
+                );
                 continue;
             }
 
             move_to_try.perform_move_on_bottles(&mut new_bottles);
+            log::trace!(
+                "Generated move from bottle {} to bottle {}, resulting in new state: {}",
+                source_idx,
+                destination_idx,
+                new_bottles
+                    .iter()
+                    .map(|b| b.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
             possible_moves.push((move_to_try, new_bottles));
         }
     }
@@ -178,13 +251,15 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 }
 
 pub(crate) fn find_shortest_move_sequence<GoalFn>(
-    bottles: Vec<Bottle>,
+    mut bottles: Vec<Bottle>,
     mut is_goal: GoalFn,
     #[cfg(feature = "solver-visualization")] mut on_progress: Option<SolverProgressCallback<'_>>,
 ) -> Option<Vec<Move>>
 where
     GoalFn: FnMut(&[Bottle], usize) -> bool,
 {
+    unlock_hidden_bottles_with_solved_colors(&mut bottles);
+
     let target_solved_bottle_count = target_solved_bottle_count(&bottles);
     let mut open_set = BinaryHeap::new();
     let mut records = Vec::new();
@@ -244,7 +319,9 @@ where
         let mut possible_moves = generate_possible_moves(&records[record_index].state);
         sort_moves_by_heuristic(&mut possible_moves);
 
-        for (move_to_try, next_state) in possible_moves {
+        for (move_to_try, mut next_state) in possible_moves {
+            unlock_hidden_bottles_with_solved_colors(&mut next_state);
+
             let next_cost = record_cost + 1;
             let next_key = canonical_state_key(&next_state);
 
@@ -291,6 +368,47 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
     } else {
         let (left, right) = bottles.split_at_mut(a);
         (&mut right[0], &mut left[b])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
+    use water_sort_core::{
+        bottles::{HiddenRequirement, test_utils::TestUtils},
+        constants::BottleColor,
+    };
+
+    #[test]
+    fn clears_hidden_requirement_when_required_color_is_solved() {
+        let mut bottles = TestUtils::parse_bottles_sequence("!R RRRR EEEE EEEE");
+
+        unlock_hidden_bottles_with_solved_colors(&mut bottles);
+
+        assert!(!bottles[0].is_hidden_and_locked());
+        assert_eq!(
+            bottles[0].hidden_requirement_state(),
+            HiddenRequirement::Unlocked(BottleColor::Red)
+        );
+    }
+
+    #[test]
+    fn solver_can_finish_when_unlocking_hidden_empty_bottle() {
+        let bottles = TestUtils::parse_bottles_sequence("!R RRRR G GGG EEEE EEEE EEEE EEEE");
+
+        let solution = find_shortest_move_sequence(
+            bottles,
+            |state, _move_count| {
+                state
+                    .iter()
+                    .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_locked()))
+            },
+            #[cfg(feature = "solver-visualization")]
+            None,
+        );
+
+        assert!(solution.is_some());
+        assert_eq!(solution.expect("solver should return a solution").len(), 1);
     }
 }
 
@@ -371,7 +489,7 @@ pub fn build_solver_initial_bottle_state(
                 initial_bottle.get_fills().clone(),
             );
 
-            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement());
+            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement_state());
             bottles.push(new_bottle);
         });
 
@@ -399,7 +517,7 @@ pub fn run_solver(
         |state, _move_count| {
             state
                 .iter()
-                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_empty()))
+                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_locked()))
         },
         #[cfg(feature = "solver-visualization")]
         None,
@@ -425,7 +543,7 @@ where
                 initial_bottle.get_fills().clone(),
             );
 
-            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement());
+            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement_state());
             bottles.push(new_bottle);
         });
 
@@ -443,7 +561,7 @@ where
         |state, _move_count| {
             state
                 .iter()
-                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_empty()))
+                .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_locked()))
         },
         Some(&mut on_progress),
     )

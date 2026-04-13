@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use log::{debug, error, info, trace, warn};
 use minifb::{Key, MouseButton, Window, WindowOptions};
@@ -13,11 +13,11 @@ use opencv::{
     imgproc,
 };
 use serde_json::Value;
+use water_sort_capture::frame_to_window_buffer;
 use water_sort_core::{
     bottles::{Bottle, test_utils::TestUtils},
     constants::BottleColor,
 };
-use water_sort_capture::frame_to_window_buffer;
 use water_sort_solver::{Move, SolverProgressSnapshot, run_solver_with_progress};
 
 #[derive(Debug, Clone)]
@@ -93,8 +93,9 @@ fn read_manifest() -> Result<Vec<DiscoveryLevelEntry>> {
         let mystery_count_at_start = level
             .get("mystery_count_at_start")
             .and_then(Value::as_u64)
-            .ok_or_else(|| anyhow!("discovery manifest entry {id} is missing mystery_count_at_start"))?
-            as usize;
+            .ok_or_else(|| {
+                anyhow!("discovery manifest entry {id} is missing mystery_count_at_start")
+            })? as usize;
 
         entries.push(DiscoveryLevelEntry {
             id,
@@ -159,7 +160,14 @@ fn render_background(frame: &mut Mat) -> Result<()> {
     Ok(())
 }
 
-fn draw_bottle(frame: &mut Mat, bottle: &Bottle, x: i32, y: i32, bottle_width: i32, bottle_height: i32) -> Result<()> {
+fn draw_bottle(
+    frame: &mut Mat,
+    bottle: &Bottle,
+    x: i32,
+    y: i32,
+    bottle_width: i32,
+    bottle_height: i32,
+) -> Result<()> {
     let border_color = if bottle.is_solved() {
         Scalar::new(80.0, 208.0, 80.0, 0.0)
     } else {
@@ -305,24 +313,38 @@ fn draw_state_info(frame: &mut Mat, bottles: &[Bottle], line_y: i32, label: &str
     Ok(())
 }
 
-fn wait_for_left_click(window: &mut Window) {
-    let mut was_down = window.get_mouse_down(MouseButton::Left);
+fn wait_for_left_click(window: &mut Window) -> usize {
+    let mut was_left_down = window.get_mouse_down(MouseButton::Left);
+    let mut was_right_down = window.get_mouse_down(MouseButton::Right);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         window.update();
 
-        let is_down = window.get_mouse_down(MouseButton::Left);
-        if is_down && !was_down {
+        let is_left_down = window.get_mouse_down(MouseButton::Left);
+        if is_left_down && !was_left_down {
             while window.is_open() && window.get_mouse_down(MouseButton::Left) {
                 window.update();
                 std::thread::sleep(Duration::from_millis(16));
             }
-            return;
+            break;
         }
 
-        was_down = is_down;
+        let is_right_down = window.get_mouse_down(MouseButton::Right);
+        if is_right_down && !was_right_down {
+            while window.is_open() && window.get_mouse_down(MouseButton::Right) {
+                window.update();
+                std::thread::sleep(Duration::from_millis(16));
+            }
+
+            return 10;
+        }
+
+        was_left_down = is_left_down;
+        was_right_down = is_right_down;
         std::thread::sleep(Duration::from_millis(16));
     }
+
+    0
 }
 
 fn render_state(frame: &mut Mat, bottles: &[Bottle], level: &DiscoveryLevelEntry) -> Result<()> {
@@ -368,10 +390,17 @@ fn preview_size(bottle_count: usize) -> (usize, usize) {
     (width.max(360), height.max(280))
 }
 
-fn render_and_update(window: &mut Window, frame: &mut Mat, bottles: &[Bottle], level: &DiscoveryLevelEntry) -> Result<()> {
+fn render_and_update(
+    window: &mut Window,
+    frame: &mut Mat,
+    bottles: &[Bottle],
+    level: &DiscoveryLevelEntry,
+) -> Result<()> {
     render_state(frame, bottles, level)?;
     let buffer = frame_to_window_buffer(frame)?;
-    if let Err(error) = window.update_with_buffer(&buffer, frame.cols() as usize, frame.rows() as usize) {
+    if let Err(error) =
+        window.update_with_buffer(&buffer, frame.cols() as usize, frame.rows() as usize)
+    {
         warn!("failed to update visualization window: {error:?}");
     }
     Ok(())
@@ -384,11 +413,16 @@ fn render_step(
     level: &DiscoveryLevelEntry,
     debug_mode: bool,
     fallback_delay: Duration,
+    pending_debug_skip_snapshots: &mut usize,
 ) -> Result<()> {
     render_and_update(window, frame, bottles, level)?;
 
     if debug_mode {
-        wait_for_left_click(window);
+        if *pending_debug_skip_snapshots > 0 {
+            *pending_debug_skip_snapshots -= 1;
+        } else {
+            *pending_debug_skip_snapshots = wait_for_left_click(window);
+        }
     } else {
         std::thread::sleep(fallback_delay);
     }
@@ -406,6 +440,7 @@ fn replay_solution(
     replay_delay: Duration,
 ) -> Result<()> {
     let mut state = initial_bottles.to_vec();
+    let mut pending_debug_skip_snapshots = 0usize;
     trace!("Replaying {} solution moves", moves.len());
 
     for (index, mv) in moves.iter().enumerate() {
@@ -418,7 +453,15 @@ fn replay_solution(
         trace!("before move {}: {}", index + 1, bottles_as_string(&state));
         mv.perform_move_on_bottles(&mut state);
         trace!("after move {}: {}", index + 1, bottles_as_string(&state));
-        render_step(window, frame, &state, level, debug_mode, replay_delay)?;
+        render_step(
+            window,
+            frame,
+            &state,
+            level,
+            debug_mode,
+            replay_delay,
+            &mut pending_debug_skip_snapshots,
+        )?;
     }
 
     Ok(())
@@ -463,10 +506,11 @@ fn run() -> Result<()> {
         opencv::core::CV_8UC3,
         Scalar::new(17.0, 17.0, 17.0, 0.0),
     )?;
+    let mut pending_debug_skip_snapshots = 0usize;
 
     render_and_update(&mut window, &mut frame, &expected_bottles, &level)?;
     if debug_mode {
-        wait_for_left_click(&mut window);
+        pending_debug_skip_snapshots = wait_for_left_click(&mut window);
     } else {
         std::thread::sleep(Duration::from_millis(args.snapshot_delay_ms));
     }
@@ -480,10 +524,7 @@ fn run() -> Result<()> {
 
         trace!(
             "solver snapshot: explored={} queue={} depth={} goal={}",
-            snapshot.explored_states,
-            snapshot.queue_len,
-            snapshot.depth,
-            snapshot.is_goal
+            snapshot.explored_states, snapshot.queue_len, snapshot.depth, snapshot.is_goal
         );
         debug!("solver state: {}", bottles_as_string(snapshot.state));
         log_bottles("solver bottle breakdown", snapshot.state);
@@ -500,26 +541,20 @@ fn run() -> Result<()> {
             &level,
             debug_mode,
             snapshot_delay,
+            &mut pending_debug_skip_snapshots,
         ) {
             warn!("failed to render solver snapshot: {error:#}");
         }
     };
 
-    let mut solution = run_solver_with_progress(
-        &resolved_bottles,
-        &expected_bottles,
-        &mut on_progress,
-    );
+    let mut solution =
+        run_solver_with_progress(&resolved_bottles, &expected_bottles, &mut on_progress);
 
     if solution.is_none() {
         warn!(
             "Solver could not find a path with expected-state mystery constraints. Retrying with resolved state as initial..."
         );
-        solution = run_solver_with_progress(
-            &resolved_bottles,
-            &resolved_bottles,
-            &mut on_progress,
-        );
+        solution = run_solver_with_progress(&resolved_bottles, &resolved_bottles, &mut on_progress);
     }
 
     let solution = solution.ok_or_else(|| anyhow!("failed to solve level {}", level.id))?;

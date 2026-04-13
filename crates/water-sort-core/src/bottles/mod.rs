@@ -16,6 +16,14 @@ pub use layout::BottleLayout;
 
 use crate::constants::{BottleColor, COLOR_DISTANCE_THRESHOLD_SQ, COLOR_VALUES, color_distance_sq};
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum HiddenRequirement {
+    #[default]
+    None,
+    Locked(BottleColor),
+    Unlocked(BottleColor),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LayerSample {
     Empty,
@@ -188,7 +196,7 @@ pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     // The boolean indicates whether the initial color was mystery, to properly handle filling in the solver
     fills: Vec<(BottleColor, bool)>,
-    hidden_requirement: Option<BottleColor>,
+    hidden_requirement: HiddenRequirement,
 }
 
 // Remove hardcoded constants - using layouts now
@@ -201,7 +209,7 @@ impl Bottle {
                 .into_iter()
                 .map(|color| (color, color == BottleColor::Mystery))
                 .collect(),
-            hidden_requirement: None,
+            hidden_requirement: HiddenRequirement::None,
         }
     }
 
@@ -222,31 +230,56 @@ impl Bottle {
                     )
                 })
                 .collect(),
-            hidden_requirement: None,
+            hidden_requirement: HiddenRequirement::None,
         }
     }
 
     pub fn from_hidden_requirement(requirement: BottleColor) -> Self {
         Bottle {
             fills: Vec::new(),
-            hidden_requirement: Some(requirement),
+            hidden_requirement: HiddenRequirement::Locked(requirement),
         }
     }
 
-    pub fn hidden_requirement(&self) -> Option<BottleColor> {
+    pub fn from_unlocked_hidden_requirement(requirement: BottleColor) -> Self {
+        Bottle {
+            fills: Vec::new(),
+            hidden_requirement: HiddenRequirement::Unlocked(requirement),
+        }
+    }
+
+    pub fn hidden_requirement_state(&self) -> HiddenRequirement {
         self.hidden_requirement
     }
 
-    pub fn is_hidden_and_empty(&self) -> bool {
-        self.hidden_requirement.is_some() && self.fills.is_empty()
+    pub fn hidden_requirement(&self) -> Option<BottleColor> {
+        match self.hidden_requirement {
+            HiddenRequirement::Locked(requirement) | HiddenRequirement::Unlocked(requirement) => {
+                Some(requirement)
+            }
+            HiddenRequirement::None => None,
+        }
     }
 
-    pub fn clear_hidden_requirement(&mut self) {
-        self.hidden_requirement = None;
+    pub fn locked_hidden_requirement(&self) -> Option<BottleColor> {
+        match self.hidden_requirement {
+            HiddenRequirement::Locked(requirement) => Some(requirement),
+            HiddenRequirement::None | HiddenRequirement::Unlocked(_) => None,
+        }
     }
 
-    pub fn set_hidden_requirement(&mut self, requirement: Option<BottleColor>) {
+    pub fn is_hidden_and_locked(&self) -> bool {
+        matches!(self.hidden_requirement, HiddenRequirement::Locked(_))
+    }
+
+    pub fn set_hidden_requirement(&mut self, requirement: HiddenRequirement) {
         self.hidden_requirement = requirement;
+    }
+
+    pub fn unlock_hidden_requirement(&mut self) {
+        if let HiddenRequirement::Locked(requirement) = self.hidden_requirement {
+            self.hidden_requirement = HiddenRequirement::Unlocked(requirement);
+        }
     }
 
     pub fn get_fills_mut(&mut self) -> &mut Vec<(BottleColor, bool)> {
@@ -262,7 +295,7 @@ impl Bottle {
     }
 
     pub fn get_top_fill(&self) -> Option<(usize, BottleColor)> {
-        if self.is_hidden_and_empty() {
+        if self.is_hidden_and_locked() {
             return None;
         }
 
@@ -302,7 +335,7 @@ impl Bottle {
     }
 
     pub fn is_solved(&self) -> bool {
-        if self.is_hidden_and_empty() {
+        if self.is_hidden_and_locked() {
             return false;
         }
 
@@ -325,7 +358,7 @@ impl Bottle {
     }
 
     pub fn can_fill_from(&self, other: &Bottle) -> bool {
-        if self.is_hidden_and_empty() || other.is_hidden_and_empty() {
+        if self.is_hidden_and_locked() || other.is_hidden_and_locked() {
             return false;
         }
 
@@ -382,7 +415,7 @@ impl Bottle {
 impl Display for Bottle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_empty() {
-            if let Some(req) = self.hidden_requirement {
+            if let HiddenRequirement::Locked(req) = self.hidden_requirement {
                 return write!(f, "!{}", req.to_char());
             }
 
@@ -404,10 +437,11 @@ impl Display for Bottle {
             })
             .collect();
 
-        if let Some(requirement) = self.hidden_requirement {
-            write!(f, "!{},{}", requirement.to_char(), fill_str)
-        } else {
-            write!(f, "{}", fill_str)
+        match self.hidden_requirement {
+            HiddenRequirement::Locked(requirement) | HiddenRequirement::Unlocked(requirement) => {
+                write!(f, "!{},{}", requirement.to_char(), fill_str)
+            }
+            HiddenRequirement::None => write!(f, "{}", fill_str),
         }
     }
 }
@@ -536,7 +570,7 @@ pub fn detect_bottles_with_layout(
             if let Some(requirement) =
                 detect_hidden_requirement_color(frame_raw, layout, bottle_idx)?
             {
-                bottle.set_hidden_requirement(Some(requirement));
+                bottle.set_hidden_requirement(HiddenRequirement::Locked(requirement));
                 unresolved_unknown = false;
                 bottle_is_valid = true;
             } else {

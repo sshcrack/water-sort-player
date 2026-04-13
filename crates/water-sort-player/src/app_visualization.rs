@@ -276,7 +276,7 @@ pub fn draw_detected_bottles_overlay(
                 frame_display,
                 Point::new(cx, cy),
                 11,
-                if bottle.is_hidden_and_empty() {
+                if bottle.is_hidden_and_locked() {
                     hud_progress_bg()
                 } else {
                     detected_slot_border()
@@ -296,7 +296,12 @@ pub fn draw_detected_bottles_overlay(
                     imgproc::LINE_AA,
                     0,
                 )?;
-                continue;
+                if matches!(
+                    bottle.hidden_requirement_state(),
+                    water_sort_core::HiddenRequirement::Locked(_)
+                ) {
+                    continue;
+                }
             }
         }
 
