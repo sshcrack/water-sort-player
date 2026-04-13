@@ -74,6 +74,7 @@ enum AppState {
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
         current_moves: Vec<Move>,
+        retries_remaining: u8,
     },
     HiddenExecuteDiscoverMove {
         trigger_at: Instant,
@@ -81,12 +82,14 @@ enum AppState {
         initial_state: Vec<Bottle>,
         moves_to_execute: Vec<Move>,
         current_moves: Vec<Move>,
+        retries_remaining: u8,
     },
     MysteryDiscoverColors {
         trigger_at: Instant,
         initial_state: Vec<Bottle>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
+        retries_remaining: u8,
     },
     MysteryExecuteDiscoverMove {
         trigger_at: Instant,
@@ -94,6 +97,7 @@ enum AppState {
         initial_state: Vec<Bottle>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
+        retries_remaining: u8,
     },
     ExecuteFinalSolveMoves {
         next_move_at: Instant,
@@ -307,6 +311,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: detected_bottles.clone(),
                             max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
+                            retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     } else {
                         info!(
@@ -319,6 +324,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: detected_bottles.clone(),
                             max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
+                            retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     }
                 }
@@ -328,6 +334,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 current_moves,
                 initial_state,
                 max_revealed_bottle_state,
+                retries_remaining,
             } => {
                 if now >= *trigger_at {
                     log::trace!(
@@ -344,17 +351,34 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
+                        if *retries_remaining == 0 {
+                            warn!(
+                                "Error detecting bottles during hidden bottle discovery: {:?}",
+                                error
+                            );
+                            warn!("Restarting app and hoping for the best...");
+
+                            capture.restart_app()?;
+                            app_state = AppState::WaitingToPressStart {
+                                trigger_at: Instant::now() + START_WAIT,
+                            };
+
+                            continue;
+                        }
+
+                        let next_retries_remaining = *retries_remaining - 1;
                         warn!(
-                            "Error detecting bottles during hidden bottle discovery: {:?}",
-                            error
+                            "Could not detect bottles during hidden bottle discovery: {:?}. Retrying in 1 second ({} retries left)...",
+                            error, next_retries_remaining
                         );
-                        warn!("Restarting app and hoping for the best...");
 
-                        capture.restart_app()?;
-                        app_state = AppState::WaitingToPressStart {
-                            trigger_at: Instant::now() + START_WAIT,
+                        app_state = AppState::HiddenDiscoverBottles {
+                            trigger_at: now + BOTTLE_DETECTION_RETRY_DELAY,
+                            current_moves: current_moves.clone(),
+                            initial_state: initial_state.clone(),
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            retries_remaining: next_retries_remaining,
                         };
-
                         continue;
                     }
 
@@ -386,6 +410,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 initial_state: current_bottles.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 current_moves: vec![],
+                                retries_remaining: BOTTLE_DETECTION_RETRIES,
                             };
                         } else {
                             info!(
@@ -435,6 +460,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: current_bottles.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: vec![],
+                            retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     } else {
                         #[cfg(feature = "discovery-debugging")]
@@ -455,6 +481,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     current_moves: current_moves.clone(),
                                     trigger_at: now,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                    retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
@@ -469,6 +496,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     initial_state: initial_state.clone(),
                                     current_moves: vec![],
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                    retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
@@ -481,6 +509,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     initial_state: initial_state.clone(),
                                     current_moves: current_moves.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                    retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
                         }
@@ -492,6 +521,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 initial_state,
                 max_revealed_bottle_state,
                 current_moves,
+                retries_remaining,
             } => {
                 if now >= *trigger_at {
                     log::trace!(
@@ -508,15 +538,32 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
+                        if *retries_remaining == 0 {
+                            warn!(
+                                "Error detecting bottles during discovery process: {:?}",
+                                error
+                            );
+
+                            warn!("Restarting app and hoping for the best...");
+                            capture.restart_app()?;
+                            app_state = AppState::WaitingToPressStart {
+                                trigger_at: Instant::now() + START_WAIT,
+                            };
+                            continue;
+                        }
+
+                        let next_retries_remaining = *retries_remaining - 1;
                         warn!(
-                            "Error detecting bottles during discovery process: {:?}",
-                            error
+                            "Could not detect bottles during discovery process: {:?}. Retrying in 1 second ({} retries left)...",
+                            error, next_retries_remaining
                         );
 
-                        warn!("Restarting app and hoping for the best...");
-                        capture.restart_app()?;
-                        app_state = AppState::WaitingToPressStart {
-                            trigger_at: Instant::now() + START_WAIT,
+                        app_state = AppState::MysteryDiscoverColors {
+                            trigger_at: now + BOTTLE_DETECTION_RETRY_DELAY,
+                            initial_state: initial_state.clone(),
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            current_moves: current_moves.clone(),
+                            retries_remaining: next_retries_remaining,
                         };
                         continue;
                     }
@@ -556,6 +603,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 trigger_at: now,
                                 current_moves: current_moves.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                retries_remaining: BOTTLE_DETECTION_RETRIES,
                             };
                             continue;
                         }
@@ -608,6 +656,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     current_moves: current_moves.clone(),
                                     trigger_at: now,
+                                    retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
                             discovery::DiscoverResult::NoMove => {
@@ -622,6 +671,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     initial_state: initial_state.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     current_moves: vec![],
+                                    retries_remaining: BOTTLE_DETECTION_RETRIES,
                                 };
                             }
                             discovery::DiscoverResult::AlreadySolved => {
@@ -638,6 +688,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                         current_moves: current_moves.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
                                             .clone(),
+                                        retries_remaining: BOTTLE_DETECTION_RETRIES,
                                     };
                                 } else {
                                     info!(
@@ -665,6 +716,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 current_moves,
                 max_revealed_bottle_state,
                 initial_state,
+                retries_remaining,
             } => {
                 if now >= *trigger_at {
                     log::trace!(
@@ -682,10 +734,28 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
-                        return Err(anyhow!(
-                            "Error detecting bottles during hidden bottle move execution: {:?}",
-                            error
-                        ));
+                        if *retries_remaining == 0 {
+                            return Err(anyhow!(
+                                "Error detecting bottles during hidden bottle move execution: {:?}",
+                                error
+                            ));
+                        }
+
+                        let next_retries_remaining = *retries_remaining - 1;
+                        warn!(
+                            "Could not detect bottles during hidden bottle move execution: {:?}. Retrying in 1 second ({} retries left)...",
+                            error, next_retries_remaining
+                        );
+
+                        app_state = AppState::HiddenExecuteDiscoverMove {
+                            trigger_at: now + BOTTLE_DETECTION_RETRY_DELAY,
+                            moves_to_execute: moves_to_execute.clone(),
+                            current_moves: current_moves.clone(),
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            initial_state: initial_state.clone(),
+                            retries_remaining: next_retries_remaining,
+                        };
+                        continue;
                     }
 
                     let current_bottles = current_bottles.unwrap();
@@ -702,6 +772,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             trigger_at: now,
                             current_moves: current_moves.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
@@ -740,6 +811,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 max_revealed_bottle_state,
                 current_moves,
                 initial_state,
+                retries_remaining,
             } => {
                 if now >= *trigger_at {
                     log::trace!(
@@ -756,26 +828,44 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
 
                     if let Err(error) = current_bottles {
-                        {
-                            // Saving current state for debugging
-                            let timestamp = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs();
-                            // Save current moves, visisted states everything to a string for me to debug
-                            let debug_info = format!(
-                                "Error: {:?}\nCurrent Moves: {:#?}\nMax Revealed Bottle State: {:#?}",
-                                error, current_moves, max_revealed_bottle_state
-                            );
-                            std::fs::write(
-                                format!("target/discovery_move_error_{}.txt", timestamp),
-                                debug_info,
-                            )?;
+                        if *retries_remaining == 0 {
+                            {
+                                // Saving current state for debugging
+                                let timestamp = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs();
+                                // Save current moves, visisted states everything to a string for me to debug
+                                let debug_info = format!(
+                                    "Error: {:?}\nCurrent Moves: {:#?}\nMax Revealed Bottle State: {:#?}",
+                                    error, current_moves, max_revealed_bottle_state
+                                );
+                                std::fs::write(
+                                    format!("target/discovery_move_error_{}.txt", timestamp),
+                                    debug_info,
+                                )?;
+                            }
+                            return Err(anyhow!(
+                                "Error detecting bottles during discovery move execution: {:?}",
+                                error
+                            ));
                         }
-                        return Err(anyhow!(
-                            "Error detecting bottles during discovery move execution: {:?}",
-                            error
-                        ));
+
+                        let next_retries_remaining = *retries_remaining - 1;
+                        warn!(
+                            "Could not detect bottles during discovery move execution: {:?}. Retrying in 1 second ({} retries left)...",
+                            error, next_retries_remaining
+                        );
+
+                        app_state = AppState::MysteryExecuteDiscoverMove {
+                            trigger_at: now + BOTTLE_DETECTION_RETRY_DELAY,
+                            moves_to_execute: moves_to_execute.clone(),
+                            initial_state: initial_state.clone(),
+                            max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            current_moves: current_moves.clone(),
+                            retries_remaining: next_retries_remaining,
+                        };
+                        continue;
                     }
 
                     let current_bottles = current_bottles.unwrap();
@@ -793,6 +883,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: current_moves.clone(),
+                            retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
