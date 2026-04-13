@@ -53,6 +53,7 @@ pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResu
 
     let best_moves = find_shortest_move_sequence(
         current_bottles.to_vec(),
+        None,
         |state, move_count| {
             move_count > 0
                 && state.iter().any(|bottle| {
@@ -84,6 +85,30 @@ pub fn find_best_discovery_moves(
 
     let best_moves = find_shortest_move_sequence(
         current_bottles.to_vec(),
+        Some(&|prev_state, new_state| {
+            let prev_hidden = prev_state
+                .iter()
+                .filter(|b| b.is_hidden_and_locked() && b.is_empty())
+                .count();
+            let new_hidden = new_state
+                .iter()
+                .filter(|b| b.is_hidden_and_locked() && b.is_empty())
+                .count();
+
+            if new_hidden != prev_hidden {
+                println!(
+                    "Hidden bottle count changed from {} to {} after move. New state: {}",
+                    prev_hidden,
+                    new_hidden,
+                    new_state
+                        .iter()
+                        .map(|b| b.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+            }
+            new_hidden == prev_hidden
+        }),
         |state, move_count| {
             move_count > 0
                 && state.iter().any(|bottle| {
@@ -143,11 +168,6 @@ pub fn improve_current_bottles_with_revealed_state(
     current_bottles: &mut [Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) {
-    let solved_bottles = max_revealed_bottle_state
-        .iter()
-        .filter_map(|bottle| bottle.solved_color())
-        .collect::<Vec<_>>();
-
     current_bottles
         .iter_mut()
         .zip(max_revealed_bottle_state.iter())
@@ -164,16 +184,11 @@ pub fn improve_current_bottles_with_revealed_state(
 
             if current_bottle.is_empty()
                 && current_bottle.is_hidden_and_locked()
-                && revealed_bottle.is_hidden_and_locked()
+                && revealed_bottle.hidden_requirement().is_some()
             {
                 current_bottle.set_fills_from_bottle(revealed_bottle);
-                current_bottle.set_hidden_requirement(revealed_bottle.hidden_requirement_state());
-
-                if let Some(c) = current_bottle.hidden_requirement()
-                    && solved_bottles.contains(&c)
-                {
-                    current_bottle.unlock_hidden_requirement();
-                }
+                // We are unlocking it to show that we have discovered the hidden bottle, we'll need to reset when solving
+                current_bottle.unlock_hidden_requirement();
             }
         });
 }
@@ -183,7 +198,7 @@ mod tests {
     use crate::discovery::{
         DiscoverResult, collect_hidden_requirements, count_hidden_bottles,
         count_total_mystery_colors, find_best_discovery_moves, find_best_hidden_unlock_moves,
-        improve_best_revealed_state,
+        improve_best_revealed_state, improve_current_bottles_with_revealed_state,
     };
     use water_sort_core::bottles::test_utils::TestUtils;
     use water_sort_core::constants::BottleColor;
@@ -269,7 +284,7 @@ mod tests {
     }
 
     #[test_log::test]
-    fn test_discovery_algorithm() {
+    fn test_discovery_with_bottles_that_can_be_unlocked() {
         let current_bottles =
             TestUtils::parse_bottles_sequence("POG? !B WGP? !Y YPW? BRYO YYBR EEEE EEEE");
         let max_revealed_bottle_state =
@@ -283,6 +298,46 @@ mod tests {
                 for m in items {
                     println!("{:?}", m);
                     m.perform_move_on_bottles(&mut new_state);
+                    log::debug!(
+                        "State after move: {}",
+                        new_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                }
+            }
+            DiscoverResult::AlreadySolved => println!("AlreadySolved"),
+        }
+    }
+
+    #[test_log::test]
+    fn test_discovery_with_mystery() {
+        //let current_bottles = TestUtils::parse_bottles_sequence("POG? !B WGP? !Y Y??? BRYO YYBR EEEE EEEE");
+        let mut current_bottles =
+            TestUtils::parse_bottles_sequence("P??? !B W??? !Y Y??? BRYO YYBR EEEE EEEE");
+        let max_revealed_bottles =
+            TestUtils::parse_bottles_sequence("POGW !B,ORRG WGPP !Y,BOB? YPWG BRYO YYBR EEEE EEEE");
+
+        improve_current_bottles_with_revealed_state(&mut current_bottles, &max_revealed_bottles);
+        log::debug!(
+            "Current bottles after improving with revealed state: {}",
+            current_bottles
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        match find_best_discovery_moves(&current_bottles, &max_revealed_bottles) {
+            DiscoverResult::NoMove => panic!("Should find a move to unlock hidden bottle"),
+            DiscoverResult::MoveToDiscover(items) => {
+                println!("MoveToDiscover with moves:");
+                let mut new_state = current_bottles.clone();
+                for m in items {
+                    println!("{:?}", m);
+                    m.perform_move_on_bottles(&mut new_state);
+
                     log::debug!(
                         "State after move: {}",
                         new_state

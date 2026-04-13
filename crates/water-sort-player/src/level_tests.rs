@@ -256,6 +256,7 @@ fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle])
         );
 
         mv.perform_move_on_bottles(&mut current_bottles);
+        reveal_hidden_observed(&mut current_bottles, max_revealed_bottles);
     }
 
     assert!(
@@ -286,6 +287,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
 
         improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+        let mut mystery_failed = false;
         if count_total_mystery_colors(&current_state) > 0 {
             match find_best_discovery_moves(&current_state, &max_revealed) {
                 DiscoverResult::MoveToDiscover(moves_to_apply) => {
@@ -309,77 +311,65 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                     }
                 }
                 DiscoverResult::NoMove => {
-                    println!("No more discovery moves found, simulating restart...");
-                    current_state = initial.to_vec();
-                    improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
-                    println!(
-                        "State after restart: {}",
-                        current_state
-                            .iter()
-                            .map(|b| b.to_string())
-                            .collect::<Vec<String>>()
-                            .join(" ")
-                    );
+                    mystery_failed = true;
                 }
-                DiscoverResult::AlreadySolved => {
-                    break;
-                }
+                DiscoverResult::AlreadySolved => {}
             }
         }
 
-        if count_hidden_bottles(&max_revealed) > 0 && count_total_mystery_colors(&max_revealed) == 0
-        {
-            match find_best_hidden_unlock_moves(&current_state) {
-                DiscoverResult::MoveToDiscover(moves_to_apply) => {
-                    if moves_to_apply.is_empty() {
-                        panic!("Moves should not be empty");
-                    }
-
-                    for mv in moves_to_apply {
-                        log::debug!(
-                            "Applying hidden unlock move {}->{} on state {}",
-                            mv.source_index(),
-                            mv.destination_index(),
-                            current_state
-                                .iter()
-                                .map(|b| b.to_string())
-                                .collect::<Vec<String>>()
-                                .join(" ")
-                        );
-                        if !mv.can_perform_on_bottles(&current_state) {
-                            panic!(
-                                "Hidden unlock move became invalid during simulation ({}->{}), restarting...",
-                                mv.source_index(),
-                                mv.destination_index()
-                            );
-                        }
-
-                        mv.perform_move_on_bottles(&mut current_state);
-
-                        reveal_hidden_observed(&mut current_state, resolved);
-                        improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
-                    }
+        let mut hidden_bottle_failed = false;
+        match find_best_hidden_unlock_moves(&current_state) {
+            DiscoverResult::MoveToDiscover(moves_to_apply) => {
+                if moves_to_apply.is_empty() {
+                    panic!("Moves should not be empty");
                 }
-                DiscoverResult::NoMove => {
-                    println!("No hidden unlock moves found, simulating restart...");
-                    current_state = initial.to_vec();
-                    improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
-                    println!(
-                        "State after restart: {}",
+
+                for mv in moves_to_apply {
+                    log::debug!(
+                        "Applying hidden unlock move {}->{} on state {}",
+                        mv.source_index(),
+                        mv.destination_index(),
                         current_state
                             .iter()
                             .map(|b| b.to_string())
                             .collect::<Vec<String>>()
                             .join(" ")
                     );
-                }
-                DiscoverResult::AlreadySolved => {
+                    if !mv.can_perform_on_bottles(&current_state) {
+                        panic!(
+                            "Hidden unlock move became invalid during simulation ({}->{}), restarting...",
+                            mv.source_index(),
+                            mv.destination_index()
+                        );
+                    }
+
+                    mv.perform_move_on_bottles(&mut current_state);
+
                     reveal_hidden_observed(&mut current_state, resolved);
                     improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
                 }
             }
+            DiscoverResult::NoMove => {
+                hidden_bottle_failed = true;
+            }
+            DiscoverResult::AlreadySolved => {
+                reveal_hidden_observed(&mut current_state, resolved);
+                improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
+            }
+        }
 
-            continue;
+        if mystery_failed && hidden_bottle_failed {
+            println!("No more discovery moves found, simulating restart...");
+            current_state = initial.to_vec();
+            improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+            println!(
+                "State after restart: {}",
+                current_state
+                    .iter()
+                    .map(|b| b.to_string())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            );
         }
     }
 

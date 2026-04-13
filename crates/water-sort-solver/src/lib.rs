@@ -28,6 +28,8 @@ pub struct SolverProgressSnapshot<'a> {
 
 #[cfg(feature = "solver-visualization")]
 type SolverProgressCallback<'a> = &'a mut dyn FnMut(SolverProgressSnapshot<'_>);
+/// Arguments are old state and new state
+type IsStateValidFn<'a> = &'a dyn Fn(&[Bottle], &[Bottle]) -> bool;
 
 pub mod visualization;
 
@@ -124,18 +126,14 @@ fn is_single_color_bottle(bottle: &Bottle) -> bool {
     hash_set.len() == 1 && hash_set.iter().next() != Some(&&BottleColor::Mystery)
 }
 
-/// Returns true if the current state is valid, false if not.
-/// The state is considered as invalid if the bottle has recently been unlocked, but there are no contents in there yet because
-/// the unlocking move hasn't been done yet on the app.
-#[must_use]
-fn unlock_hidden_bottles_with_solved_colors_and_is_state_valid(bottles: &mut [Bottle]) -> bool {
+fn unlock_hidden_bottles_with_solved_colors(bottles: &mut [Bottle]) {
     let solved_colors = bottles
         .iter()
         .filter_map(Bottle::solved_color)
         .collect::<HashSet<_>>();
 
     if solved_colors.is_empty() {
-        return true;
+        return;
     }
 
     for bottle in bottles.iter_mut() {
@@ -144,11 +142,8 @@ fn unlock_hidden_bottles_with_solved_colors_and_is_state_valid(bottles: &mut [Bo
             .is_some_and(|required_color| solved_colors.contains(&required_color))
         {
             bottle.unlock_hidden_requirement();
-            return false;
         }
     }
-
-    true
 }
 
 fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
@@ -249,13 +244,18 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
 
 pub(crate) fn find_shortest_move_sequence<GoalFn>(
     mut bottles: Vec<Bottle>,
+    is_state_valid: Option<IsStateValidFn>,
     mut is_goal: GoalFn,
     #[cfg(feature = "solver-visualization")] mut on_progress: Option<SolverProgressCallback<'_>>,
 ) -> Option<Vec<Move>>
 where
     GoalFn: FnMut(&[Bottle], usize) -> bool,
 {
-    if !unlock_hidden_bottles_with_solved_colors_and_is_state_valid(&mut bottles) {
+    let clone_before = bottles.clone();
+    unlock_hidden_bottles_with_solved_colors(&mut bottles);
+    if let Some(is_state_valid) = is_state_valid.as_ref()
+        && !is_state_valid(&clone_before, &bottles)
+    {
         return None;
     }
 
@@ -316,10 +316,14 @@ where
         }
 
         let mut possible_moves = generate_possible_moves(&records[record_index].state);
+
         sort_moves_by_heuristic(&mut possible_moves);
 
         for (move_to_try, mut next_state) in possible_moves {
-            if !unlock_hidden_bottles_with_solved_colors_and_is_state_valid(&mut next_state) {
+            unlock_hidden_bottles_with_solved_colors(&mut next_state);
+            if let Some(is_state_valid) = is_state_valid.as_ref()
+                && !is_state_valid(&records[record_index].state, &next_state)
+            {
                 continue;
             }
 
@@ -475,6 +479,7 @@ pub fn run_solver(
 
     find_shortest_move_sequence(
         bottles.to_vec(),
+        None,
         |state, _move_count| {
             state
                 .iter()
@@ -507,6 +512,7 @@ where
 
     find_shortest_move_sequence(
         bottles.to_vec(),
+        None,
         |state, _move_count| {
             state
                 .iter()
@@ -544,9 +550,7 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors_and_is_state_valid,
-    };
+    use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::{
         bottles::{HiddenRequirement, test_utils::TestUtils},
         constants::BottleColor,
@@ -556,7 +560,7 @@ mod tests {
     fn clears_hidden_requirement_when_required_color_is_solved() {
         let mut bottles = TestUtils::parse_bottles_sequence("!R RRRR EEEE EEEE");
 
-        let _ = unlock_hidden_bottles_with_solved_colors_and_is_state_valid(&mut bottles);
+        unlock_hidden_bottles_with_solved_colors(&mut bottles);
 
         assert!(!bottles[0].is_hidden_and_locked());
         assert_eq!(
@@ -571,6 +575,7 @@ mod tests {
 
         let solution = find_shortest_move_sequence(
             bottles,
+            None,
             |state, _move_count| {
                 state
                     .iter()
