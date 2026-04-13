@@ -208,7 +208,17 @@
       "image_filename": "discovery-level-21.png",
       "layout_name": "six_bottle_layout",
       "mystery_count_at_start": 0,
-      "resolved_bottles": "OORR OOBB EEEE RBBY YRGG YYGG"
+      "resolved_bottles": "OORR OOBB EEEE !O,RBBY !B,YRGG !B,YYGG"
+    },
+    {
+      "bottle_count": 8,
+      "captured_at_ms": 1776025210343,
+      "expected_bottles": "!R !R P??B O??G R?YR RY?R EEEE EEEE",
+      "id": 26,
+      "image_filename": "discovery-level-26.png",
+      "layout_name": "eight_bottle_layout",
+      "mystery_count_at_start": 6,
+      "resolved_bottles": "!R,GOPP !R,OBOP PYYB OYBG RGYR RYGR EEEE EEEE"
     },
     {
       "bottle_count": 9,

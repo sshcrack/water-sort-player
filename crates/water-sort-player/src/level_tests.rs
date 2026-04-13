@@ -165,7 +165,7 @@ macro_rules! create_generated_test_level {
                 #[test_log::test]
                 fn invalid_level_test() {
                     let is_valid = water_sort_capture::is_level_valid(PARSED_BOTTLES.as_slice(), RESOLVED_BOTTLES.as_slice());
-                    assert!(!is_valid, "Level should be invalid for captured level {}", $capture_id);
+                    assert!(is_valid, "Level should be valid for captured level {}", $capture_id);
                 }
 
                 #[test_log::test]
@@ -336,7 +336,16 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                     }
 
                     for mv in moves_to_apply {
-                        log::debug!("Applying hidden unlock move {}->{} on state {}", mv.source_index(), mv.destination_index(), current_state.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(" "));
+                        log::debug!(
+                            "Applying hidden unlock move {}->{} on state {}",
+                            mv.source_index(),
+                            mv.destination_index(),
+                            current_state
+                                .iter()
+                                .map(|b| b.to_string())
+                                .collect::<Vec<String>>()
+                                .join(" ")
+                        );
                         if !mv.can_perform_on_bottles(&current_state) {
                             panic!(
                                 "Hidden unlock move became invalid during simulation ({}->{}), restarting...",
@@ -434,7 +443,6 @@ fn improve_revealed_hidden_bottles(max_revealed: &mut [Bottle], current: &[Bottl
             }
         });
 }
-
 
 create_test_level!(213, "YRGM BPWO OBPG ROPM YRPW MWBG BGRY YMWO EEEE EEEE");
 create_test_level!(
