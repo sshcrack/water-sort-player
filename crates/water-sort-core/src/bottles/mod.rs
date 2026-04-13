@@ -261,7 +261,7 @@ impl Bottle {
         }
     }
 
-    pub fn locked_hidden_requirement(&self) -> Option<BottleColor> {
+    pub fn get_locked_hidden_requirement(&self) -> Option<BottleColor> {
         match self.hidden_requirement {
             HiddenRequirement::Locked(requirement) => Some(requirement),
             HiddenRequirement::None | HiddenRequirement::Unlocked(_) => None,
@@ -279,6 +279,11 @@ impl Bottle {
     pub fn unlock_hidden_requirement(&mut self) {
         if let HiddenRequirement::Locked(requirement) = self.hidden_requirement {
             self.hidden_requirement = HiddenRequirement::Unlocked(requirement);
+        }
+    }
+    pub fn lock_hidden_requirement(&mut self) {
+        if let HiddenRequirement::Unlocked(requirement) = self.hidden_requirement {
+            self.hidden_requirement = HiddenRequirement::Locked(requirement);
         }
     }
 
@@ -415,11 +420,15 @@ impl Bottle {
 impl Display for Bottle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_empty() {
-            if let HiddenRequirement::Locked(req) = self.hidden_requirement {
-                return write!(f, "!{}", req.to_char());
-            }
-
-            return write!(f, "EEEE");
+            return match self.hidden_requirement {
+                HiddenRequirement::None => write!(f, "EEEE"),
+                HiddenRequirement::Locked(bottle_color) => {
+                    write!(f, "!{}", bottle_color.to_char().to_string().red())
+                }
+                HiddenRequirement::Unlocked(bottle_color) => {
+                    write!(f, "!{},EEEE", bottle_color.to_char().to_string().green())
+                }
+            };
         }
 
         let fill_str: String = self
@@ -438,8 +447,21 @@ impl Display for Bottle {
             .collect();
 
         match self.hidden_requirement {
-            HiddenRequirement::Locked(requirement) | HiddenRequirement::Unlocked(requirement) => {
-                write!(f, "!{},{}", requirement.to_char(), fill_str)
+            HiddenRequirement::Locked(requirement) => {
+                write!(
+                    f,
+                    "!{},{}",
+                    requirement.to_char().to_string().red(),
+                    fill_str
+                )
+            }
+            HiddenRequirement::Unlocked(requirement) => {
+                write!(
+                    f,
+                    "!{},{}",
+                    requirement.to_char().to_string().green(),
+                    fill_str
+                )
             }
             HiddenRequirement::None => write!(f, "{}", fill_str),
         }

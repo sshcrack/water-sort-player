@@ -422,7 +422,7 @@ fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
         .iter_mut()
         .zip(fully_resolved.iter())
         .for_each(|(current_bottle, resolved_bottle)| {
-            let Some(requirement) = current_bottle.locked_hidden_requirement() else {
+            let Some(requirement) = current_bottle.get_locked_hidden_requirement() else {
                 return;
             };
 

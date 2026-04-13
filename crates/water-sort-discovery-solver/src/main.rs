@@ -16,7 +16,7 @@ use serde_json::Value;
 use water_sort_capture::frame_to_window_buffer;
 use water_sort_core::{
     bottles::{Bottle, test_utils::TestUtils},
-    constants::BottleColor,
+    constants::{BottleColor, scalar_from_hex},
 };
 use water_sort_solver::{Move, SolverProgressSnapshot, run_solver_with_progress};
 
@@ -190,7 +190,14 @@ fn draw_bottle(
             Point::new(x + 8, y + 20),
             imgproc::FONT_HERSHEY_DUPLEX,
             0.52,
-            color_to_scalar(requirement),
+            if matches!(
+                bottle.hidden_requirement_state(),
+                water_sort_core::HiddenRequirement::Locked(_)
+            ) {
+                scalar_from_hex("#ff0000")
+            } else {
+                scalar_from_hex("#00ff0d")
+            },
             1,
             imgproc::LINE_AA,
             false,

@@ -504,6 +504,24 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     "A hidden bottle requirement is already satisfied. Waiting for reveal..."
                                 );
 
+                                debug!(
+                                    "Current bottles at already solved state: {}",
+                                    current_bottles
+                                        .iter()
+                                        .map(|b| b.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                );
+
+                                debug!(
+                                    "Max revealed bottle state at already solved state: {}",
+                                    max_revealed_bottle_state
+                                        .iter()
+                                        .map(|b| b.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                );
+
                                 app_state = AppState::HiddenDiscoverBottles {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                     initial_state: initial_state.clone(),

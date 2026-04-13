@@ -133,6 +133,8 @@ pub fn improve_best_revealed_state(
                 && !current_bottle.is_hidden_and_locked()
             {
                 revealed_bottle.set_fills_from_bottle(current_bottle);
+                // We are unlocking it to show that we have discovered the hidden bottle, we'll need to reset when solving
+                revealed_bottle.unlock_hidden_requirement();
             }
         });
 }
@@ -141,6 +143,11 @@ pub fn improve_current_bottles_with_revealed_state(
     current_bottles: &mut [Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) {
+    let solved_bottles = max_revealed_bottle_state
+        .iter()
+        .filter_map(|bottle| bottle.solved_color())
+        .collect::<Vec<_>>();
+
     current_bottles
         .iter_mut()
         .zip(max_revealed_bottle_state.iter())
@@ -161,6 +168,12 @@ pub fn improve_current_bottles_with_revealed_state(
             {
                 current_bottle.set_fills_from_bottle(revealed_bottle);
                 current_bottle.set_hidden_requirement(revealed_bottle.hidden_requirement_state());
+
+                if let Some(c) = current_bottle.hidden_requirement()
+                    && solved_bottles.contains(&c)
+                {
+                    current_bottle.unlock_hidden_requirement();
+                }
             }
         });
 }

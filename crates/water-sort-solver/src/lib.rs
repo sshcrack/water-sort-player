@@ -136,7 +136,7 @@ fn unlock_hidden_bottles_with_solved_colors(bottles: &mut [Bottle]) {
 
     for bottle in bottles.iter_mut() {
         if bottle
-            .locked_hidden_requirement()
+            .get_locked_hidden_requirement()
             .is_some_and(|required_color| solved_colors.contains(&required_color))
         {
             bottle.unlock_hidden_requirement();
@@ -178,7 +178,7 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
                 continue;
             }
 
-            if let Some(source_req) = source_bottle.locked_hidden_requirement()
+            if let Some(source_req) = source_bottle.get_locked_hidden_requirement()
                 && !solved_bottles.contains(&source_req)
             {
                 log::trace!(
@@ -190,7 +190,7 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
                 continue;
             }
 
-            if let Some(destination_req) = destination_bottle.locked_hidden_requirement()
+            if let Some(destination_req) = destination_bottle.get_locked_hidden_requirement()
                 && !solved_bottles.contains(&destination_req)
             {
                 log::trace!(
@@ -371,47 +371,6 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
-    use water_sort_core::{
-        bottles::{HiddenRequirement, test_utils::TestUtils},
-        constants::BottleColor,
-    };
-
-    #[test]
-    fn clears_hidden_requirement_when_required_color_is_solved() {
-        let mut bottles = TestUtils::parse_bottles_sequence("!R RRRR EEEE EEEE");
-
-        unlock_hidden_bottles_with_solved_colors(&mut bottles);
-
-        assert!(!bottles[0].is_hidden_and_locked());
-        assert_eq!(
-            bottles[0].hidden_requirement_state(),
-            HiddenRequirement::Unlocked(BottleColor::Red)
-        );
-    }
-
-    #[test]
-    fn solver_can_finish_when_unlocking_hidden_empty_bottle() {
-        let bottles = TestUtils::parse_bottles_sequence("!R RRRR G GGG EEEE EEEE EEEE EEEE");
-
-        let solution = find_shortest_move_sequence(
-            bottles,
-            |state, _move_count| {
-                state
-                    .iter()
-                    .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_locked()))
-            },
-            #[cfg(feature = "solver-visualization")]
-            None,
-        );
-
-        assert!(solution.is_some());
-        assert_eq!(solution.expect("solver should return a solution").len(), 1);
-    }
-}
-
 impl Move {
     pub fn source_index(&self) -> usize {
         self.0
@@ -490,6 +449,7 @@ pub fn build_solver_initial_bottle_state(
             );
 
             new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement_state());
+            new_bottle.lock_hidden_requirement();
             bottles.push(new_bottle);
         });
 
@@ -533,19 +493,7 @@ pub fn run_solver_with_progress<ProgressFn>(
 where
     ProgressFn: FnMut(SolverProgressSnapshot<'_>),
 {
-    let mut bottles = Vec::new();
-    max_revealed_bottle_state
-        .iter()
-        .zip(initial_state.iter())
-        .for_each(|(max_revealed_bottle, initial_bottle)| {
-            let mut new_bottle = Bottle::from_fills_with_initial(
-                max_revealed_bottle.get_fills().clone(),
-                initial_bottle.get_fills().clone(),
-            );
-
-            new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement_state());
-            bottles.push(new_bottle);
-        });
+    let bottles = build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
 
     info!(
         "Solving puzzle with initial state: {}",
@@ -591,4 +539,45 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
             .then_with(|| a_runs.cmp(&b_runs))
             .then_with(|| a_non_empty.cmp(&b_non_empty))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
+    use water_sort_core::{
+        bottles::{HiddenRequirement, test_utils::TestUtils},
+        constants::BottleColor,
+    };
+
+    #[test]
+    fn clears_hidden_requirement_when_required_color_is_solved() {
+        let mut bottles = TestUtils::parse_bottles_sequence("!R RRRR EEEE EEEE");
+
+        unlock_hidden_bottles_with_solved_colors(&mut bottles);
+
+        assert!(!bottles[0].is_hidden_and_locked());
+        assert_eq!(
+            bottles[0].hidden_requirement_state(),
+            HiddenRequirement::Unlocked(BottleColor::Red)
+        );
+    }
+
+    #[test]
+    fn solver_can_finish_when_unlocking_hidden_empty_bottle() {
+        let bottles = TestUtils::parse_bottles_sequence("!R RRRR G GGG EEEE EEEE EEEE EEEE");
+
+        let solution = find_shortest_move_sequence(
+            bottles,
+            |state, _move_count| {
+                state
+                    .iter()
+                    .all(|b| b.is_solved() || (b.is_empty() && !b.is_hidden_and_locked()))
+            },
+            #[cfg(feature = "solver-visualization")]
+            None,
+        );
+
+        assert!(solution.is_some());
+        assert_eq!(solution.expect("solver should return a solution").len(), 1);
+    }
 }
