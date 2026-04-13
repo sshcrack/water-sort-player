@@ -267,4 +267,33 @@ mod tests {
             other => panic!("Expected discovery moves, got {:?}", other),
         }
     }
+
+    #[test_log::test]
+    fn test_discovery_algorithm() {
+        let current_bottles =
+            TestUtils::parse_bottles_sequence("POG? !B WGP? !Y YPW? BRYO YYBR EEEE EEEE");
+        let max_revealed_bottle_state =
+            TestUtils::parse_bottles_sequence("POG? !B WGP? !Y YPW? BRYO YYBR EEEE EEEE");
+
+        match find_best_discovery_moves(&current_bottles, &max_revealed_bottle_state) {
+            DiscoverResult::NoMove => println!("NoMove"),
+            DiscoverResult::MoveToDiscover(items) => {
+                println!("MoveToDiscover with moves:");
+                let mut new_state = current_bottles.clone();
+                for m in items {
+                    println!("{:?}", m);
+                    m.perform_move_on_bottles(&mut new_state);
+                    log::debug!(
+                        "State after move: {}",
+                        new_state
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                }
+            }
+            DiscoverResult::AlreadySolved => println!("AlreadySolved"),
+        }
+    }
 }

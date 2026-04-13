@@ -668,6 +668,22 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         match best_move {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
                                 info!("Best discovery move sequence found: {:?}", best_moves);
+                                debug!(
+                                    "Current bottles used for the algorithm: {}",
+                                    current_bottles
+                                        .iter()
+                                        .map(|b| b.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                );
+                                debug!(
+                                    "Max revealed bottle state used for the algorithm: {}",
+                                    max_revealed_bottle_state
+                                        .iter()
+                                        .map(|b| b.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                );
                                 app_state = AppState::MysteryExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
                                     initial_state: initial_state.clone(),
@@ -799,9 +815,13 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
-                                "Planned hidden-bottle move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {:?}",
+                                "Planned hidden-bottle move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
                                 next_move,
                                 current_bottles
+                                    .iter()
+                                    .map(|b| b.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
                             ));
                         }
 
@@ -908,13 +928,25 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
-                                "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {:?}",
+                                "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
                                 next_move,
                                 current_bottles
+                                    .iter()
+                                    .map(|b| b.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
                             ));
                         }
 
                         info!("Performing discovery move: {:?}.", next_move);
+                        debug!(
+                            "Current bottles at discovery move execution: {}",
+                            current_bottles
+                                .iter()
+                                .map(|b| b.to_string())
+                                .collect::<Vec<_>>()
+                                .join(" ")
+                        );
                         #[cfg(feature = "discovery-debugging")]
                         {
                             info!("Press enter to perform the next move...");

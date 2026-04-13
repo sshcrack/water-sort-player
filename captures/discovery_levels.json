@@ -222,10 +222,10 @@
     },
     {
       "bottle_count": 9,
-      "captured_at_ms": 1776025210343,
-      "expected_bottles": "EG??W !P P??B !O O??B RPOP OORG EEEE EEEE",
-      "id": 27,
-      "image_filename": "discovery-level-27.png",
+      "captured_at_ms": 1776100790094,
+      "expected_bottles": "G??W !P P??B !O O??B RPOP OORG EEEE EEEE",
+      "id": 28,
+      "image_filename": "discovery-level-28.png",
       "layout_name": "nine_bottle_layout",
       "mystery_count_at_start": 6,
       "resolved_bottles": "GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE"
