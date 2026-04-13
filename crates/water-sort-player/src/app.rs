@@ -939,9 +939,36 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     if now >= *next_move_at {
                         info!("Performing move: {:?}.", next);
                         let layout = require_active_layout(&active_layout, "solve move execution")?;
+
+                        let use_hidden_reveal_delay = match detect_bottles_with_layout(
+                            &frame_raw,
+                            &mut frame_display,
+                            layout,
+                        ) {
+                            Ok(current_bottles) => {
+                                latest_detected_bottles = Some(current_bottles.clone());
+                                move_satisfies_hidden_requirement(&current_bottles, next)
+                            }
+                            Err(error) => {
+                                warn!(
+                                    "Could not detect bottles before solve move timing check: {:?}",
+                                    error
+                                );
+                                false
+                            }
+                        };
+
                         next.perform_move_on_device(layout, &capture)?;
                         *performed_moves += 1;
-                        *next_move_at = now + MOVE_DELAY;
+                        *next_move_at = now
+                            + if use_hidden_reveal_delay {
+                                info!(
+                                    "Solve move unlocked a hidden bottle requirement; waiting longer before next move."
+                                );
+                                HIDDEN_REVEAL_DETECTION_DELAY
+                            } else {
+                                MOVE_DELAY
+                            };
                     }
                 } else {
                     app_state = AppState::CheckForRewards {
