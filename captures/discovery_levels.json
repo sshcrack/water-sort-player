@@ -249,6 +249,16 @@
       "layout_name": "ten_bottle_layout",
       "mystery_count_at_start": 16,
       "resolved_bottles": "!O,YRBW !G,BRLP EPYO EWGG EGPR EOBW EPYO EWLY EGOB ERLL"
+    },
+    {
+      "bottle_count": 7,
+      "captured_at_ms": 1776126598781,
+      "expected_bottles": "!R EG?? EB?? !G EEG? EEG? EEP?",
+      "id": 35,
+      "image_filename": "discovery-level-35.png",
+      "layout_name": "seven_bottle_layout",
+      "mystery_count_at_start": 7,
+      "resolved_bottles": "!R,PYBP EGRR EBGY !G,YRYB EEGB EEGR EEPP"
     }
   ]
 }
