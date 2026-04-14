@@ -6,7 +6,7 @@ members = [
 	"crates/water-sort-capture",
 	"crates/water-sort-player",
 	"crates/water-sort-image-debugger",
-	"crates/water-sort-discovery-solver"
+	"crates/water-sort-discovery-solver",
 ]
 default-members = [
 	"crates/water-sort-core",

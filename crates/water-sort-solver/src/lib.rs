@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::fmt::Display;
 
 use anyhow::Result;
 #[cfg(feature = "discovery-debugging")]
@@ -16,6 +17,12 @@ pub mod discovery;
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move(usize, usize);
+
+impl Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}->{}", self.0, self.1)
+    }
+}
 
 #[cfg(feature = "solver-visualization")]
 pub struct SolverProgressSnapshot<'a> {
@@ -108,6 +115,19 @@ fn reconstruct_moves(records: &[SearchRecord], mut record_index: usize) -> Vec<M
     let mut moves = Vec::new();
 
     while let Some(parent_index) = records[record_index].parent {
+        log::debug!(
+            "Reconstructing move {} for record {} with state: {}",
+            records[record_index]
+                .via_move
+                .expect("record should contain a move"),
+            record_index,
+            records[record_index]
+                .state
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         moves.push(
             records[record_index]
                 .via_move
@@ -526,7 +546,6 @@ where
             .collect::<Vec<_>>()
             .join(" ")
     );
-
 
     find_shortest_move_sequence(
         bottles.to_vec(),

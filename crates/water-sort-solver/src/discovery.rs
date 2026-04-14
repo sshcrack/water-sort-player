@@ -178,14 +178,33 @@ pub fn improve_best_revealed_state(
         });
 }
 
-pub fn improve_current_bottles_with_revealed_state(
+pub fn improve_current_and_initial_bottles_with_revealed_state(
     current_bottles: &mut [Bottle],
+    initial_bottles: &mut [Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) {
+    // We are only modifying the initial bottles for the following edge case:
+    // There were hidden bottles that contained mystery colors. The initial state
+    // doesn't have any fills / mystery colors at all
+    // so the first chance we get, we set the initial_bottle hidden bottle fills.
+
     let solved_bottles = max_revealed_bottle_state
         .iter()
         .filter_map(|bottle| bottle.solved_color())
         .collect::<Vec<_>>();
+
+    initial_bottles
+        .iter_mut()
+        .zip(max_revealed_bottle_state.iter())
+        .for_each(|(initial_bottle, revealed_bottle)| {
+            if initial_bottle.is_hidden_and_locked() && initial_bottle.is_empty() && !revealed_bottle.is_empty() {
+                println!(
+                    "Setting initial bottle fills from revealed bottle. Initial bottle: {}, Revealed bottle: {}",
+                    initial_bottle, revealed_bottle
+                );
+                initial_bottle.set_fills_from_bottle(revealed_bottle);
+            }
+        });
 
     current_bottles
         .iter_mut()
@@ -219,7 +238,7 @@ mod tests {
     use crate::discovery::{
         DiscoverResult, collect_hidden_requirements, count_hidden_bottles,
         count_total_mystery_colors, find_best_discovery_moves, find_best_hidden_unlock_moves,
-        improve_best_revealed_state, improve_current_bottles_with_revealed_state,
+        improve_best_revealed_state, improve_current_and_initial_bottles_with_revealed_state,
     };
     use crate::{run_solver, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::bottles::test_utils::TestUtils;
@@ -339,10 +358,15 @@ mod tests {
         //let current_bottles = TestUtils::parse_bottles_sequence("POG? !B WGP? !Y Y??? BRYO YYBR EEEE EEEE");
         let mut current_bottles =
             TestUtils::parse_bottles_sequence("P??? !B W??? !Y Y??? BRYO YYBR EEEE EEEE");
+        let mut initial = current_bottles.clone();
         let max_revealed_bottles =
             TestUtils::parse_bottles_sequence("POGW !B,ORRG WGPP !Y,BOB? YPWG BRYO YYBR EEEE EEEE");
 
-        improve_current_bottles_with_revealed_state(&mut current_bottles, &max_revealed_bottles);
+        improve_current_and_initial_bottles_with_revealed_state(
+            &mut current_bottles,
+            &mut initial,
+            &max_revealed_bottles,
+        );
         log::debug!(
             "Current bottles after improving with revealed state: {}",
             current_bottles
@@ -377,8 +401,10 @@ mod tests {
 
     #[test_log::test]
     fn test_discov_1() {
-        let initial = TestUtils::parse_bottles_sequence("!R EG?? EB?? !G EEG? EEG? EEP?");
-        let max = TestUtils::parse_bottles_sequence("!R,PYBP GRR BGY !G,YRYB GB GR PP");
+        let initial = TestUtils::parse_bottles_sequence("!P !W !W !B B??G W??B B??Y EEEE EEEE");
+        let max = TestUtils::parse_bottles_sequence(
+            "!P,GOGO !W,PPYP !W,RGOO !B,RRWP BWRG WYYB BWBY EEEE EEEE",
+        );
 
         let m = run_solver(&max, &initial);
 

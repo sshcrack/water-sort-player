@@ -20,7 +20,7 @@ use crate::{
         discovery::{
             self, collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors,
             find_best_discovery_moves, find_best_hidden_unlock_moves, improve_best_revealed_state,
-            improve_current_bottles_with_revealed_state,
+            improve_current_and_initial_bottles_with_revealed_state,
         },
         visualization::draw_revealed_fill_markers,
     },
@@ -427,8 +427,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     }
 
                     let mut current_bottles = current_bottles.unwrap();
-                    improve_current_bottles_with_revealed_state(
+                    improve_current_and_initial_bottles_with_revealed_state(
                         &mut current_bottles,
+                        initial_state,
                         max_revealed_bottle_state,
                     );
                     improve_best_revealed_state(
@@ -692,8 +693,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         initial_state,
                         &current_bottles,
                     );
-                    improve_current_bottles_with_revealed_state(
+                    improve_current_and_initial_bottles_with_revealed_state(
                         &mut current_bottles,
+                        initial_state,
                         max_revealed_bottle_state,
                     );
                     latest_detected_bottles = Some(current_bottles.clone());
@@ -955,7 +957,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         }
                         next_move.perform_move_on_device(layout, &capture)?;
 
-                        log::trace!("Reveal wait needed: {}", reveal_wait_needed);
                         current_moves.push(next_move);
                         *trigger_at = Instant::now()
                             + if reveal_wait_needed {

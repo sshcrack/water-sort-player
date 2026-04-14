@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use water_sort_solver::build_solver_initial_bottle_state;
-use water_sort_solver::discovery::improve_current_bottles_with_revealed_state;
+use water_sort_solver::discovery::improve_current_and_initial_bottles_with_revealed_state;
 
 use crate::bottles::BottleLayout;
 
@@ -274,6 +274,7 @@ fn solve_and_assert(max_revealed_bottles: &[Bottle], initial_bottles: &[Bottle])
 
 fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bottle> {
     let mut max_revealed = initial.to_vec();
+    let mut initial = initial.to_vec();
 
     let mut current_state = initial.to_vec();
     for _ in 0..300 {
@@ -286,7 +287,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         reveal_hidden_observed(&mut current_state, resolved);
         improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
 
-        improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+        improve_current_and_initial_bottles_with_revealed_state(&mut current_state, &mut initial,&max_revealed);
         let mut mystery_failed = false;
         if count_total_mystery_colors(&current_state) > 0 {
             match find_best_discovery_moves(&current_state, &max_revealed) {
@@ -307,7 +308,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
                         mv.perform_move_on_bottles(&mut current_state);
 
                         reveal_observed(&mut current_state, resolved);
-                        improve_best_revealed_state(&mut max_revealed, initial, &current_state);
+                        improve_best_revealed_state(&mut max_revealed, &mut initial, &current_state);
                     }
                 }
                 DiscoverResult::NoMove => {
@@ -361,7 +362,7 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         if mystery_failed && hidden_bottle_failed {
             println!("No more discovery moves found, simulating restart...");
             current_state = initial.to_vec();
-            improve_current_bottles_with_revealed_state(&mut current_state, &max_revealed);
+            improve_current_and_initial_bottles_with_revealed_state(&mut current_state, &mut initial,&max_revealed);
             println!(
                 "State after restart: {}",
                 current_state

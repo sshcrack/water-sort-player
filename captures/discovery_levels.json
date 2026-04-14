@@ -269,6 +269,26 @@
       "layout_name": "seven_bottle_layout",
       "mystery_count_at_start": 4,
       "resolved_bottles": "RRBB EEEE EEEE BROR !G,OOPO !R,PGGG !R,PBGP"
+    },
+    {
+      "bottle_count": 8,
+      "captured_at_ms": 1776127443476,
+      "expected_bottles": "!G !B !R !O O??B O??Y EEEE EEEE",
+      "id": 37,
+      "image_filename": "discovery-level-37.png",
+      "layout_name": "eight_bottle_layout",
+      "mystery_count_at_start": 4,
+      "resolved_bottles": "!G,PPYY !B,GGPP !R,BYBG !O,RBRG OORB OROY EEEE EEEE"
+    },
+    {
+      "bottle_count": 9,
+      "captured_at_ms": 1776162364012,
+      "expected_bottles": "!P !W !W !B B??G W??B B??Y EEEE EEEE",
+      "id": 38,
+      "image_filename": "discovery-level-38.png",
+      "layout_name": "nine_bottle_layout",
+      "mystery_count_at_start": 6,
+      "resolved_bottles": "!P,GOGO !W,PPYP !W,RGOO !B,RRWP BWRG WYYB BWBY EEEE EEEE"
     }
   ]
 }
