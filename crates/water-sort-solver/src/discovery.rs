@@ -221,7 +221,7 @@ mod tests {
         count_total_mystery_colors, find_best_discovery_moves, find_best_hidden_unlock_moves,
         improve_best_revealed_state, improve_current_bottles_with_revealed_state,
     };
-    use crate::unlock_hidden_bottles_with_solved_colors;
+    use crate::{run_solver, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::bottles::test_utils::TestUtils;
     use water_sort_core::constants::BottleColor;
 
@@ -377,16 +377,16 @@ mod tests {
 
     #[test_log::test]
     fn test_discov_1() {
-        let c = TestUtils::parse_bottles_sequence("!O !G,BRLP PYO WGG GP? OB? PY? WL? GOB R??");
-        let max = TestUtils::parse_bottles_sequence("!O !G,BRLP PYO GG GP? OB? PY? WWL? GOB R??");
+        let initial = TestUtils::parse_bottles_sequence("!R EG?? EB?? !G EEG? EEG? EEP?");
+        let max = TestUtils::parse_bottles_sequence("!R,PYBP GRR BGY !G,YRYB GB GR PP");
 
-        let m = find_best_discovery_moves(&c, &max);
+        let m = run_solver(&max, &initial);
 
         match m {
-            DiscoverResult::NoMove => println!("NoMove"),
-            DiscoverResult::MoveToDiscover(items) => {
+            None => println!("NoMove"),
+            Some(items) => {
                 println!("MoveToDiscover with moves:");
-                let mut new_state = c.clone();
+                let mut new_state = max.clone();
                 for m in items {
                     println!("{:?}", m);
                     m.perform_move_on_bottles(&mut new_state);
@@ -400,7 +400,6 @@ mod tests {
                     );
                 }
             }
-            DiscoverResult::AlreadySolved => println!("AlreadySolved"),
         }
     }
 }

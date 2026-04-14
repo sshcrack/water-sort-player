@@ -469,7 +469,7 @@ pub fn run_solver(
     let bottles = build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
 
     info!(
-        "Solving puzzle with initial state: {}",
+        "Solving puzzle with build bottle state: {}",
         bottles
             .iter()
             .map(|b| b.to_string())
@@ -499,16 +499,34 @@ pub fn run_solver_with_progress<ProgressFn>(
 where
     ProgressFn: FnMut(SolverProgressSnapshot<'_>),
 {
+    log::debug!("Solver run:");
+    log::debug!(
+        "Initial state for solver: {}",
+        initial_state
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    log::debug!(
+        "Max revealed bottle state for solver: {}",
+        max_revealed_bottle_state
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     let bottles = build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
 
     info!(
-        "Solving puzzle with initial state: {}",
+        "Solving puzzle with build bottle state: {}",
         bottles
             .iter()
             .map(|b| b.to_string())
             .collect::<Vec<_>>()
             .join(" ")
     );
+
 
     find_shortest_move_sequence(
         bottles.to_vec(),

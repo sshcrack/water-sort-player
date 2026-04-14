@@ -451,7 +451,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                             app_state = AppState::MysteryDiscoverColors {
                                 trigger_at: now,
-                                initial_state: current_bottles.clone(),
+                                initial_state: initial_state.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 current_moves: vec![],
                                 mystery_level_retried: false,
@@ -502,7 +502,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
-                            initial_state: current_bottles.clone(),
+                            initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: vec![],
                             mystery_level_retried: false,
@@ -543,7 +543,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                         );
                                         app_state = AppState::MysteryDiscoverColors {
                                             trigger_at: now,
-                                            initial_state: current_bottles.clone(),
+                                            initial_state: initial_state.clone(),
                                             max_revealed_bottle_state: max_revealed_bottle_state
                                                 .clone(),
                                             current_moves: vec![],
@@ -796,7 +796,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                     app_state = AppState::HiddenDiscoverBottles {
                                         trigger_at: now,
-                                        initial_state: current_bottles.clone(),
+                                        initial_state: initial_state.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
                                             .clone(),
                                         current_moves: vec![],
