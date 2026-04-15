@@ -924,14 +924,18 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         continue;
                     }
 
-                    let current_bottles = current_bottles.unwrap();
-                    latest_detected_bottles = Some(current_bottles.clone());
-
+                    let mut current_bottles = current_bottles.unwrap();
+                    improve_current_and_initial_bottles_with_revealed_state(
+                        &mut current_bottles,
+                        initial_state,
+                        max_revealed_bottle_state,
+                    );
                     improve_best_revealed_state(
                         max_revealed_bottle_state,
                         initial_state,
                         &current_bottles,
                     );
+                    latest_detected_bottles = Some(current_bottles.clone());
                     if moves_to_execute.is_empty() {
                         app_state = AppState::HiddenDiscoverBottles {
                             initial_state: initial_state.clone(),
@@ -944,20 +948,35 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
-                        let reveal_wait_needed =
-                            move_satisfies_hidden_requirement(&current_bottles, next_move);
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
-                            return Err(anyhow!(
-                                "Planned hidden-bottle move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
-                                next_move,
+                            warn!(
+                                "Queued hidden-bottle move became invalid on the current state (move {:?}). Replanning hidden discovery.",
+                                next_move
+                            );
+                            debug!(
+                                "Current bottles before hidden replanning: {}",
                                 current_bottles
                                     .iter()
                                     .map(|b| b.to_string())
                                     .collect::<Vec<_>>()
                                     .join(" ")
-                            ));
+                            );
+
+                            app_state = AppState::HiddenDiscoverBottles {
+                                initial_state: initial_state.clone(),
+                                trigger_at: now,
+                                current_moves: current_moves.clone(),
+                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                force_hidden_discovery: *force_hidden_discovery,
+                                hidden_level_retried: *hidden_level_retried,
+                                retries_remaining: BOTTLE_DETECTION_RETRIES,
+                            };
+                            continue;
                         }
+
+                        let reveal_wait_needed =
+                            move_satisfies_hidden_requirement(&current_bottles, next_move);
 
                         info!("Performing hidden-bottle move: {:?}.", next_move);
                         #[cfg(feature = "discovery-debugging")]
@@ -1042,14 +1061,24 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         continue;
                     }
 
-                    let current_bottles = current_bottles.unwrap();
-                    latest_detected_bottles = Some(current_bottles.clone());
+                    let mut current_bottles = current_bottles.unwrap();
                     draw_revealed_fill_markers(
                         &mut frame_display,
                         layout,
                         &current_bottles,
                         max_revealed_bottle_state,
                     )?;
+                    improve_current_and_initial_bottles_with_revealed_state(
+                        &mut current_bottles,
+                        initial_state,
+                        max_revealed_bottle_state,
+                    );
+                    improve_best_revealed_state(
+                        max_revealed_bottle_state,
+                        initial_state,
+                        &current_bottles,
+                    );
+                    latest_detected_bottles = Some(current_bottles.clone());
 
                     if moves_to_execute.is_empty() {
                         app_state = AppState::MysteryDiscoverColors {
@@ -1062,19 +1091,33 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
-                        let reveal_wait_needed =
-                            move_satisfies_hidden_requirement(&current_bottles, next_move);
                         if !next_move.can_perform_on_bottles(&current_bottles) {
-                            return Err(anyhow!(
-                                "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
-                                next_move,
+                            warn!(
+                                "Queued discovery move became invalid on the current state (move {:?}). Replanning mystery discovery.",
+                                next_move
+                            );
+                            debug!(
+                                "Current bottles before mystery replanning: {}",
                                 current_bottles
                                     .iter()
                                     .map(|b| b.to_string())
                                     .collect::<Vec<_>>()
                                     .join(" ")
-                            ));
+                            );
+
+                            app_state = AppState::MysteryDiscoverColors {
+                                trigger_at: now,
+                                initial_state: initial_state.clone(),
+                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                current_moves: current_moves.clone(),
+                                mystery_level_retried: *mystery_level_retried,
+                                retries_remaining: BOTTLE_DETECTION_RETRIES,
+                            };
+                            continue;
                         }
+
+                        let reveal_wait_needed =
+                            move_satisfies_hidden_requirement(&current_bottles, next_move);
 
                         info!("Performing discovery move: {:?}.", next_move);
                         debug!(
@@ -1192,10 +1235,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                 );
             } else {
-                log::trace!(
-                    "App state updated within '{}', but state name is the same, so not logging a transition.",
-                    app_state.get_name()
-                );
+                log::trace!("Saving snapshot of new state...");
             }
 
             #[cfg(feature = "save-states")]
