@@ -104,7 +104,7 @@ pub fn find_best_discovery_moves(
                 .count();
 
             if new_hidden != prev_hidden {
-                println!(
+                log::trace!(
                     "Hidden bottle count changed from {} to {} after move. New state: {}",
                     prev_hidden,
                     new_hidden,

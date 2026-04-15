@@ -182,3 +182,16 @@ create_bottle_detection_test!(
     BottleLayout::eight_bottle_layout(),
     "!R !R EEBB O??G R?YR RY?R EEEP EEEY"
 );
+
+create_bottle_detection_test!(
+    test_detection_with_nine_layout_alternative,
+    "detection/nine-bottle-alternative-detection.png",
+    BottleLayout::nine_bottle_layout_alternative(),
+    "EEW? EOOO EEYY EPP? PWOY EEWP RRRY GGGG GGGG"
+);
+create_bottle_detection_test!(
+    test_detection_with_nine_layout_alternative_2,
+    "detection/nine-bottle-alternative-detection-2.png",
+    BottleLayout::nine_bottle_layout_alternative(),
+    "O?W? G?Y? G?B? G?P? !B !G !G EEEE EEEE"
+);
