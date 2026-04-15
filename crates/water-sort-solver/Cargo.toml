@@ -10,7 +10,9 @@ opencv = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 test-log = { workspace = true }
+serde = { version = "1.0.228", features = ["derive"] }
 
 [features]
 discovery-debugging = []
 solver-visualization = []
+save-states = []

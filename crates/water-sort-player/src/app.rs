@@ -1,9 +1,15 @@
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "save-states")]
+mod save_states;
+
 use anyhow::{Result, anyhow};
 use log::{debug, info, warn};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
+#[cfg(feature = "save-states")]
+use save_states::SaveStatesRecorder;
+use serde::Serialize;
 use water_sort_core::constants::{
     NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
     NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
@@ -49,28 +55,36 @@ const SOLVER_VISUALIZATION_UPDATE_INTERVAL: Duration = Duration::from_millis(50)
 #[cfg(feature = "solver-visualization")]
 const SOLVER_VISUALIZATION_FRAME_DELAY: Duration = Duration::from_millis(20);
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
 enum AppState {
     WaitingToPressStart {
+        #[serde(skip)]
         trigger_at: Instant,
     },
     ClickNextLevel {
+        #[serde(skip)]
         trigger_at: Instant,
     },
     ClickRetryOnNewLevel {
+        #[serde(skip)]
         trigger_at: Instant,
     },
     CheckForRewards {
+        #[serde(skip)]
         trigger_at: Instant,
     },
     DetectAndPlan {
+        #[serde(skip)]
         trigger_at: Instant,
         retries_remaining: u8,
     },
     AwaitPostDetectionPlan {
+        #[serde(skip)]
         trigger_at: Instant,
         detected_bottles: Vec<Bottle>,
     },
     HiddenDiscoverBottles {
+        #[serde(skip)]
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
@@ -80,6 +94,7 @@ enum AppState {
         retries_remaining: u8,
     },
     HiddenExecuteDiscoverMove {
+        #[serde(skip)]
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
@@ -90,6 +105,7 @@ enum AppState {
         retries_remaining: u8,
     },
     MysteryDiscoverColors {
+        #[serde(skip)]
         trigger_at: Instant,
         initial_state: Vec<Bottle>,
         max_revealed_bottle_state: Vec<Bottle>,
@@ -98,6 +114,7 @@ enum AppState {
         retries_remaining: u8,
     },
     MysteryExecuteDiscoverMove {
+        #[serde(skip)]
         trigger_at: Instant,
         moves_to_execute: Vec<Move>,
         initial_state: Vec<Bottle>,
@@ -107,6 +124,7 @@ enum AppState {
         retries_remaining: u8,
     },
     ExecuteFinalSolveMoves {
+        #[serde(skip)]
         next_move_at: Instant,
         planned_moves: Vec<Move>,
         performed_moves: usize,
@@ -159,20 +177,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut active_layout: Option<BottleLayout> = None;
     let mut latest_detected_bottles: Option<Vec<Bottle>> = None;
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
+    #[cfg(feature = "save-states")]
+    let mut state_capture = SaveStatesRecorder::new()?;
 
     let mut first_frame_read = true;
-    let mut prev_app_state_name = app_state.get_name();
+    let mut prev_app_state = app_state.clone();
     while window.is_open() {
-        if prev_app_state_name != app_state.get_name() {
-            debug!(
-                "Transitioning from state {} to state {}...",
-                prev_app_state_name,
-                app_state.get_name()
-            );
-            debug!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            prev_app_state_name = app_state.get_name();
-        }
-
         if first_frame_read {
             debug!("Reading first frame...");
             first_frame_read = false;
@@ -1171,6 +1181,33 @@ pub fn run(quick_mode: bool) -> Result<()> {
         }
 
         draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
+
+        if prev_app_state != app_state {
+            if prev_app_state.get_name() != app_state.get_name() {
+                debug!(
+                    "Transitioning from state {} to state {}...",
+                    prev_app_state.get_name(), app_state.get_name()
+                );
+                debug!(
+                    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+                );
+            } else {
+                log::trace!(
+                    "App state updated within '{}', but state name is the same, so not logging a transition.",
+                    app_state.get_name()
+                );
+            }
+
+            #[cfg(feature = "save-states")]
+            state_capture.capture_transition(
+                &prev_app_state,
+                &app_state,
+                &frame_raw,
+                &frame_display,
+            )?;
+
+            prev_app_state = app_state.clone();
+        }
 
         let buffer = frame_to_window_buffer(&frame_display)?;
         window.update_with_buffer(&buffer, width, height)?;

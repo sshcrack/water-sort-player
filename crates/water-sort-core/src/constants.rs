@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use opencv::core::{Scalar, Vec3b};
+use serde::Serialize;
 
 use crate::position::Pos;
 
@@ -29,7 +30,7 @@ lazy_static! {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Serialize, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BottleColor {
     Yellow,
     Red,

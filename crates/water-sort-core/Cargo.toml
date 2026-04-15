@@ -12,6 +12,7 @@ anyhow = { workspace = true }
 log = { workspace = true }
 test-log = { workspace = true }
 colored = "3.1.1"
+serde = { version = "1.0.228", features = ["derive"] }
 
 [build-dependencies]
 serde = { version = "1.0.228", features = ["derive"] }

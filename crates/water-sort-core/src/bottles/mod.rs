@@ -13,10 +13,11 @@ mod specific_tests;
 pub mod test_utils;
 
 pub use layout::BottleLayout;
+use serde::Serialize;
 
 use crate::constants::{BottleColor, COLOR_DISTANCE_THRESHOLD_SQ, COLOR_VALUES, color_distance_sq};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, Serialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum HiddenRequirement {
     #[default]
     None,
@@ -191,7 +192,7 @@ fn is_hidden_curtain_bottle(
     Ok(false)
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, Default)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     // The boolean indicates whether the initial color was mystery, to properly handle filling in the solver

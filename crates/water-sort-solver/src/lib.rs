@@ -6,6 +6,7 @@ use anyhow::Result;
 #[cfg(feature = "discovery-debugging")]
 use log::debug;
 use log::info;
+use serde::Serialize;
 use water_sort_core::{
     bottles::{Bottle, BottleLayout, HiddenRequirement},
     constants::BottleColor,
@@ -15,7 +16,7 @@ use water_sort_device::CaptureDeviceBackend;
 pub mod discovery;
 
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Copy, PartialEq, Eq)]
 pub struct Move(usize, usize);
 
 impl Display for Move {

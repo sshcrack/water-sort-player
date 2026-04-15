@@ -17,12 +17,15 @@ water-sort-device = { path = "../water-sort-device" }
 water-sort-solver = { path = "../water-sort-solver" }
 water-sort-capture = { path = "../water-sort-capture" }
 test-log = { workspace = true }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { workspace = true }
 
 [features]
 default = ["solver-visualization"]
 solver-visualization = ["water-sort-solver/solver-visualization"]
 discovery-debugging = ["water-sort-solver/discovery-debugging"]
 collect-test-data = ["water-sort-capture/collect-test-data"]
+save-states = ["water-sort-solver/save-states"]
 
 [build-dependencies]
 serde_json = { workspace = true }
