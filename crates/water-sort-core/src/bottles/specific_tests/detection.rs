@@ -195,3 +195,10 @@ create_bottle_detection_test!(
     BottleLayout::nine_bottle_layout_alternative(),
     "O?W? G?Y? G?B? G?P? !B !G !G EEEE EEEE"
 );
+create_bottle_detection_test!(
+    test_detection_with_dark_blue_bottle,
+    "detection/dark-blue-bottle.png",
+    BottleLayout::eleven_bottle_layout(),
+    "EB?L EP?? EEWL EELD EB?? EP?P !D !L !D !L !D"
+);
+

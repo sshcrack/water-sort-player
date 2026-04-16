@@ -15,7 +15,9 @@ pub mod test_utils;
 pub use layout::BottleLayout;
 use serde::Serialize;
 
-use crate::constants::{BottleColor, COLOR_DISTANCE_THRESHOLD_SQ, COLOR_VALUES, color_distance_sq};
+use crate::constants::{
+    BottleColor, COLOR_DISTANCE_THRESHOLD_SQ, COLOR_VALUES, MYSTERY_COLOR, color_distance_sq
+};
 
 #[derive(Debug, Clone, Serialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum HiddenRequirement {
@@ -60,11 +62,15 @@ fn best_matching_surrounding_pixel(
         for x in min_x..=max_x {
             let pixel = frame_raw.at_2d::<Vec3b>(y, x)?;
 
-            let pixel_best_dist = COLOR_VALUES
+            let mut pixel_best_dist = COLOR_VALUES
                 .iter()
                 .map(|(_, target_pixel)| color_distance_sq(pixel, target_pixel))
                 .min()
                 .unwrap_or(u32::MAX);
+
+            if BottleColor::is_mystery_pixel(pixel) {
+                pixel_best_dist = color_distance_sq(pixel, &MYSTERY_COLOR)
+            }
 
             if pixel_best_dist < best_dist {
                 best_dist = pixel_best_dist;
@@ -508,7 +514,8 @@ pub fn detect_bottles_with_layout(
                 let x = sample_pos.0;
                 let y = sample_pos.1;
 
-                let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, 4)?;
+                let radius = 10;
+                let best_pixel = best_matching_surrounding_pixel(frame_raw, x, y, radius)?;
                 let sample = classify_bottle_layer(best_pixel, has_failed_level);
 
                 match sample {
@@ -546,21 +553,23 @@ pub fn detect_bottles_with_layout(
                     LayerSample::Unknown => {
                         saw_unknown = true;
                         unresolved_unknown = true;
-                        /*
+
                         let best_pixel_hex = format!(
                             "#{:02x}{:02x}{:02x}",
                             best_pixel[2], best_pixel[1], best_pixel[0]
                         );
-                        println!(
+                        log::trace!(
                             "WARN: Pixel at ({}, {}) did not match any known color: {:?}. Treating bottle as invalid.",
-                            x, y, best_pixel_hex
-                        ); */
+                            x,
+                            y,
+                            best_pixel_hex
+                        );
                         // Unknown color - draw black marker
                         imgproc::rectangle(
                             frame_display,
-                            Rect::new(x - 5, y - 5, 10, 10),
+                            Rect::new(x - radius / 2, y - radius / 2, radius, radius),
                             Scalar::new(0.0, 0.0, 0.0, 255.0),
-                            5,
+                            1,
                             imgproc::LINE_8,
                             0,
                         )

@@ -39,6 +39,7 @@ pub enum BottleColor {
     LightBlue,
     MediumBlue,
     Blue,
+    DarkBlue,
     Purple,
     Pink,
     Orange,
@@ -54,6 +55,7 @@ impl BottleColor {
             BottleColor::Lime => 'g',
             BottleColor::LightBlue => 'L',
             BottleColor::MediumBlue => 'M',
+            BottleColor::DarkBlue => 'D',
             BottleColor::Blue => 'B',
             BottleColor::Purple => 'P',
             BottleColor::Pink => 'W',
@@ -74,6 +76,7 @@ impl BottleColor {
             'P' => Some(BottleColor::Purple),
             'O' => Some(BottleColor::Orange),
             'W' => Some(BottleColor::Pink),
+            'D' => Some(BottleColor::DarkBlue),
             '?' => Some(BottleColor::Mystery),
             _ => None,
         }
@@ -111,6 +114,7 @@ lazy_static! {
         (BottleColor::LightBlue, vec3_from_hex("#2cf8fe")),
         (BottleColor::MediumBlue, vec3_from_hex("#52b7fb")),
         (BottleColor::Blue, vec3_from_hex("#194af9")),
+        (BottleColor::DarkBlue, vec3_from_hex("#434A8E")),
         (BottleColor::Purple, vec3_from_hex("#8c00d9")),
         (BottleColor::Pink, vec3_from_hex("#d212cc")),
         (BottleColor::Orange, vec3_from_hex("#f37c1c"))
@@ -122,6 +126,8 @@ lazy_static! {
         vec3_from_hex("#713d2c"),
         vec3_from_hex("#a9674e")
     ];
+
+    pub static ref MYSTERY_COLOR: Vec3b = vec3_from_hex("#393939");
 }
 
 pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
@@ -171,7 +177,7 @@ impl BottleColor {
         false
     }
 
-    fn is_mystery_pixel(pixel: &Vec3b) -> bool {
+    pub fn is_mystery_pixel(pixel: &Vec3b) -> bool {
         let b = pixel[0] as i32;
         let g = pixel[1] as i32;
         let r = pixel[2] as i32;
@@ -188,7 +194,7 @@ impl BottleColor {
     pub fn to_pixel_value(self) -> Vec3b {
         if self == BottleColor::Mystery {
             // Mystery color is a medium gray - not an actual color in the game, but useful for testing
-            return vec3_from_hex("#4f4f4f");
+            return *MYSTERY_COLOR;
         }
 
         COLOR_VALUES

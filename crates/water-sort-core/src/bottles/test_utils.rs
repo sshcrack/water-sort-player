@@ -13,23 +13,6 @@ use opencv::{core::Mat, imgcodecs, prelude::*};
 pub struct TestUtils;
 
 impl TestUtils {
-    fn parse_color_char(c: char) -> BottleColor {
-        match c {
-            'Y' => BottleColor::Yellow,
-            'R' => BottleColor::Red,
-            'G' => BottleColor::Green,
-            'g' => BottleColor::Lime,
-            'L' => BottleColor::LightBlue,
-            'M' => BottleColor::MediumBlue,
-            'B' => BottleColor::Blue,
-            'P' => BottleColor::Purple,
-            'O' => BottleColor::Orange,
-            'W' => BottleColor::Pink,
-            '?' => BottleColor::Mystery,
-            _ => panic!("Invalid color character in bottle string: {}", c),
-        }
-    }
-
     /// Load an image from the captures directory
     pub fn load_test_image(filename: &str) -> anyhow::Result<Mat> {
         let path = format!("../../captures/{}", filename);
@@ -85,11 +68,10 @@ impl TestUtils {
         let mut fills: Vec<BottleColor> = bottle_str
             .chars()
             .filter_map(|c| match c {
-                'Y' | 'R' | 'G' | 'g' | 'L' | 'M' | 'B' | 'P' | 'O' | 'W' | '?' => {
-                    Some(Self::parse_color_char(c))
-                }
                 'E' => None,
-                _ => panic!("Invalid character in bottle string: {}", c),
+                c => Some(
+                    BottleColor::from_char(c).unwrap_or_else(|| panic!("Invalid Bottle color {c}")),
+                ),
             })
             .collect();
 
@@ -113,7 +95,10 @@ impl TestUtils {
                         .chars()
                         .nth(1)
                         .expect("Hidden bottle requirement token is missing a color");
-                    let requirement = Self::parse_color_char(requirement_char);
+                    let requirement =
+                        BottleColor::from_char(requirement_char).unwrap_or_else(|| {
+                            panic!("Invalid hidden requirement color {requirement_char}")
+                        });
 
                     let mut bottle = if let Some(fills) = fills_token {
                         Bottle::from_fills(TestUtils::parse_bottle_string(fills))
