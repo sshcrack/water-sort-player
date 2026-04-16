@@ -26,7 +26,9 @@ impl SaveStatesRecorder {
         let exe_dir = current_exe
             .parent()
             .ok_or_else(|| anyhow!("failed to determine executable directory"))?;
-        let output_root = exe_dir.join("save-states");
+        let output_root = exe_dir
+            .join("save-states")
+            .join(current_time_ms()?.to_string());
         fs::create_dir_all(&output_root)?;
 
         Ok(Self {
