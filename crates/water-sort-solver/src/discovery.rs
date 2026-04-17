@@ -255,11 +255,12 @@ mod tests {
     fn test_hidden_requirement_helpers() {
         let mut bottles = TestUtils::parse_bottles_sequence("OOOR B??R EEEE");
         bottles.push(water_sort_core::bottles::Bottle::from_hidden_requirement(
-            BottleColor::Orange,
+            BottleColor::orange(),
+            None,
         ));
 
         assert_eq!(count_hidden_bottles(&bottles), 1);
-        assert!(collect_hidden_requirements(&bottles).contains(&BottleColor::Orange));
+        assert!(collect_hidden_requirements(&bottles).contains(&BottleColor::orange()));
     }
 
     #[test_log::test]

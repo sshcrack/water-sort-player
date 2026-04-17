@@ -1,10 +1,4 @@
-use crate::bottles::BottleLayout;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Pos(pub i32, pub i32);
-
-pub fn get_bottle_position(layout: &BottleLayout, index: usize) -> Pos {
-    layout
-        .get_click_position(index)
-        .unwrap_or_else(|| panic!("Invalid bottle index: {}", index))
-}

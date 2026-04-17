@@ -4,9 +4,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::bottles::{Bottle, BottleLayout, HiddenRequirement};
 use crate::constants::BottleColor;
-use crate::detect_bottles_with_layout;
+use crate::{
+    bottles::{Bottle, HiddenRequirement},
+    detect_bottles,
+};
 use opencv::{core::Mat, imgcodecs, prelude::*};
 
 /// Test utilities for bottle detection validation
@@ -26,11 +28,10 @@ impl TestUtils {
     /// Run bottle detection on a test image without drawing
     pub fn detect_bottles_from_image(
         image: &Mat,
-        layout: &BottleLayout,
         debug_filename_prefix: &str,
     ) -> anyhow::Result<Vec<Bottle>> {
         let mut frame_display = image.try_clone()?;
-        let detection_result = detect_bottles_with_layout(image, &mut frame_display, layout);
+        let detection_result = detect_bottles(image, &mut frame_display, None);
         let saved_path = Self::save_test_debug_image(&frame_display, debug_filename_prefix)?;
         println!(
             "Saved bottle detection debug image to {}",
@@ -64,14 +65,28 @@ impl TestUtils {
         Ok(path)
     }
 
-    fn parse_bottle_string(bottle_str: &str) -> Vec<BottleColor> {
+    fn bottle_color_from_char(c: char) -> BottleColor {
+        match c {
+            'R' => BottleColor::red(),
+            'O' => BottleColor::orange(),
+            'Y' => BottleColor::yellow(),
+            'G' => BottleColor::green(),
+            'g' => BottleColor::light_green(),
+            'B' => BottleColor::blue(),
+            'M' => BottleColor::medium_blue(),
+            'P' => BottleColor::purple(),
+            'W' => BottleColor::pink(),
+            'L' => BottleColor::light_blue(),
+            _ => panic!("Invalid bottle color character: {}", c),
+        }
+    }
+
+    fn parse_bottle_string_old_format(bottle_str: &str) -> Vec<BottleColor> {
         let mut fills: Vec<BottleColor> = bottle_str
             .chars()
             .filter_map(|c| match c {
                 'E' => None,
-                c => Some(
-                    BottleColor::from_char(c).unwrap_or_else(|| panic!("Invalid Bottle color {c}")),
-                ),
+                c => Some(Self::bottle_color_from_char(c)),
             })
             .collect();
 
@@ -80,7 +95,67 @@ impl TestUtils {
         fills
     }
 
-    pub fn parse_bottles_sequence(sequence: &str) -> Vec<Bottle> {
+    pub fn parse_bottles_sequence(bottle_str: &str) -> Vec<Bottle> {
+        let is_old_format = bottle_str.contains('#');
+        if is_old_format {
+            Self::parse_bottles_sequence_old_format(bottle_str)
+        } else {
+            Self::parse_bottles_sequence_new_format(bottle_str)
+        }
+    }
+
+    fn parse_bottle_string_new_format(bottle_str: &str) -> Vec<BottleColor> {
+        let mut fills: Vec<BottleColor> = bottle_str
+            .split('#')
+            .filter_map(|part| {
+                if part.is_empty() || part == "E" {
+                    None
+                } else {
+                    Some(BottleColor::from_hex(&format!("#{}", part)))
+                }
+            })
+            .collect();
+
+        // Strings are provided top->bottom; bottle fills are stored bottom->top.
+        fills.reverse();
+        fills
+    }
+
+    pub fn parse_bottles_sequence_new_format(sequence: &str) -> Vec<Bottle> {
+        sequence
+            .split_whitespace()
+            .map(|token| {
+                if token.starts_with('!') {
+                    let (requirement_token, fills_token) = token
+                        .split_once(',')
+                        .map_or((token, None), |(requirement, fills)| {
+                            (requirement, Some(fills))
+                        });
+
+                    // requirement_token is like "!#f37c1c"
+                    let requirement_hex = requirement_token.trim_start_matches('!');
+                    let requirement = BottleColor::from_hex(requirement_hex);
+
+                    let mut bottle = if let Some(fills) = fills_token {
+                        Bottle::from_fills(TestUtils::parse_bottle_string_new_format(fills), None)
+                    } else {
+                        Bottle::from_hidden_requirement(requirement, None)
+                    };
+
+                    bottle.set_hidden_requirement(if fills_token.is_some() {
+                        HiddenRequirement::Unlocked(requirement)
+                    } else {
+                        HiddenRequirement::Locked(requirement)
+                    });
+                    bottle
+                } else {
+                    Bottle::from_fills(TestUtils::parse_bottle_string_new_format(token), None)
+                }
+            })
+            .collect()
+    }
+
+    pub fn parse_bottles_sequence_old_format(sequence: &str) -> Vec<Bottle> {
         sequence
             .split_whitespace()
             .map(|token| {
@@ -95,15 +170,12 @@ impl TestUtils {
                         .chars()
                         .nth(1)
                         .expect("Hidden bottle requirement token is missing a color");
-                    let requirement =
-                        BottleColor::from_char(requirement_char).unwrap_or_else(|| {
-                            panic!("Invalid hidden requirement color {requirement_char}")
-                        });
+                    let requirement = Self::bottle_color_from_char(requirement_char);
 
                     let mut bottle = if let Some(fills) = fills_token {
-                        Bottle::from_fills(TestUtils::parse_bottle_string(fills))
+                        Bottle::from_fills(TestUtils::parse_bottle_string_old_format(fills), None)
                     } else {
-                        Bottle::from_hidden_requirement(requirement)
+                        Bottle::from_hidden_requirement(requirement, None)
                     };
 
                     bottle.set_hidden_requirement(if fills_token.is_some() {
@@ -113,7 +185,7 @@ impl TestUtils {
                     });
                     bottle
                 } else {
-                    Bottle::from_fills(TestUtils::parse_bottle_string(token))
+                    Bottle::from_fills(TestUtils::parse_bottle_string_old_format(token), None)
                 }
             })
             .collect()
@@ -151,62 +223,65 @@ mod tests {
 
     #[test_log::test]
     fn parse_bottles_sequence_supports_hidden_requirement_tokens() {
-        let bottles = TestUtils::parse_bottles_sequence("OR OB EEEE !O !B");
+        let bottles = TestUtils::parse_bottles_sequence(
+            "#df1a24#f37c1c #194af9#f37c1c EEEE !#f37c1c !#194af9",
+        );
 
         assert_eq!(bottles.len(), 5);
         assert_eq!(
             bottles[0].get_fills(),
-            vec![BottleColor::Red, BottleColor::Orange]
+            vec![BottleColor::red(), BottleColor::orange()]
         );
         assert_eq!(
             bottles[1].get_fills(),
-            vec![BottleColor::Blue, BottleColor::Orange]
+            vec![BottleColor::blue(), BottleColor::orange()]
         );
         assert!(bottles[2].is_empty());
-        assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
-        assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::Blue));
+        assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::orange()));
+        assert_eq!(bottles[4].hidden_requirement(), Some(BottleColor::blue()));
         assert_eq!(
             bottles[3].hidden_requirement_state(),
-            HiddenRequirement::Locked(BottleColor::Orange)
+            HiddenRequirement::Locked(BottleColor::orange())
         );
         assert_eq!(
             bottles[4].hidden_requirement_state(),
-            HiddenRequirement::Locked(BottleColor::Blue)
+            HiddenRequirement::Locked(BottleColor::blue())
         );
     }
 
     #[test_log::test]
     fn parse_bottles_sequence_supports_hidden_requirement_with_fills_tokens() {
-        let bottles =
-            TestUtils::parse_bottles_sequence("GGWW !P,YGRB PWBB !O,RYPW OYYB RPOP OORG EEEE EEEE");
+        let bottles = TestUtils::parse_bottles_sequence(
+            "#46de1e#46de1e#d212cc#d212cc !#8c00d9,#fbdf20#46de1e#df1a24#194af9 #8c00d9#d212cc#194af9#194af9 !#f37c1c,#df1a24#fbdf20#8c00d9#d212cc #f37c1c#fbdf20#fbdf20#194af9 #df1a24#8c00d9#f37c1c#f37c1c #f37c1c#f37c1c#df1a24#46de1e EEEE EEEE",
+        );
 
         assert_eq!(bottles.len(), 9);
-        assert_eq!(bottles[1].hidden_requirement(), Some(BottleColor::Purple));
+        assert_eq!(bottles[1].hidden_requirement(), Some(BottleColor::purple()));
         assert_eq!(
             bottles[1].hidden_requirement_state(),
-            HiddenRequirement::Unlocked(BottleColor::Purple)
+            HiddenRequirement::Unlocked(BottleColor::purple())
         );
         assert_eq!(
             bottles[1].get_fills(),
             vec![
-                BottleColor::Blue,
-                BottleColor::Red,
-                BottleColor::Green,
-                BottleColor::Yellow,
+                BottleColor::blue(),
+                BottleColor::red(),
+                BottleColor::green(),
+                BottleColor::yellow(),
             ]
         );
-        assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::Orange));
+        assert_eq!(bottles[3].hidden_requirement(), Some(BottleColor::orange()));
         assert_eq!(
             bottles[3].hidden_requirement_state(),
-            HiddenRequirement::Unlocked(BottleColor::Orange)
+            HiddenRequirement::Unlocked(BottleColor::orange())
         );
         assert_eq!(
             bottles[3].get_fills(),
             vec![
-                BottleColor::Pink,
-                BottleColor::Purple,
-                BottleColor::Yellow,
-                BottleColor::Red,
+                BottleColor::pink(),
+                BottleColor::purple(),
+                BottleColor::yellow(),
+                BottleColor::red(),
             ]
         );
     }

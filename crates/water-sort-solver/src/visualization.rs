@@ -1,14 +1,10 @@
 use opencv::{core::Mat, imgproc};
 
-use water_sort_core::{
-    bottles::{Bottle, BottleLayout},
-    constants::BottleColor,
-};
+use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
 const BOTTLE_CAPACITY: usize = 4;
 pub fn draw_revealed_fill_markers(
     frame_display: &mut Mat,
-    layout: &BottleLayout,
     current_bottle_state: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) -> anyhow::Result<()> {
@@ -29,7 +25,8 @@ pub fn draw_revealed_fill_markers(
 
             // Fill indices are bottom->top while sampling layers are top->bottom.
             let layer_index = (BOTTLE_CAPACITY - 1).saturating_sub(fill_index);
-            if let Some(sample_pos) = layout.get_sample_position(bottle_index, layer_index) {
+            //TODO
+            /* if let Some(sample_pos) = layout.get_sample_position(bottle_index, layer_index) {
                 imgproc::rectangle(
                     frame_display,
                     opencv::core::Rect::new(sample_pos.0 - 10, sample_pos.1 - 10, 20, 20),
@@ -38,7 +35,7 @@ pub fn draw_revealed_fill_markers(
                     imgproc::LINE_8,
                     0,
                 )?;
-            }
+            } */
         }
     }
 

@@ -8,7 +8,7 @@ use log::debug;
 use log::info;
 use serde::Serialize;
 use water_sort_core::{
-    bottles::{Bottle, BottleLayout, HiddenRequirement},
+    bottles::{Bottle, HiddenRequirement},
     constants::BottleColor,
 };
 use water_sort_device::CaptureDeviceBackend;
@@ -16,12 +16,18 @@ use water_sort_device::CaptureDeviceBackend;
 pub mod discovery;
 
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
-#[derive(Debug, Clone, Serialize, Copy, PartialEq, Eq)]
-pub struct Move(usize, usize);
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct Move {
+    source_idx: usize,
+    source_bottle: Bottle,
+
+    destination_idx: usize,
+    destination_bottle: Bottle,
+}
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}->{}", self.0, self.1)
+        write!(f, "{}->{}", self.source_idx, self.destination_idx)
     }
 }
 
@@ -120,6 +126,7 @@ fn reconstruct_moves(records: &[SearchRecord], mut record_index: usize) -> Vec<M
             "Reconstructing move {} for record {} with state: {}",
             records[record_index]
                 .via_move
+                .as_ref()
                 .expect("record should contain a move"),
             record_index,
             records[record_index]
@@ -129,9 +136,11 @@ fn reconstruct_moves(records: &[SearchRecord], mut record_index: usize) -> Vec<M
                 .collect::<Vec<_>>()
                 .join(" ")
         );
+
         moves.push(
             records[record_index]
                 .via_move
+                .clone()
                 .expect("record should contain a move"),
         );
         record_index = parent_index;
@@ -245,7 +254,12 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
             }
 
             let mut new_bottles = bottles.to_owned();
-            let move_to_try = Move(source_idx, destination_idx);
+            let move_to_try = Move {
+                source_idx,
+                source_bottle: source_bottle.clone(),
+                destination_idx,
+                destination_bottle: destination_bottle.clone(),
+            };
             if !move_to_try.can_perform_on_bottles(&new_bottles) {
                 /* log::trace!(
                     "Skipping move from bottle {} to bottle {} because it cannot be performed on the current state",
@@ -399,37 +413,29 @@ fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bot
 
 impl Move {
     pub fn source_index(&self) -> usize {
-        self.0
+        self.source_idx
     }
 
     pub fn destination_index(&self) -> usize {
-        self.1
+        self.destination_idx
     }
 
-    pub fn perform_move_on_device<B: CaptureDeviceBackend>(
-        &self,
-        layout: &BottleLayout,
-        device: &B,
-    ) -> Result<()> {
-        device.click_at_position(water_sort_core::position::get_bottle_position(
-            layout, self.0,
-        ))?;
-        device.click_at_position(water_sort_core::position::get_bottle_position(
-            layout, self.1,
-        ))?;
+    pub fn perform_move_on_device<B: CaptureDeviceBackend>(&self, device: &B) -> Result<()> {
+        device.click_at_position(self.source_bottle.click_position().unwrap())?;
+        device.click_at_position(self.destination_bottle.click_position().unwrap())?;
         Ok(())
     }
 
     pub fn can_perform_on_bottles(&self, bottles: &[Bottle]) -> bool {
-        if self.0 == self.1 {
+        if self.source_idx == self.destination_idx {
             return false;
         }
 
-        let Some(source_bottle) = bottles.get(self.0) else {
+        let Some(source_bottle) = bottles.get(self.source_idx) else {
             return false;
         };
 
-        let Some(destination_bottle) = bottles.get(self.1) else {
+        let Some(destination_bottle) = bottles.get(self.destination_idx) else {
             return false;
         };
 
@@ -437,13 +443,14 @@ impl Move {
     }
 
     pub fn perform_move_on_bottles(&self, bottles: &mut [Bottle]) {
-        let (source_bottle, destination_bottle) = get_two_mut_from_vec(bottles, self.0, self.1);
+        let (source_bottle, destination_bottle) =
+            get_two_mut_from_vec(bottles, self.source_idx, self.destination_idx);
         if !destination_bottle.can_fill_from(source_bottle) {
             #[cfg(feature = "discovery-debugging")]
             {
                 debug!(
                     "Invalid move: cannot pour from bottle {} to bottle {}",
-                    self.0, self.1
+                    self.source_idx, self.destination_idx
                 );
                 debug!("Source bottle: {:?}", source_bottle);
                 debug!("Destination bottle: {:?}", destination_bottle);
@@ -451,7 +458,7 @@ impl Move {
             }
             panic!(
                 "Invalid move: cannot pour from bottle {} to bottle {}",
-                self.0, self.1
+                self.source_idx, self.destination_idx
             );
         }
 
@@ -472,6 +479,7 @@ pub fn build_solver_initial_bottle_state(
             let mut new_bottle = Bottle::from_fills_with_initial(
                 max_revealed_bottle.get_fills().clone(),
                 initial_bottle.get_fills().clone(),
+                *initial_bottle.click_position(),
             );
 
             new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement_state());
@@ -605,7 +613,7 @@ mod tests {
         assert!(!bottles[0].is_hidden_and_locked());
         assert_eq!(
             bottles[0].hidden_requirement_state(),
-            HiddenRequirement::Unlocked(BottleColor::Red)
+            HiddenRequirement::Unlocked(BottleColor::red())
         );
     }
 

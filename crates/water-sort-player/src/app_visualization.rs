@@ -7,7 +7,7 @@ use opencv::{
 };
 use water_sort_core::constants::scalar_from_hex;
 
-use crate::bottles::{Bottle, BottleLayout};
+use crate::bottles::{Bottle};
 use crate::solver::Move;
 
 fn hud_background() -> Scalar {
@@ -98,8 +98,6 @@ pub struct OverlaySnapshot<'a> {
     pub discovery_queue: Option<usize>,
     pub solve_moves: &'a [Move],
     pub solve_performed_moves: usize,
-    #[cfg(feature = "solver-visualization")]
-    pub solve_layout: Option<&'a BottleLayout>,
     #[cfg(feature = "solver-visualization")]
     pub solve_current_move_index: usize,
 }
@@ -262,87 +260,6 @@ pub fn draw_state_hud(
     Ok(())
 }
 
-pub fn draw_detected_bottles_overlay(
-    frame_display: &mut Mat,
-    layout: &BottleLayout,
-    bottles: &[Bottle],
-) -> Result<()> {
-    let bottle_count = layout.bottle_count().min(bottles.len());
-
-    for (bottle_idx, bottle) in bottles.iter().enumerate().take(bottle_count) {
-        if let Some(water_sort_core::position::Pos(cx, cy)) = layout.get_click_position(bottle_idx)
-        {
-            imgproc::circle(
-                frame_display,
-                Point::new(cx, cy),
-                11,
-                if bottle.is_hidden_and_locked() {
-                    hud_progress_bg()
-                } else {
-                    detected_slot_border()
-                },
-                2,
-                imgproc::LINE_AA,
-                0,
-            )?;
-
-            if let Some(req) = bottle.hidden_requirement() {
-                imgproc::circle(
-                    frame_display,
-                    Point::new(cx, cy),
-                    5,
-                    color_to_scalar(req),
-                    imgproc::FILLED,
-                    imgproc::LINE_AA,
-                    0,
-                )?;
-                if matches!(
-                    bottle.hidden_requirement_state(),
-                    water_sort_core::HiddenRequirement::Locked(_)
-                ) {
-                    continue;
-                }
-            }
-        }
-
-        let fills = bottle.get_fills();
-        for layer_idx in 0..4 {
-            let Some(water_sort_core::position::Pos(x, y)) =
-                layout.get_sample_position(bottle_idx, layer_idx)
-            else {
-                continue;
-            };
-
-            let color = fills
-                .get(3 - layer_idx)
-                .copied()
-                .map(color_to_scalar)
-                .unwrap_or_else(detected_empty_fill);
-
-            imgproc::circle(
-                frame_display,
-                Point::new(x, y),
-                9,
-                color,
-                imgproc::FILLED,
-                imgproc::LINE_AA,
-                0,
-            )?;
-            imgproc::circle(
-                frame_display,
-                Point::new(x, y),
-                9,
-                detected_slot_border(),
-                1,
-                imgproc::LINE_AA,
-                0,
-            )?;
-        }
-    }
-
-    Ok(())
-}
-
 #[cfg(feature = "solver-visualization")]
 pub fn draw_solver_search_preview(
     frame_display: &mut Mat,
@@ -486,32 +403,6 @@ pub fn draw_solver_search_preview(
 }
 
 #[cfg(feature = "solver-visualization")]
-fn get_bottle_center_pixel(bottle_index: usize, layout: &BottleLayout) -> Option<(i32, i32)> {
-    let pos = layout.get_click_position(bottle_index)?;
-    Some((pos.0, pos.1))
-}
-
-#[cfg(feature = "solver-visualization")]
-fn get_bottle_bounds(bottle_index: usize, layout: &BottleLayout) -> Option<(i32, i32, i32, i32)> {
-    // Estimate bottle bounds based on positions
-    // Get a few sample positions to estimate bottle dimensions
-    let top_pos = layout.get_sample_position(bottle_index, 0)?;
-    let bottom_pos = layout.get_sample_position(
-        bottle_index,
-        3.min(layout.positions[bottle_index].layer_offsets.len() - 1),
-    )?;
-
-    // Calculate approximate bottle width and height
-    let bottle_width = 50i32; // Estimated bottle width
-    let x0 = top_pos.0 - bottle_width / 2;
-    let y0 = top_pos.1 - 30;
-    let x1 = x0 + bottle_width;
-    let y1 = bottom_pos.1 + 10;
-
-    Some((x0, y0, x1, y1))
-}
-
-#[cfg(feature = "solver-visualization")]
 fn draw_arrow(
     frame: &mut Mat,
     start: (i32, i32),
@@ -577,10 +468,6 @@ pub fn draw_solver_move_indicators(
     frame_display: &mut Mat,
     snapshot: &OverlaySnapshot<'_>,
 ) -> Result<()> {
-    // Only draw if we have layout and are executing moves
-    let Some(layout) = snapshot.solve_layout else {
-        return Ok(());
-    };
     if snapshot.solve_moves.is_empty() {
         return Ok(());
     }
@@ -594,42 +481,7 @@ pub fn draw_solver_move_indicators(
     let source_idx = current_move.source_index();
     let dest_idx = current_move.destination_index();
 
-    // Get pixel positions for bottles
-    let source_pos = match get_bottle_center_pixel(source_idx, layout) {
-        Some(pos) => pos,
-        None => return Ok(()),
-    };
-
-    let dest_pos = match get_bottle_center_pixel(dest_idx, layout) {
-        Some(pos) => pos,
-        None => return Ok(()),
-    };
-
-    // Draw source bottle highlight
-    if let Some((x0, y0, x1, y1)) = get_bottle_bounds(source_idx, layout) {
-        let rect = Rect::new(x0, y0, (x1 - x0).max(1), (y1 - y0).max(1));
-        imgproc::rectangle(
-            frame_display,
-            rect,
-            solver_source_highlight(),
-            4,
-            imgproc::LINE_AA,
-            0,
-        )?;
-    }
-
-    // Draw destination bottle highlight
-    if let Some((x0, y0, x1, y1)) = get_bottle_bounds(dest_idx, layout) {
-        let rect = Rect::new(x0, y0, (x1 - x0).max(1), (y1 - y0).max(1));
-        imgproc::rectangle(
-            frame_display,
-            rect,
-            solver_destination_highlight(),
-            4,
-            imgproc::LINE_AA,
-            0,
-        )?;
-    }
+    let source_pos = 
 
     // Draw arrow from source to destination
     draw_arrow(frame_display, source_pos, dest_pos, solver_arrow_color(), 3)?;

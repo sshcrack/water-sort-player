@@ -1,3 +1,6 @@
+use std::fmt::Display;
+
+use colored::Colorize;
 use lazy_static::lazy_static;
 use opencv::core::{Scalar, Vec3b};
 use serde::Serialize;
@@ -28,57 +31,100 @@ lazy_static! {
     pub static ref NO_THANK_YOU_REWARDS_COLOR: Vec3b = vec3_from_hex("#fbdcb1");
     pub static ref NEW_FEATURES_COLOR: Vec3b = vec3_from_hex("#F6BE33");
 }
+pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BottleColor {
-    Yellow,
-    Red,
-    Green,
-    Lime,
-    LightBlue,
-    MediumBlue,
-    Blue,
-    DarkBlue,
-    Purple,
-    Pink,
-    Orange,
     Mystery,
+    /// The order is b,g,r to match the OpenCV BGR format
+    Fill((u8, u8, u8)),
 }
 
 impl BottleColor {
-    pub fn to_char(self) -> char {
+    pub fn from_hex(hex: &str) -> Self {
+        let vec = vec3_from_hex(hex);
+        BottleColor::Fill((vec[0], vec[1], vec[2]))
+    }
+    pub fn to_hex(&self) -> String {
         match self {
-            BottleColor::Yellow => 'Y',
-            BottleColor::Red => 'R',
-            BottleColor::Green => 'G',
-            BottleColor::Lime => 'g',
-            BottleColor::LightBlue => 'L',
-            BottleColor::MediumBlue => 'M',
-            BottleColor::DarkBlue => 'D',
-            BottleColor::Blue => 'B',
-            BottleColor::Purple => 'P',
-            BottleColor::Pink => 'W',
-            BottleColor::Orange => 'O',
-            BottleColor::Mystery => '?',
+            BottleColor::Mystery => "?".into(),
+            BottleColor::Fill((b, g, r)) => format!("#{:02x}{:02x}{:02x}", r, g, b),
         }
     }
 
-    pub fn from_char(c: char) -> Option<Self> {
-        match c {
-            'Y' => Some(BottleColor::Yellow),
-            'R' => Some(BottleColor::Red),
-            'G' => Some(BottleColor::Green),
-            'g' => Some(BottleColor::Lime),
-            'L' => Some(BottleColor::LightBlue),
-            'M' => Some(BottleColor::MediumBlue),
-            'B' => Some(BottleColor::Blue),
-            'P' => Some(BottleColor::Purple),
-            'O' => Some(BottleColor::Orange),
-            'W' => Some(BottleColor::Pink),
-            'D' => Some(BottleColor::DarkBlue),
-            '?' => Some(BottleColor::Mystery),
-            _ => None,
+    pub fn to_pixel_value(&self) -> Vec3b {
+        match self {
+            BottleColor::Mystery => Vec3b::from([0, 0, 0]),
+            BottleColor::Fill((b, g, r)) => Vec3b::from([*b, *g, *r]),
+        }
+    }
+}
+
+impl BottleColor {
+    pub fn yellow() -> Self {
+        Self::from_hex("#fbdf20")
+    }
+
+    pub fn red() -> Self {
+        Self::from_hex("#df1a24")
+    }
+
+    pub fn green() -> Self {
+        Self::from_hex("#46de1e")
+    }
+
+    pub fn light_green() -> Self {
+        Self::from_hex("#a3ed33")
+    }
+
+    pub fn light_blue() -> Self {
+        Self::from_hex("#2cf8fe")
+    }
+
+    pub fn medium_blue() -> Self {
+        Self::from_hex("#52b7fb")
+    }
+
+    pub fn blue() -> Self {
+        Self::from_hex("#194af9")
+    }
+
+    pub fn purple() -> Self {
+        Self::from_hex("#8c00d9")
+    }
+
+    pub fn pink() -> Self {
+        Self::from_hex("#d212cc")
+    }
+
+    pub fn orange() -> Self {
+        Self::from_hex("#f37c1c")
+    }
+
+    pub fn values() -> Vec<Self> {
+        vec![
+            Self::yellow(),
+            Self::red(),
+            Self::green(),
+            Self::light_green(),
+            Self::light_blue(),
+            Self::medium_blue(),
+            Self::blue(),
+            Self::purple(),
+            Self::pink(),
+            Self::orange(),
+        ]
+    }
+}
+
+impl Display for BottleColor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BottleColor::Mystery => write!(f, "?"),
+            BottleColor::Fill((b, g, r)) => {
+                write!(f, "{}", "█".on_truecolor(*r, *g, *b))
+            }
         }
     }
 }
@@ -106,101 +152,20 @@ pub fn scalar_from_hex(hex: &str) -> Scalar {
 }
 
 lazy_static! {
-    pub static ref COLOR_VALUES: Vec<(BottleColor, Vec3b)> = vec![
-        (BottleColor::Yellow, vec3_from_hex("#fbdf20")),
-        (BottleColor::Red, vec3_from_hex("#df1a24")),
-        (BottleColor::Green, vec3_from_hex("#46de1e")),
-        (BottleColor::Lime, vec3_from_hex("#a3ed33")),
-        (BottleColor::LightBlue, vec3_from_hex("#2cf8fe")),
-        (BottleColor::MediumBlue, vec3_from_hex("#52b7fb")),
-        (BottleColor::Blue, vec3_from_hex("#194af9")),
-        (BottleColor::DarkBlue, vec3_from_hex("#434A8E")),
-        (BottleColor::Purple, vec3_from_hex("#8c00d9")),
-        (BottleColor::Pink, vec3_from_hex("#d212cc")),
-        (BottleColor::Orange, vec3_from_hex("#f37c1c"))
-    ];
     pub static ref FAILED_LEVEL_EMPTY_COLOR: Vec3b = vec3_from_hex("#331c14");
-    pub static ref CURTAIN_COLOR: Vec3b = vec3_from_hex("#FFEA4D");
-    pub static ref EMPTY_COLORS: Vec<Vec3b> = vec![
-        vec3_from_hex("#371D16"),
-        vec3_from_hex("#713d2c"),
-        vec3_from_hex("#a9674e")
+
+    /// Used for legacy to new system migration, maps the chars to the hex values and vice versa
+    pub static ref COLOR_VALUES: Vec<(char, Vec3b)> = vec![
+        ('Y', vec3_from_hex("#fbdf20")),
+        ('R', vec3_from_hex("#df1a24")),
+        ('G', vec3_from_hex("#46de1e")),
+        ('g', vec3_from_hex("#a3ed33")),
+        ('L', vec3_from_hex("#2cf8fe")),
+        ('M', vec3_from_hex("#52b7fb")),
+        ('B', vec3_from_hex("#194af9")),
+        ('D', vec3_from_hex("#434A8E")),
+        ('P', vec3_from_hex("#8c00d9")),
+        ('W', vec3_from_hex("#d212cc")),
+        ('O', vec3_from_hex("#f37c1c"))
     ];
-
-    pub static ref MYSTERY_COLOR: Vec3b = vec3_from_hex("#393939");
-}
-
-pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
-impl BottleColor {
-    pub fn from_pixel_value(pixel: Vec3b, has_failed_level: bool) -> Option<Self> {
-        if Self::is_empty_pixel(&pixel, has_failed_level) {
-            return None;
-        }
-
-        if Self::is_mystery_pixel(&pixel) {
-            return Some(BottleColor::Mystery);
-        }
-
-        let mut best_match = None;
-        for (color, target_pixel) in COLOR_VALUES.iter() {
-            let dist = color_distance_sq(&pixel, target_pixel);
-            if best_match.is_none_or(|(_, best_dist)| dist < best_dist) {
-                best_match = Some((*color, dist));
-            }
-        }
-
-        match best_match {
-            Some((color, dist)) if dist <= COLOR_DISTANCE_THRESHOLD_SQ || has_failed_level => {
-                Some(color)
-            }
-            _ => None,
-        }
-    }
-
-    #[cfg(test)]
-    pub fn values() -> Vec<BottleColor> {
-        COLOR_VALUES.iter().map(|(color, _)| *color).collect()
-    }
-
-    pub fn is_empty_pixel(pixel: &Vec3b, has_failed_level: bool) -> bool {
-        for color in EMPTY_COLORS.iter() {
-            if color_distance_sq(pixel, color) <= COLOR_DISTANCE_THRESHOLD_SQ {
-                return true;
-            }
-        }
-        if has_failed_level
-            && color_distance_sq(pixel, &FAILED_LEVEL_EMPTY_COLOR) <= COLOR_DISTANCE_THRESHOLD_SQ
-        {
-            return true;
-        }
-
-        false
-    }
-
-    pub fn is_mystery_pixel(pixel: &Vec3b) -> bool {
-        let b = pixel[0] as i32;
-        let g = pixel[1] as i32;
-        let r = pixel[2] as i32;
-
-        let max_channel = b.max(g).max(r);
-        let min_channel = b.min(g).min(r);
-        let channel_spread = max_channel - min_channel;
-        let average_brightness = (b + g + r) / 3;
-
-        // Mystery liquid appears as medium/bright neutral gray in screenshots.
-        channel_spread <= 20 && average_brightness >= 85
-    }
-
-    pub fn to_pixel_value(self) -> Vec3b {
-        if self == BottleColor::Mystery {
-            // Mystery color is a medium gray - not an actual color in the game, but useful for testing
-            return *MYSTERY_COLOR;
-        }
-
-        COLOR_VALUES
-            .iter()
-            .find(|(color, _)| *color == self)
-            .map(|(_, pixel)| *pixel)
-            .unwrap()
-    }
 }

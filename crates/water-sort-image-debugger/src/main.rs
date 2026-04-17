@@ -12,7 +12,7 @@ use opencv::{
     imgcodecs,
 };
 use water_sort_capture::bottles_to_sequence;
-use water_sort_core::{BottleLayout, detect_bottles_with_layout};
+use water_sort_core::detect_bottles;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -26,28 +26,8 @@ struct CliArgs {
     #[arg(short = 'o', long = "out", value_name = "OUT_PATH")]
     output: Option<PathBuf>,
 
-    #[arg(short = 'l', long = "layout", value_name = "LAYOUT_NAME")]
-    layout_name: Option<String>,
-
     #[arg(long, help = "Print available layout names and exit")]
     list_layouts: bool,
-}
-
-fn find_layout_by_name(name: &str) -> Result<BottleLayout> {
-    let normalized = name.to_ascii_lowercase();
-    BottleLayout::get_layouts()
-        .into_iter()
-        .find(|layout| {
-            layout.name.eq_ignore_ascii_case(name) || layout.name.to_ascii_lowercase() == normalized
-        })
-        .ok_or_else(|| {
-            let available = BottleLayout::get_layouts()
-                .into_iter()
-                .map(|layout| layout.name)
-                .collect::<Vec<_>>()
-                .join(", ");
-            anyhow!("unknown layout '{name}'. Available layouts: {available}")
-        })
 }
 
 fn default_output_path() -> Result<PathBuf> {
@@ -97,17 +77,6 @@ fn save_image(path: &Path, image: &Mat) -> Result<()> {
 fn run() -> Result<()> {
     let args = CliArgs::parse();
 
-    if args.list_layouts {
-        info!("Available layouts:");
-        for layout in BottleLayout::get_layouts() {
-            info!("  - {}", layout.name);
-        }
-
-        if args.input.is_none() {
-            return Ok(());
-        }
-    }
-
     let input_path = args
         .input
         .ok_or_else(|| anyhow!("missing input image path, use --input <path>"))?;
@@ -115,20 +84,7 @@ fn run() -> Result<()> {
     let frame_raw = load_image(&input_path)?;
     let mut frame_display = frame_raw.try_clone()?;
 
-    let layout = match args.layout_name.as_deref() {
-        Some(name) => {
-            let layout = find_layout_by_name(name)?;
-            info!("Using specified layout: {}", layout.name);
-            layout
-        }
-        None => {
-            let layout = BottleLayout::detect_layout(&frame_raw)?;
-            info!("Auto-detected layout: {}", layout.name);
-            layout
-        }
-    };
-
-    let bottles = detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout)?;
+    let bottles = detect_bottles(&frame_raw, &mut frame_display, None)?;
     info!("Detected bottles: {}", bottles_to_sequence(&bottles));
 
     let output_path = match args.output {

@@ -18,7 +18,7 @@ use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
 use crate::{
     app_visualization::{OverlaySnapshot, draw_detected_bottles_overlay, draw_state_hud},
-    bottles::{Bottle, BottleLayout, detect_bottles_with_layout},
+    bottles::{Bottle, detect_bottles},
     capture::{DiscoveryCaptureContext, frame_to_window_buffer, save_frame_png},
     constants::{RETRY_BUTTON_POS, START_BUTTON_POS},
     solver::{
@@ -693,7 +693,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                     draw_revealed_fill_markers(
                         &mut frame_display,
-                        layout,
                         &current_bottles,
                         max_revealed_bottle_state,
                     )?;
@@ -1186,7 +1185,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
             if prev_app_state.get_name() != app_state.get_name() {
                 debug!(
                     "Transitioning from state {} to state {}...",
-                    prev_app_state.get_name(), app_state.get_name()
+                    prev_app_state.get_name(),
+                    app_state.get_name()
                 );
                 debug!(
                     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

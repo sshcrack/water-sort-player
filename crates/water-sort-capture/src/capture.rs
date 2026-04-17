@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 use water_sort_core::{
     HiddenRequirement,
-    bottles::{Bottle, BottleLayout, test_utils::TestUtils},
+    bottles::{Bottle, test_utils::TestUtils},
     constants::BottleColor,
 };
 
@@ -30,8 +30,6 @@ pub struct DiscoveryLevelCapture {
     pub image_filename: String,
     pub expected_bottles: String,
     pub resolved_bottles: Option<String>,
-    pub layout_name: String,
-    pub bottle_count: usize,
     pub mystery_count_at_start: usize,
     pub captured_at_ms: u64,
 }
@@ -131,7 +129,7 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
 fn bottle_to_string(bottle: &Bottle) -> String {
     if let HiddenRequirement::Locked(requirement) = bottle.hidden_requirement_state() {
         log::warn!("Captured a hidden requirement bottle with no fills...");
-        return format!("!{}", requirement.to_char());
+        return format!("!{}", requirement.to_hex());
     }
 
     // Bottle fills are stored bottom->top. Test strings are top->bottom with 'E' for empty slots.
@@ -144,7 +142,7 @@ fn bottle_to_string(bottle: &Bottle) -> String {
     let mut out = String::with_capacity(7);
     if let Some(requirement) = bottle.hidden_requirement() {
         out.push('!');
-        out.push(requirement.to_char());
+        out.push_str(&requirement.to_hex());
         out.push(',');
     }
 
@@ -154,7 +152,7 @@ fn bottle_to_string(bottle: &Bottle) -> String {
             continue;
         }
 
-        out.push(slots[slot].to_char());
+        out.push_str(&slots[slot].to_hex());
     }
     out
 }
@@ -209,8 +207,6 @@ fn level_to_json(level: &DiscoveryLevelCapture) -> Value {
         "image_filename": level.image_filename,
         "expected_bottles": level.expected_bottles,
         "resolved_bottles": level.resolved_bottles,
-        "layout_name": level.layout_name,
-        "bottle_count": level.bottle_count,
         "mystery_count_at_start": level.mystery_count_at_start,
         "captured_at_ms": level.captured_at_ms,
     })
@@ -240,15 +236,6 @@ fn level_from_json(value: &Value) -> Option<DiscoveryLevelCapture> {
             .get("resolved_bottles")
             .and_then(Value::as_str)
             .map(str::to_string),
-        layout_name: value
-            .get("layout_name")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_string(),
-        bottle_count: value
-            .get("bottle_count")
-            .and_then(Value::as_u64)
-            .unwrap_or_default() as usize,
         mystery_count_at_start: value
             .get("mystery_count_at_start")
             .and_then(Value::as_u64)
@@ -279,7 +266,6 @@ fn upsert_discovery_capture(capture: DiscoveryLevelCapture) -> Result<()> {
 
 pub fn start_discovery_capture(
     frame: &Mat,
-    layout: &BottleLayout,
     bottles: &[Bottle],
 ) -> Result<DiscoveryCaptureContext> {
     let capture_id = next_discovery_capture_id()?;
@@ -294,8 +280,6 @@ pub fn start_discovery_capture(
             image_filename,
             expected_bottles: bottles_to_sequence(bottles),
             resolved_bottles: None,
-            layout_name: layout.name.clone(),
-            bottle_count: layout.bottle_count(),
             mystery_count_at_start: mystery_count,
             captured_at_ms,
         },
@@ -315,72 +299,4 @@ pub fn frame_to_window_buffer(frame: &Mat) -> Result<Vec<u32>> {
 pub fn save_frame_png(frame: &Mat) -> Result<PathBuf> {
     let timestamp = current_time_ms()?;
     save_png_with_filename(frame, &format!("frame-{timestamp}.png"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::bottles_to_sequence;
-    use water_sort_core::{Bottle, HiddenRequirement, constants::BottleColor};
-
-    #[test_log::test]
-    fn bottles_to_sequence_includes_hidden_requirement_tokens() {
-        let bottles = vec![
-            Bottle::from_fills(vec![BottleColor::Orange, BottleColor::Red]),
-            Bottle::from_hidden_requirement(BottleColor::Orange),
-            Bottle::from_hidden_requirement(BottleColor::Blue),
-            Bottle::default(),
-        ];
-
-        assert_eq!(bottles_to_sequence(&bottles), "EERO !O !B EEEE");
-    }
-
-    #[test_log::test]
-    fn bottles_to_sequence_formats_regular_bottles_with_hidden_filled() {
-        let mut bottles = vec![
-            Bottle::from_fills(vec![BottleColor::Red, BottleColor::Green]),
-            Bottle::from_fills(vec![BottleColor::Blue, BottleColor::Mystery]),
-        ];
-
-        let mut b = Bottle::from_fills(vec![BottleColor::Green, BottleColor::Yellow]);
-        b.set_hidden_requirement(HiddenRequirement::Unlocked(BottleColor::LightBlue));
-        bottles.push(b);
-
-        assert_eq!(bottles_to_sequence(&bottles), "EEGR EE?B !L,EEYG");
-    }
-
-    #[test_log::test]
-    fn test_bottle_parsing() {
-        let possible_colors = [
-            BottleColor::Red,
-            BottleColor::Green,
-            BottleColor::Blue,
-            BottleColor::Yellow,
-            BottleColor::Orange,
-            BottleColor::LightBlue,
-            BottleColor::Pink,
-            BottleColor::Mystery,
-        ];
-
-        for color in possible_colors {
-            let bottle = Bottle::from_fills(vec![color]);
-            let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
-            let expected_char = color.to_char();
-            assert_eq!(sequence, format!("EEE{expected_char}"));
-
-            for requirement in possible_colors {
-                let mut bottle = Bottle::from_fills(vec![color]);
-                bottle.set_hidden_requirement(HiddenRequirement::Unlocked(requirement));
-                let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
-                let expected_requirement_char = requirement.to_char();
-                assert_eq!(
-                    sequence,
-                    format!("!{expected_requirement_char},EEE{expected_char}")
-                );
-            }
-        }
-
-        let bottle = Bottle::from_hidden_requirement(BottleColor::Green);
-        let sequence = bottles_to_sequence(std::slice::from_ref(&bottle));
-        assert_eq!(sequence, "!G");
-    }
 }
