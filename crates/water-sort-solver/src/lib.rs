@@ -434,6 +434,14 @@ impl Move {
         self.destination_idx
     }
 
+    pub fn source_clickable_pos(&self) -> Option<Pos> {
+        self.source_clickable_pos
+    }
+
+    pub fn destination_clickable_pos(&self) -> Option<Pos> {
+        self.destination_clickable_pos
+    }
+
     pub fn perform_move_on_device<B: CaptureDeviceBackend>(&self, device: &B) -> Result<()> {
         device.click_at_position(
             self.source_clickable_pos

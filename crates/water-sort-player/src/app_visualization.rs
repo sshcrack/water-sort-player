@@ -524,7 +524,62 @@ pub fn draw_solver_move_indicators(
     frame_display: &mut Mat,
     snapshot: &OverlaySnapshot<'_>,
 ) -> Result<()> {
-    let _ = frame_display;
-    let _ = snapshot;
+    if snapshot.solve_moves.is_empty() {
+        return Ok(());
+    }
+
+    if snapshot.solve_current_move_index >= snapshot.solve_moves.len() {
+        return Ok(());
+    }
+
+    let current_move = &snapshot.solve_moves[snapshot.solve_current_move_index];
+    let Some(source_pos) = current_move.source_clickable_pos() else {
+        return Ok(());
+    };
+    let Some(dest_pos) = current_move.destination_clickable_pos() else {
+        return Ok(());
+    };
+
+    let source = (source_pos.0, source_pos.1);
+    let destination = (dest_pos.0, dest_pos.1);
+
+    imgproc::circle(
+        frame_display,
+        Point::new(source.0, source.1),
+        20,
+        solver_source_highlight(),
+        3,
+        imgproc::LINE_AA,
+        0,
+    )?;
+
+    imgproc::circle(
+        frame_display,
+        Point::new(destination.0, destination.1),
+        20,
+        solver_destination_highlight(),
+        3,
+        imgproc::LINE_AA,
+        0,
+    )?;
+
+    draw_arrow(frame_display, source, destination, solver_arrow_color(), 3)?;
+
+    imgproc::put_text(
+        frame_display,
+        &format!(
+            "{} -> {}",
+            current_move.source_index(),
+            current_move.destination_index()
+        ),
+        Point::new(source.0 + 14, source.1 - 14),
+        imgproc::FONT_HERSHEY_SIMPLEX,
+        0.58,
+        solver_arrow_color(),
+        2,
+        imgproc::LINE_AA,
+        false,
+    )?;
+
     Ok(())
 }
