@@ -186,7 +186,7 @@ fn draw_bottle(
     if let Some(requirement) = bottle.hidden_requirement() {
         imgproc::put_text(
             frame,
-            &format!("!{}", requirement.to_char()),
+            &format!("!{}", requirement.to_hex()),
             Point::new(x + 8, y + 20),
             imgproc::FONT_HERSHEY_DUPLEX,
             0.52,

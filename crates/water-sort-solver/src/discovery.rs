@@ -27,6 +27,7 @@ pub fn collect_hidden_requirements(bottles: &[Bottle]) -> HashSet<BottleColor> {
         .iter()
         .filter(|bottle| bottle.is_hidden_and_locked() && bottle.is_empty())
         .filter_map(Bottle::hidden_requirement)
+        .filter(|color| *color != BottleColor::Empty)
         .collect()
 }
 
@@ -275,7 +276,7 @@ mod tests {
                 assert!(
                     next_state
                         .iter()
-                        .any(|bottle| bottle.solved_color() == Some(BottleColor::Orange))
+                        .any(|bottle| bottle.solved_color() == Some(BottleColor::orange()))
                 );
             }
             other => panic!(

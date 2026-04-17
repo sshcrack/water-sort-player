@@ -174,7 +174,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
         }
     };
     let mut previous_right_click = false;
-    let mut active_layout: Option<BottleLayout> = None;
     let mut latest_detected_bottles: Option<Vec<Bottle>> = None;
     let mut discovery_capture: Option<DiscoveryCaptureContext> = None;
     #[cfg(feature = "save-states")]
@@ -261,20 +260,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
             } => {
                 if now >= *trigger_at {
                     info!("Detecting bottles for new level...");
-                    let layout = match BottleLayout::detect_layout(&frame_raw) {
-                        Ok(layout) => layout,
-                        Err(error) => {
-                            return Err(anyhow!(
-                                "Layout detection failed with error: {:?}. Cannot proceed without layout.",
-                                error
-                            ));
-                        }
-                    };
-                    let bottles =
-                        detect_bottles_with_layout(&frame_raw, &mut frame_display, &layout);
+                    let bottles = detect_bottles(&frame_raw, &mut frame_display, None);
                     match bottles {
                         Ok(detected_bottles) => {
-                            active_layout = Some(layout.clone());
                             latest_detected_bottles = Some(detected_bottles.clone());
                             app_state = AppState::AwaitPostDetectionPlan {
                                 trigger_at: now + POST_DETECTION_WAIT,
@@ -311,9 +299,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
             } => {
                 if now >= *trigger_at {
                     let detected_bottles = detected_bottles.clone();
-                    let layout = require_active_layout(&active_layout, "post-detection planning")?;
                     discovery_capture =
-                        maybe_start_discovery_capture(&frame_raw, layout, &detected_bottles);
+                        maybe_start_discovery_capture(&frame_raw, &detected_bottles);
 
                     // Check if there are any mystery colors
                     let mystery_count = discovery::count_total_mystery_colors(&detected_bottles);
@@ -397,10 +384,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let layout = require_active_layout(&active_layout, "hidden bottle discovery")?;
-
-                    let current_bottles =
-                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -652,10 +636,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let layout = require_active_layout(&active_layout, "discovery move execution")?;
-
-                    let current_bottles =
-                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -890,11 +871,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let layout =
-                        require_active_layout(&active_layout, "hidden bottle move execution")?;
-
-                    let current_bottles =
-                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -944,7 +921,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     } else {
                         let next_move = moves_to_execute.remove(0);
                         let reveal_wait_needed =
-                            move_satisfies_hidden_requirement(&current_bottles, next_move);
+                            move_satisfies_hidden_requirement(&current_bottles, &next_move);
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
@@ -964,7 +941,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             info!("Press enter to perform the next move...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
-                        next_move.perform_move_on_device(layout, &capture)?;
+                        next_move.perform_move_on_device(&capture)?;
 
                         current_moves.push(next_move);
                         *trigger_at = Instant::now()
@@ -994,10 +971,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let layout = require_active_layout(&active_layout, "discovery move execution")?;
-
-                    let current_bottles =
-                        detect_bottles_with_layout(&frame_raw, &mut frame_display, layout);
+                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -1045,7 +1019,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     latest_detected_bottles = Some(current_bottles.clone());
                     draw_revealed_fill_markers(
                         &mut frame_display,
-                        layout,
                         &current_bottles,
                         max_revealed_bottle_state,
                     )?;
@@ -1062,7 +1035,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     } else {
                         let next_move = moves_to_execute.remove(0);
                         let reveal_wait_needed =
-                            move_satisfies_hidden_requirement(&current_bottles, next_move);
+                            move_satisfies_hidden_requirement(&current_bottles, &next_move);
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
                                 "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
@@ -1089,7 +1062,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             info!("Press enter to perform the next move...");
                             std::io::stdin().read_line(&mut String::new()).unwrap();
                         }
-                        next_move.perform_move_on_device(layout, &capture)?;
+                        next_move.perform_move_on_device(&capture)?;
 
                         // Remove the executed move from the list
                         current_moves.push(next_move);
@@ -1109,19 +1082,17 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 performed_moves,
                 next_move_at,
             } => {
-                if let Some(next) = planned_moves.get(*performed_moves).copied() {
+                if let Some(next) = planned_moves.get(*performed_moves).cloned() {
                     if now >= *next_move_at {
                         info!("Performing move: {:?}.", next);
-                        let layout = require_active_layout(&active_layout, "solve move execution")?;
-
-                        let use_hidden_reveal_delay = match detect_bottles_with_layout(
+                        let use_hidden_reveal_delay = match detect_bottles(
                             &frame_raw,
                             &mut frame_display,
-                            layout,
+                            None,
                         ) {
                             Ok(current_bottles) => {
                                 latest_detected_bottles = Some(current_bottles.clone());
-                                move_satisfies_hidden_requirement(&current_bottles, next)
+                                move_satisfies_hidden_requirement(&current_bottles, &next)
                             }
                             Err(error) => {
                                 warn!(
@@ -1132,7 +1103,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             }
                         };
 
-                        next.perform_move_on_device(layout, &capture)?;
+                        next.perform_move_on_device(&capture)?;
                         *performed_moves += 1;
                         *next_move_at = now
                             + if use_hidden_reveal_delay {
@@ -1172,11 +1143,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
             }
         }
 
-        let overlay_snapshot = build_overlay_snapshot(&app_state, now, &active_layout);
+        let overlay_snapshot = build_overlay_snapshot(&app_state, now);
 
-        if let (Some(layout), Some(bottles)) = (&active_layout, latest_detected_bottles.as_deref())
-        {
-            draw_detected_bottles_overlay(&mut frame_display, layout, bottles)?;
+        if let Some(bottles) = latest_detected_bottles.as_deref() {
+            draw_detected_bottles_overlay(&mut frame_display, bottles)?;
         }
 
         draw_state_hud(&mut frame_display, width, &overlay_snapshot)?;
@@ -1211,15 +1181,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn require_active_layout<'a>(
-    active_layout: &'a Option<BottleLayout>,
-    context: &str,
-) -> Result<&'a BottleLayout> {
-    active_layout
-        .as_ref()
-        .ok_or_else(|| anyhow!("No active layout available for {}.", context))
 }
 
 fn solve_with_visualization(
@@ -1299,7 +1260,7 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
     }
 }
 
-fn move_satisfies_hidden_requirement(current_bottles: &[Bottle], mv: Move) -> bool {
+fn move_satisfies_hidden_requirement(current_bottles: &[Bottle], mv: &Move) -> bool {
     let hidden_requirements = collect_hidden_requirements(current_bottles);
     if hidden_requirements.is_empty() || !mv.can_perform_on_bottles(current_bottles) {
         return false;
@@ -1317,12 +1278,11 @@ fn move_satisfies_hidden_requirement(current_bottles: &[Bottle], mv: Move) -> bo
 
 fn maybe_start_discovery_capture(
     frame_raw: &Mat,
-    layout: &BottleLayout,
     detected_bottles: &[Bottle],
 ) -> Option<DiscoveryCaptureContext> {
     #[cfg(feature = "collect-test-data")]
     {
-        match start_discovery_capture(frame_raw, layout, detected_bottles) {
+        match start_discovery_capture(frame_raw, detected_bottles) {
             Ok(capture_context) => Some(capture_context),
             Err(error) => {
                 warn!("Failed to start discovery capture: {:?}", error);
@@ -1333,7 +1293,7 @@ fn maybe_start_discovery_capture(
 
     #[cfg(not(feature = "collect-test-data"))]
     {
-        let _ = (frame_raw, layout, detected_bottles);
+        let _ = (frame_raw, detected_bottles);
         None
     }
 }
@@ -1376,12 +1336,7 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
     }
 }
 
-fn build_overlay_snapshot<'a>(
-    app_state: &'a AppState,
-    now: Instant,
-    #[cfg(feature = "solver-visualization")] active_layout: &'a Option<BottleLayout>,
-    #[cfg(not(feature = "solver-visualization"))] _active_layout: &'a Option<BottleLayout>,
-) -> OverlaySnapshot<'a> {
+fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlaySnapshot<'a> {
     match app_state {
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
             phase: "WaitingToPressStart".to_string(),
@@ -1393,8 +1348,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
@@ -1409,8 +1362,6 @@ fn build_overlay_snapshot<'a>(
             solve_moves: &[],
             solve_performed_moves: 0,
             #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
-            #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
         AppState::ClickNextLevel { trigger_at } => OverlaySnapshot {
@@ -1424,8 +1375,6 @@ fn build_overlay_snapshot<'a>(
             solve_moves: &[],
             solve_performed_moves: 0,
             #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
-            #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
         AppState::CheckForRewards { trigger_at } => OverlaySnapshot {
@@ -1438,8 +1387,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
@@ -1464,8 +1411,6 @@ fn build_overlay_snapshot<'a>(
             solve_moves: &[],
             solve_performed_moves: 0,
             #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
-            #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
         AppState::AwaitPostDetectionPlan { trigger_at, .. } => OverlaySnapshot {
@@ -1478,8 +1423,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
@@ -1497,8 +1440,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: Some(0),
             solve_moves: &[],
             solve_performed_moves: 0,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
@@ -1518,8 +1459,6 @@ fn build_overlay_snapshot<'a>(
             solve_moves: &[],
             solve_performed_moves: 0,
             #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
-            #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
         AppState::MysteryDiscoverColors {
@@ -1537,8 +1476,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: Some(0),
             solve_moves: &[],
             solve_performed_moves: 0,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
@@ -1558,8 +1495,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: Some(moves_to_execute.len()),
             solve_moves: &[],
             solve_performed_moves: 0,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: None,
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: 0,
         },
@@ -1581,8 +1516,6 @@ fn build_overlay_snapshot<'a>(
             discovery_queue: None,
             solve_moves: planned_moves.as_slice(),
             solve_performed_moves: *performed_moves,
-            #[cfg(feature = "solver-visualization")]
-            solve_layout: active_layout.as_ref(),
             #[cfg(feature = "solver-visualization")]
             solve_current_move_index: *performed_moves,
         },

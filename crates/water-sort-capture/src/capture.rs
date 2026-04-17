@@ -264,10 +264,7 @@ fn upsert_discovery_capture(capture: DiscoveryLevelCapture) -> Result<()> {
     write_discovery_manifest(&manifest)
 }
 
-pub fn start_discovery_capture(
-    frame: &Mat,
-    bottles: &[Bottle],
-) -> Result<DiscoveryCaptureContext> {
+pub fn start_discovery_capture(frame: &Mat, bottles: &[Bottle]) -> Result<DiscoveryCaptureContext> {
     let capture_id = next_discovery_capture_id()?;
     let captured_at_ms = current_time_ms()?;
     let image_filename = format!("discovery-level-{capture_id}.png");

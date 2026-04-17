@@ -67,12 +67,15 @@ impl TestUtils {
 
     fn bottle_color_from_char(c: char) -> BottleColor {
         match c {
+            'E' => BottleColor::Empty,
+            '?' => BottleColor::Mystery,
             'R' => BottleColor::red(),
             'O' => BottleColor::orange(),
             'Y' => BottleColor::yellow(),
             'G' => BottleColor::green(),
             'g' => BottleColor::light_green(),
             'B' => BottleColor::blue(),
+            'D' => BottleColor::medium_blue(),
             'M' => BottleColor::medium_blue(),
             'P' => BottleColor::purple(),
             'W' => BottleColor::pink(),
@@ -84,10 +87,7 @@ impl TestUtils {
     fn parse_bottle_string_old_format(bottle_str: &str) -> Vec<BottleColor> {
         let mut fills: Vec<BottleColor> = bottle_str
             .chars()
-            .filter_map(|c| match c {
-                'E' => None,
-                c => Some(Self::bottle_color_from_char(c)),
-            })
+            .map(Self::bottle_color_from_char)
             .collect();
 
         // Strings are provided top->bottom; bottle fills are stored bottom->top.
@@ -96,15 +96,19 @@ impl TestUtils {
     }
 
     pub fn parse_bottles_sequence(bottle_str: &str) -> Vec<Bottle> {
-        let is_old_format = bottle_str.contains('#');
-        if is_old_format {
-            Self::parse_bottles_sequence_old_format(bottle_str)
-        } else {
+        let is_new_format = bottle_str.contains('#');
+        if is_new_format {
             Self::parse_bottles_sequence_new_format(bottle_str)
+        } else {
+            Self::parse_bottles_sequence_old_format(bottle_str)
         }
     }
 
     fn parse_bottle_string_new_format(bottle_str: &str) -> Vec<BottleColor> {
+        if bottle_str.chars().all(|c| c == 'E') {
+            return vec![BottleColor::Empty; 4];
+        }
+
         let mut fills: Vec<BottleColor> = bottle_str
             .split('#')
             .filter_map(|part| {

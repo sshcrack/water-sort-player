@@ -3,6 +3,8 @@ use std::{fmt::Display, iter};
 use colored::Colorize;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 
+pub mod detection;
+pub mod empty_bottle_color_detection;
 #[cfg(test)]
 mod specific_tests;
 pub mod test_utils;
@@ -19,7 +21,7 @@ pub enum HiddenRequirement {
     Unlocked(BottleColor),
 }
 
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     // The boolean indicates whether the initial color was mystery, to properly handle filling in the solver
@@ -29,16 +31,67 @@ pub struct Bottle {
     click_position: Option<crate::Pos>,
 }
 
+impl Default for Bottle {
+    fn default() -> Self {
+        Bottle {
+            fills: vec![(BottleColor::Empty, false); FULL_BOTTLE_COUNT],
+            hidden_requirement: HiddenRequirement::None,
+            click_position: None,
+        }
+    }
+}
+
 // Remove hardcoded constants - using layouts now
 const FULL_BOTTLE_COUNT: usize = 4;
 
 impl Bottle {
+    fn normalize_fills(mut fills: Vec<BottleColor>) -> Vec<(BottleColor, bool)> {
+        let mut normalized = fills
+            .drain(..)
+            .filter(|color| !color.is_empty())
+            .map(|color| (color, color == BottleColor::Mystery))
+            .collect::<Vec<_>>();
+
+        while normalized.len() < FULL_BOTTLE_COUNT {
+            normalized.push((BottleColor::Empty, false));
+        }
+
+        normalized.truncate(FULL_BOTTLE_COUNT);
+        normalized
+    }
+
+    fn normalize_fills_with_initial(
+        fills: Vec<BottleColor>,
+        initial: Vec<BottleColor>,
+    ) -> Vec<(BottleColor, bool)> {
+        let mut normalized = fills
+            .into_iter()
+            .zip(
+                initial
+                    .into_iter()
+                    .map(Some)
+                    .chain(iter::repeat_with(|| None)),
+            )
+            .map(|(color, initial_color)| {
+                (
+                    color,
+                    initial_color.is_some_and(|e| e == BottleColor::Mystery),
+                )
+            })
+            .filter(|(color, _)| !color.is_empty())
+            .collect::<Vec<_>>();
+
+        while normalized.len() < FULL_BOTTLE_COUNT {
+            normalized.push((BottleColor::Empty, false));
+        }
+
+        normalized.truncate(FULL_BOTTLE_COUNT);
+        normalized
+    }
+
     pub fn from_fills(fills: Vec<BottleColor>, click_position: Option<crate::Pos>) -> Self {
         Bottle {
-            fills: fills
-                .into_iter()
-                .map(|color| (color, color == BottleColor::Mystery))
-                .collect(),
+            fills: Self::normalize_fills(fills),
             hidden_requirement: HiddenRequirement::None,
             click_position,
         }
@@ -49,22 +102,8 @@ impl Bottle {
         initial: Vec<BottleColor>,
         click_position: Option<crate::Pos>,
     ) -> Self {
-        let initial_with_fallback = initial
-            .into_iter()
-            .map(Some)
-            .chain(iter::repeat_with(|| None));
-
         Bottle {
-            fills: fills
-                .into_iter()
-                .zip(initial_with_fallback)
-                .map(|(color, initial_color)| {
-                    (
-                        color,
-                        initial_color.is_some_and(|e| e == BottleColor::Mystery),
-                    )
-                })
-                .collect(),
+            fills: Self::normalize_fills_with_initial(fills, initial),
             hidden_requirement: HiddenRequirement::None,
             click_position,
         }
@@ -75,7 +114,7 @@ impl Bottle {
         click_position: Option<crate::Pos>,
     ) -> Self {
         Bottle {
-            fills: Vec::new(),
+            fills: vec![(BottleColor::Empty, false); FULL_BOTTLE_COUNT],
             hidden_requirement: HiddenRequirement::Locked(requirement),
             click_position,
         }
@@ -86,7 +125,7 @@ impl Bottle {
         click_position: Option<crate::Pos>,
     ) -> Self {
         Bottle {
-            fills: Vec::new(),
+            fills: vec![(BottleColor::Empty, false); FULL_BOTTLE_COUNT],
             hidden_requirement: HiddenRequirement::Unlocked(requirement),
             click_position,
         }
@@ -148,39 +187,43 @@ impl Bottle {
             return None;
         }
 
-        let mut last_fill = None;
-        let mut amount = 0;
+        let top_non_empty_index = self
+            .fills
+            .iter()
+            .rposition(|(color, _)| !color.is_empty())?;
 
-        for (i, (color, was_mystery)) in self.fills.iter().rev().enumerate() {
-            if i == 0 {
-                last_fill = Some(color);
-                amount = 1;
-                if *was_mystery {
-                    break;
-                }
-            } else if Some(color) == last_fill {
-                if *was_mystery {
-                    break;
-                }
-                amount += 1;
-            } else {
+        let top_color = self.fills[top_non_empty_index].0;
+        let mut amount = 1;
+
+        for index in (0..top_non_empty_index).rev() {
+            let (color, was_mystery) = self.fills[index];
+            if color != top_color || color.is_empty() {
+                break;
+            }
+
+            amount += 1;
+
+            if was_mystery {
                 break;
             }
         }
 
-        last_fill.map(|color| (amount, *color))
+        Some((amount, top_color))
     }
 
     pub fn is_full(&self) -> bool {
-        self.fills.len() >= FULL_BOTTLE_COUNT
+        self.get_fill_count() >= FULL_BOTTLE_COUNT
     }
 
     pub fn get_fill_count(&self) -> usize {
-        self.fills.len()
+        self.fills
+            .iter()
+            .filter(|(color, _)| !color.is_empty())
+            .count()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.fills.is_empty()
+        self.get_fill_count() == 0
     }
 
     pub fn is_solved(&self) -> bool {
@@ -192,10 +235,13 @@ impl Bottle {
             return false;
         }
 
-        let (first_color, _) = self.fills[0];
-        self.fills
-            .iter()
-            .all(|&(color, _)| color == first_color && color != BottleColor::Mystery)
+        let Some((first_color, _)) = self.fills.iter().find(|(color, _)| !color.is_empty()) else {
+            return false;
+        };
+
+        self.fills.iter().all(|&(color, _)| {
+            !color.is_empty() && color == *first_color && color != BottleColor::Mystery
+        })
     }
 
     pub fn solved_color(&self) -> Option<BottleColor> {
@@ -220,22 +266,26 @@ impl Bottle {
             None => return false,
         };
 
-        if self.is_empty() {
-            return true;
+        if other_top_color == BottleColor::Mystery || other_top_color == BottleColor::Empty {
+            return false;
         }
 
         let (_, self_top_color) = match self.get_top_fill() {
             Some((amount, color)) => (amount, color),
             None => {
-                unreachable!("This should never happen since we already checked if self is empty")
+                return true;
             }
         };
 
-        if self_top_color != other_top_color {
+        if self_top_color == BottleColor::Mystery || self_top_color == BottleColor::Empty {
             return false;
         }
 
-        if self_top_color == BottleColor::Mystery || other_top_color == BottleColor::Mystery {
+        if self.is_empty() {
+            return true;
+        }
+
+        if self_top_color != other_top_color {
             return false;
         }
 
@@ -249,17 +299,28 @@ impl Bottle {
 
         let (source_top_amount, source_top_color) = source.get_top_fill().unwrap();
 
-        let available_space = FULL_BOTTLE_COUNT - self.get_fill_count();
+        let destination_fill_count = self.get_fill_count();
+        let source_fill_count = source.get_fill_count();
+        let available_space = FULL_BOTTLE_COUNT - destination_fill_count;
         if available_space < source_top_amount {
             panic!("Not enough space in the destination bottle to fill from the source");
         }
 
-        for _ in 0..source_top_amount {
-            self.fills.push((source_top_color, false));
-            source.fills.pop();
+        for index in destination_fill_count..(destination_fill_count + source_top_amount) {
+            if index < self.fills.len() {
+                self.fills[index] = (source_top_color, false);
+            } else {
+                self.fills.push((source_top_color, false));
+            }
+        }
+
+        for index in (source_fill_count - source_top_amount)..source_fill_count {
+            if index < source.fills.len() {
+                source.fills[index] = (BottleColor::Empty, false);
+            }
         }
     }
-    
+
     pub fn click_position(&self) -> &Option<crate::Pos> {
         &self.click_position
     }
@@ -322,9 +383,5 @@ pub fn detect_bottles(
     frame_display: &mut Mat,
     seen_colors: Option<&[Vec<BottleColor>]>,
 ) -> anyhow::Result<Vec<Bottle>> {
-    let mut bottles: Vec<Bottle> = Vec::new();
-
-    // If seen colors is set, try to match the detected bottles colors to the seen colors and if they are not in a reasonable HSV range, use the avg color value of them instead
-
-    todo!()
+    detection::detect_bottles(frame_raw, frame_display, seen_colors)
 }

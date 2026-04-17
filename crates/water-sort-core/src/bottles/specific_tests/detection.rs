@@ -1,4 +1,4 @@
-use crate::bottles::{test_utils::TestUtils};
+use crate::bottles::test_utils::TestUtils;
 
 macro_rules! detect_bottles_with_saved_frame {
     ($image:expr, $debug_prefix:expr) => {{ TestUtils::detect_bottles_from_image(&$image, $debug_prefix) }};
@@ -143,4 +143,3 @@ create_bottle_detection_test!(
     "detection/dark-blue-bottle.png",
     "EB?L EP?? EEWL EELD EB?? EP?P !D !L !D !L !D"
 );
-

@@ -36,6 +36,7 @@ pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BottleColor {
+    Empty,
     Mystery,
     /// The order is b,g,r to match the OpenCV BGR format
     Fill((u8, u8, u8)),
@@ -48,6 +49,7 @@ impl BottleColor {
     }
     pub fn to_hex(&self) -> String {
         match self {
+            BottleColor::Empty => "E".into(),
             BottleColor::Mystery => "?".into(),
             BottleColor::Fill((b, g, r)) => format!("#{:02x}{:02x}{:02x}", r, g, b),
         }
@@ -55,9 +57,14 @@ impl BottleColor {
 
     pub fn to_pixel_value(&self) -> Vec3b {
         match self {
+            BottleColor::Empty => FAILED_LEVEL_EMPTY_COLOR.clone(),
             BottleColor::Mystery => Vec3b::from([0, 0, 0]),
             BottleColor::Fill((b, g, r)) => Vec3b::from([*b, *g, *r]),
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        matches!(self, BottleColor::Empty)
     }
 }
 
@@ -121,6 +128,7 @@ impl BottleColor {
 impl Display for BottleColor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            BottleColor::Empty => write!(f, "E"),
             BottleColor::Mystery => write!(f, "?"),
             BottleColor::Fill((b, g, r)) => {
                 write!(f, "{}", "█".on_truecolor(*r, *g, *b))

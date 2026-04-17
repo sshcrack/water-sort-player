@@ -3,8 +3,6 @@ use std::collections::HashSet;
 use water_sort_solver::build_solver_initial_bottle_state;
 use water_sort_solver::discovery::improve_current_and_initial_bottles_with_revealed_state;
 
-use crate::bottles::BottleLayout;
-
 use crate::{
     bottles::Bottle,
     constants::BottleColor,
@@ -17,16 +15,6 @@ use crate::{
     },
 };
 
-fn get_layout_from_bottle_count(count: usize) -> BottleLayout {
-    for ele in BottleLayout::get_layouts() {
-        if ele.bottle_count() == count {
-            return ele;
-        }
-    }
-
-    panic!("No layout found for bottle count: {}", count);
-}
-
 macro_rules! create_test_level {
     ($level:literal, $bottles:expr) => {
         create_test_level!(false, $level, $bottles);
@@ -37,7 +25,6 @@ macro_rules! create_test_level {
     ($no_solve:expr, $level:literal, $bottles:expr) => {
         paste::paste! {
             mod [<level_ $level>] {
-                use super::*;
                 macro_rules! load_level_image {
                     () => {{
                         match crate::bottles::test_utils::TestUtils::load_test_image(&format!("level-{}.png", $level)) {
@@ -72,24 +59,11 @@ macro_rules! create_test_level {
                 }
 
                 #[test_log::test]
-                fn layout_detection() {
-                    let image = load_level_image!();
-
-                    let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
-                    let detected_layout = crate::bottles::BottleLayout::detect_layout(&image)
-                        .expect("Failed to detect bottle layout");
-
-                    assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for level {}", $level);
-                }
-
-                #[test_log::test]
                 fn bottle_detection() {
                     let image = load_level_image!();
 
-                    let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
                     let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(
                         &image,
-                        &expected_layout,
                         &format!("level-{}-bottle-detection", $level),
                     )
                         .expect("Failed to detect bottles from image");
@@ -169,25 +143,11 @@ macro_rules! create_generated_test_level {
                 }
 
                 #[test_log::test]
-                fn layout_detection() {
-                    let image = load_capture_image!();
-
-                    let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
-                    let detected_layout = crate::bottles::BottleLayout::detect_layout(&image)
-                        .expect("Failed to detect bottle layout");
-
-                    assert_eq!(detected_layout, expected_layout, "Detected layout does not match expected layout for captured level {}", $capture_id);
-                }
-
-                #[test_log::test]
                 fn bottle_detection() {
                     let image = load_capture_image!();
 
-                    let expected_layout = get_layout_from_bottle_count(PARSED_BOTTLES.len());
-                    println!("Expected layout for captured level {}: {:?}", $capture_id, expected_layout.name);
                     let detected_bottles = crate::bottles::test_utils::TestUtils::detect_bottles_from_image(
                         &image,
-                        &expected_layout,
                         &format!("captured-level-{}-bottle-detection", $capture_id),
                     )
                         .expect("Failed to detect bottles from image");
@@ -287,7 +247,11 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         reveal_hidden_observed(&mut current_state, resolved);
         improve_revealed_hidden_bottles(&mut max_revealed, &current_state);
 
-        improve_current_and_initial_bottles_with_revealed_state(&mut current_state, &mut initial,&max_revealed);
+        improve_current_and_initial_bottles_with_revealed_state(
+            &mut current_state,
+            &mut initial,
+            &max_revealed,
+        );
         let mut mystery_failed = false;
         if count_total_mystery_colors(&current_state) > 0 {
             match find_best_discovery_moves(&current_state, &max_revealed) {
@@ -362,7 +326,11 @@ fn run_discovery_simulation(initial: &[Bottle], resolved: &[Bottle]) -> Vec<Bott
         if mystery_failed && hidden_bottle_failed {
             println!("No more discovery moves found, simulating restart...");
             current_state = initial.to_vec();
-            improve_current_and_initial_bottles_with_revealed_state(&mut current_state, &mut initial,&max_revealed);
+            improve_current_and_initial_bottles_with_revealed_state(
+                &mut current_state,
+                &mut initial,
+                &max_revealed,
+            );
             println!(
                 "State after restart: {}",
                 current_state
@@ -418,7 +386,7 @@ fn reveal_hidden_observed(current: &mut [Bottle], fully_resolved: &[Bottle]) {
             };
 
             if solved_colors.contains(&requirement) && current_bottle.is_hidden_and_locked() {
-                *current_bottle = Bottle::from_fills(resolved_bottle.get_fills());
+                *current_bottle = Bottle::from_fills(resolved_bottle.get_fills(), None);
                 current_bottle.set_hidden_requirement(crate::bottles::HiddenRequirement::Unlocked(
                     requirement,
                 ));

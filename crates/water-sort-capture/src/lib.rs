@@ -15,7 +15,10 @@ pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
             for (initial_color, resolved_color) in
                 initial.get_fills().iter().zip(resolved.get_fills().iter())
             {
-                if initial_color != &BottleColor::Mystery && initial_color != resolved_color {
+                if initial_color != &BottleColor::Mystery
+                    && initial_color != &BottleColor::Empty
+                    && initial_color != resolved_color
+                {
                     log::debug!(
                         "Invalid level: initial color {:?} does not match resolved color {:?}",
                         initial_color,
@@ -64,7 +67,7 @@ pub fn is_level_valid(initial: &[Bottle], resolved: &[Bottle]) -> bool {
     let mut resolved_color_count: HashMap<BottleColor, usize> = HashMap::new();
     resolved.iter().for_each(|bottle| {
         bottle.get_fills().iter().for_each(|color| {
-            if *color != BottleColor::Mystery {
+            if *color != BottleColor::Mystery && *color != BottleColor::Empty {
                 *resolved_color_count.entry(*color).or_insert(0) += 1;
             }
         });

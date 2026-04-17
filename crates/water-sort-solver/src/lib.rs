@@ -7,6 +7,7 @@ use anyhow::Result;
 use log::debug;
 use log::info;
 use serde::Serialize;
+use water_sort_core::Pos;
 use water_sort_core::{
     bottles::{Bottle, HiddenRequirement},
     constants::BottleColor,
@@ -19,10 +20,10 @@ pub mod discovery;
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Move {
     source_idx: usize,
-    source_bottle: Bottle,
+    source_clickable_pos: Option<Pos>,
 
     destination_idx: usize,
-    destination_bottle: Bottle,
+    destination_clickable_pos: Option<Pos>,
 }
 
 impl Display for Move {
@@ -97,7 +98,11 @@ fn canonical_state_key(bottles: &[Bottle]) -> CanonicalStateKey {
 }
 
 fn bottle_run_count(bottle: &Bottle) -> usize {
-    let fills = bottle.get_fills();
+    let fills = bottle
+        .get_fills()
+        .into_iter()
+        .filter(|color| *color != BottleColor::Empty)
+        .collect::<Vec<_>>();
 
     if fills.is_empty() {
         return 0;
@@ -151,9 +156,18 @@ fn reconstruct_moves(records: &[SearchRecord], mut record_index: usize) -> Vec<M
 }
 
 fn is_single_color_bottle(bottle: &Bottle) -> bool {
-    let fills = bottle.get_fills();
-    let hash_set = std::collections::HashSet::<&BottleColor>::from_iter(fills.iter());
-    hash_set.len() == 1 && hash_set.iter().next() != Some(&&BottleColor::Mystery)
+    let fills = bottle
+        .get_fills()
+        .into_iter()
+        .filter(|color| *color != BottleColor::Empty)
+        .collect::<Vec<_>>();
+
+    if fills.is_empty() {
+        return false;
+    }
+
+    let hash_set = std::collections::HashSet::<BottleColor>::from_iter(fills.into_iter());
+    hash_set.len() == 1 && !hash_set.contains(&BottleColor::Mystery)
 }
 
 fn unlock_hidden_bottles_with_solved_colors(bottles: &mut [Bottle]) {
@@ -256,9 +270,9 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
             let mut new_bottles = bottles.to_owned();
             let move_to_try = Move {
                 source_idx,
-                source_bottle: source_bottle.clone(),
+                source_clickable_pos: *source_bottle.click_position(),
                 destination_idx,
-                destination_bottle: destination_bottle.clone(),
+                destination_clickable_pos: *destination_bottle.click_position(),
             };
             if !move_to_try.can_perform_on_bottles(&new_bottles) {
                 /* log::trace!(
@@ -421,8 +435,14 @@ impl Move {
     }
 
     pub fn perform_move_on_device<B: CaptureDeviceBackend>(&self, device: &B) -> Result<()> {
-        device.click_at_position(self.source_bottle.click_position().unwrap())?;
-        device.click_at_position(self.destination_bottle.click_position().unwrap())?;
+        device.click_at_position(
+            self.source_clickable_pos
+                .expect("Source clickable pos must be set to perform move on device"),
+        )?;
+        device.click_at_position(
+            self.destination_clickable_pos
+                .expect("Destination clickable pos must be set to perform move on device"),
+        )?;
         Ok(())
     }
 

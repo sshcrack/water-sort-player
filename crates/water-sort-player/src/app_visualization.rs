@@ -7,7 +7,7 @@ use opencv::{
 };
 use water_sort_core::constants::scalar_from_hex;
 
-use crate::bottles::{Bottle};
+use crate::bottles::Bottle;
 use crate::solver::Move;
 
 fn hud_background() -> Scalar {
@@ -260,6 +260,62 @@ pub fn draw_state_hud(
     Ok(())
 }
 
+pub fn draw_detected_bottles_overlay(frame_display: &mut Mat, bottles: &[Bottle]) -> Result<()> {
+    let slot_size = 12;
+    for bottle in bottles {
+        let Some(click_pos) = *bottle.click_position() else {
+            continue;
+        };
+
+        // Layer preview spacing mirrors runtime bottle fill spacing and stays dynamic per bottle center.
+        let layer_spacing = 28;
+
+        for layer_index in 0..4usize {
+            let sample_pos = crate::position::Pos(
+                click_pos.0,
+                click_pos.1 - layer_spacing * (3 - layer_index as i32),
+            );
+
+            let color = bottle
+                .get_fills()
+                .get(3usize.saturating_sub(layer_index))
+                .copied()
+                .map(color_to_scalar)
+                .unwrap_or_else(detected_empty_fill);
+
+            imgproc::rectangle(
+                frame_display,
+                Rect::new(
+                    sample_pos.0 - slot_size / 2,
+                    sample_pos.1 - slot_size / 2,
+                    slot_size,
+                    slot_size,
+                ),
+                color,
+                imgproc::FILLED,
+                imgproc::LINE_AA,
+                0,
+            )?;
+
+            imgproc::rectangle(
+                frame_display,
+                Rect::new(
+                    sample_pos.0 - slot_size / 2,
+                    sample_pos.1 - slot_size / 2,
+                    slot_size,
+                    slot_size,
+                ),
+                detected_slot_border(),
+                1,
+                imgproc::LINE_AA,
+                0,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "solver-visualization")]
 pub fn draw_solver_search_preview(
     frame_display: &mut Mat,
@@ -468,23 +524,7 @@ pub fn draw_solver_move_indicators(
     frame_display: &mut Mat,
     snapshot: &OverlaySnapshot<'_>,
 ) -> Result<()> {
-    if snapshot.solve_moves.is_empty() {
-        return Ok(());
-    }
-
-    // Get the current move being executed
-    if snapshot.solve_current_move_index >= snapshot.solve_moves.len() {
-        return Ok(());
-    }
-
-    let current_move = snapshot.solve_moves[snapshot.solve_current_move_index];
-    let source_idx = current_move.source_index();
-    let dest_idx = current_move.destination_index();
-
-    let source_pos = 
-
-    // Draw arrow from source to destination
-    draw_arrow(frame_display, source_pos, dest_pos, solver_arrow_color(), 3)?;
-
+    let _ = frame_display;
+    let _ = snapshot;
     Ok(())
 }
