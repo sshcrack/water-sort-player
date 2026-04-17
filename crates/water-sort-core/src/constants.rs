@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display, sync::Mutex};
 
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -57,7 +57,7 @@ impl BottleColor {
 
     pub fn to_pixel_value(&self) -> Vec3b {
         match self {
-            BottleColor::Empty => FAILED_LEVEL_EMPTY_COLOR.clone(),
+            BottleColor::Empty => *FAILED_LEVEL_EMPTY_COLOR,
             BottleColor::Mystery => Vec3b::from([0, 0, 0]),
             BottleColor::Fill((b, g, r)) => Vec3b::from([*b, *g, *r]),
         }
@@ -109,6 +109,7 @@ impl BottleColor {
         Self::from_hex("#f37c1c")
     }
 
+    /// ONLY to be used when testing
     pub fn values() -> Vec<Self> {
         vec![
             Self::yellow(),
@@ -125,13 +126,41 @@ impl BottleColor {
     }
 }
 
+lazy_static! {
+    pub static ref CURR_COLOR_CHAR: Mutex<char> = Mutex::new('A');
+    pub static ref COLOR_CHAR_MAP: Mutex<HashMap<(u8, u8, u8), char>> = Mutex::new(HashMap::new());
+}
+
 impl Display for BottleColor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BottleColor::Empty => write!(f, "E"),
             BottleColor::Mystery => write!(f, "?"),
             BottleColor::Fill((b, g, r)) => {
-                write!(f, "{}", "█".on_truecolor(*r, *g, *b))
+                let mut color_map = COLOR_CHAR_MAP.lock().unwrap();
+                let char_to_use = color_map.entry((*b, *g, *r)).or_insert_with(|| {
+                    let mut curr_char_mutex = CURR_COLOR_CHAR.lock().unwrap();
+                    let assigned_char = *curr_char_mutex;
+                    *curr_char_mutex = ((assigned_char as u8) + 1) as char;
+
+                    let new_char = *curr_char_mutex;
+                    if new_char > 'Z' {
+                        panic!("Too many colors detected, ran out of characters to assign");
+                    }
+
+                    if new_char == 'E' || new_char == '?' {
+                        *curr_char_mutex = ((new_char as u8) + 1) as char;
+                    }
+
+                    let hex = format!("#{:02x}{:02x}{:02x}", r, g, b).on_truecolor(*r, *g, *b);
+                    log::trace!(
+                        "Assigning color {} to char '{}'",
+                        hex, assigned_char
+                    );
+                    assigned_char
+                });
+
+                write!(f, "{}", char_to_use.to_string().on_truecolor(*r, *g, *b))
             }
         }
     }

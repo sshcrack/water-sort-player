@@ -128,7 +128,7 @@ pub fn bottles_to_sequence(bottles: &[Bottle]) -> String {
 
 fn bottle_to_string(bottle: &Bottle) -> String {
     if let HiddenRequirement::Locked(requirement) = bottle.hidden_requirement_state() {
-        log::warn!("Captured a hidden requirement bottle with no fills...");
+        log::trace!("Captured a hidden requirement bottle with no fills...");
         return format!("!{}", requirement.to_hex());
     }
 

@@ -10,9 +10,12 @@ use opencv::core::{Mat, MatTraitConst, Vec3b};
 #[cfg(feature = "save-states")]
 use save_states::SaveStatesRecorder;
 use serde::Serialize;
-use water_sort_core::constants::{
-    NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
-    NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+use water_sort_core::{
+    BottleColor,
+    constants::{
+        NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
+        NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+    },
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
@@ -87,6 +90,7 @@ enum AppState {
         #[serde(skip)]
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
+        known_colors: Vec<BottleColor>,
         initial_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         force_hidden_discovery: bool,
@@ -98,6 +102,7 @@ enum AppState {
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
+        known_colors: Vec<BottleColor>,
         moves_to_execute: Vec<Move>,
         current_moves: Vec<Move>,
         force_hidden_discovery: bool,
@@ -108,6 +113,7 @@ enum AppState {
         #[serde(skip)]
         trigger_at: Instant,
         initial_state: Vec<Bottle>,
+        known_colors: Vec<BottleColor>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         mystery_level_retried: bool,
@@ -118,6 +124,7 @@ enum AppState {
         trigger_at: Instant,
         moves_to_execute: Vec<Move>,
         initial_state: Vec<Bottle>,
+        known_colors: Vec<BottleColor>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         mystery_level_retried: bool,
@@ -299,6 +306,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
             } => {
                 if now >= *trigger_at {
                     let detected_bottles = detected_bottles.clone();
+                    let known_colors = detected_bottles
+                        .iter()
+                        .flat_map(|b| b.get_fills().into_iter())
+                        .collect::<Vec<_>>();
+
                     discovery_capture =
                         maybe_start_discovery_capture(&frame_raw, &detected_bottles);
 
@@ -331,7 +343,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             mystery_count
                         );
 
-                        log::trace!(
+                        log::debug!(
                             "Initial detected bottles: {}",
                             detected_bottles
                                 .iter()
@@ -344,6 +356,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             trigger_at: now,
                             initial_state: detected_bottles.clone(),
                             max_revealed_bottle_state: detected_bottles.clone(),
+                            known_colors,
                             current_moves: vec![],
                             mystery_level_retried: false,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -359,6 +372,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: detected_bottles.clone(),
                             max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
+                            known_colors,
                             force_hidden_discovery: false,
                             hidden_level_retried: false,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -374,9 +388,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 force_hidden_discovery,
                 hidden_level_retried,
                 retries_remaining,
+                known_colors,
             } => {
                 if now >= *trigger_at {
-                    log::trace!(
+                    log::debug!(
                         "Max revealed {}",
                         max_revealed_bottle_state
                             .iter()
@@ -416,6 +431,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             force_hidden_discovery: *force_hidden_discovery,
                             hidden_level_retried: *hidden_level_retried,
                             retries_remaining: next_retries_remaining,
+                            known_colors: known_colors.clone(),
                         };
                         continue;
                     }
@@ -449,6 +465,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 initial_state: initial_state.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 current_moves: vec![],
+                                known_colors: known_colors.clone(),
                                 mystery_level_retried: false,
                                 retries_remaining: BOTTLE_DETECTION_RETRIES,
                             };
@@ -457,7 +474,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 "All hidden bottles revealed! Running solver, Mystery count: {mystery_count}, hidden count: {hidden_count}..."
                             );
 
-                            log::trace!(
+                            log::debug!(
                                 "Final revealed state before solving: {}",
                                 max_revealed_bottle_state
                                     .iter()
@@ -500,6 +517,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: vec![],
+                            known_colors: known_colors.clone(),
                             mystery_level_retried: false,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
                         };
@@ -520,6 +538,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     moves_to_execute: best_moves,
                                     initial_state: initial_state.clone(),
                                     current_moves: current_moves.clone(),
+                                    known_colors: known_colors.clone(),
                                     trigger_at: now,
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     force_hidden_discovery: *force_hidden_discovery,
@@ -537,6 +556,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                             "No hidden unlock move found after retry; returning to mystery discovery..."
                                         );
                                         app_state = AppState::MysteryDiscoverColors {
+                                            known_colors: known_colors.clone(),
                                             trigger_at: now,
                                             initial_state: initial_state.clone(),
                                             max_revealed_bottle_state: max_revealed_bottle_state
@@ -556,6 +576,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                             trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                             initial_state: initial_state.clone(),
                                             current_moves: vec![],
+                                            known_colors: known_colors.clone(),
                                             max_revealed_bottle_state: max_revealed_bottle_state
                                                 .clone(),
                                             force_hidden_discovery: *force_hidden_discovery,
@@ -574,6 +595,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                         trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                         initial_state: initial_state.clone(),
                                         current_moves: vec![],
+                                        known_colors: known_colors.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
                                             .clone(),
                                         force_hidden_discovery: *force_hidden_discovery,
@@ -608,6 +630,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 app_state = AppState::HiddenDiscoverBottles {
                                     trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
                                     initial_state: initial_state.clone(),
+                                    known_colors: known_colors.clone(),
                                     current_moves: current_moves.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     force_hidden_discovery: *force_hidden_discovery,
@@ -626,9 +649,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 current_moves,
                 mystery_level_retried,
                 retries_remaining,
+                known_colors,
             } => {
                 if now >= *trigger_at {
-                    log::trace!(
+                    log::debug!(
                         "Max revealed {}",
                         max_revealed_bottle_state
                             .iter()
@@ -664,6 +688,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: current_moves.clone(),
+                            known_colors: known_colors.clone(),
                             mystery_level_retried: *mystery_level_retried,
                             retries_remaining: next_retries_remaining,
                         };
@@ -704,6 +729,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 initial_state: initial_state.clone(),
                                 trigger_at: now,
                                 current_moves: current_moves.clone(),
+                                known_colors: known_colors.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 force_hidden_discovery: false,
                                 hidden_level_retried: false,
@@ -774,6 +800,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                     moves_to_execute: best_moves,
                                     initial_state: initial_state.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                    known_colors: known_colors.clone(),
                                     current_moves: current_moves.clone(),
                                     mystery_level_retried: *mystery_level_retried,
                                     trigger_at: now,
@@ -788,6 +815,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                     app_state = AppState::HiddenDiscoverBottles {
                                         trigger_at: now,
+                                        known_colors: known_colors.clone(),
                                         initial_state: initial_state.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
                                             .clone(),
@@ -805,6 +833,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                     app_state = AppState::MysteryDiscoverColors {
                                         trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                        known_colors: known_colors.clone(),
                                         initial_state: initial_state.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
                                             .clone(),
@@ -824,6 +853,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
 
                                     app_state = AppState::HiddenDiscoverBottles {
                                         initial_state: initial_state.clone(),
+                                        known_colors: known_colors.clone(),
                                         trigger_at: now,
                                         current_moves: current_moves.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
@@ -860,10 +890,11 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 initial_state,
                 force_hidden_discovery,
                 hidden_level_retried,
+                known_colors,
                 retries_remaining,
             } => {
                 if now >= *trigger_at {
-                    log::trace!(
+                    log::debug!(
                         "Max revealed {}",
                         max_revealed_bottle_state
                             .iter()
@@ -892,6 +923,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             moves_to_execute: moves_to_execute.clone(),
                             current_moves: current_moves.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                            known_colors: known_colors.clone(),
                             initial_state: initial_state.clone(),
                             force_hidden_discovery: *force_hidden_discovery,
                             hidden_level_retried: *hidden_level_retried,
@@ -910,6 +942,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     );
                     if moves_to_execute.is_empty() {
                         app_state = AppState::HiddenDiscoverBottles {
+                            known_colors: known_colors.clone(),
                             initial_state: initial_state.clone(),
                             trigger_at: now,
                             current_moves: current_moves.clone(),
@@ -961,9 +994,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 mystery_level_retried,
                 initial_state,
                 retries_remaining,
+                known_colors,
             } => {
                 if now >= *trigger_at {
-                    log::trace!(
+                    log::debug!(
                         "Max revealed {}",
                         max_revealed_bottle_state
                             .iter()
@@ -1006,6 +1040,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         app_state = AppState::MysteryExecuteDiscoverMove {
                             trigger_at: now + BOTTLE_DETECTION_RETRY_DELAY,
                             moves_to_execute: moves_to_execute.clone(),
+                            known_colors: known_colors.clone(),
                             initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: current_moves.clone(),
@@ -1026,6 +1061,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     if moves_to_execute.is_empty() {
                         app_state = AppState::MysteryDiscoverColors {
                             trigger_at: now,
+                            known_colors: known_colors.clone(),
                             initial_state: initial_state.clone(),
                             max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                             current_moves: current_moves.clone(),

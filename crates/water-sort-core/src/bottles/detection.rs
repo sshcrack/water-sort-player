@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Result, anyhow};
+use lazy_static::lazy_static;
 use opencv::{
-    core::{Mat, MatTraitConst, Point, Rect, Scalar, Vec3b, Vector},
+    core::{Mat, MatTrait, MatTraitConst, Point, Rect, Scalar, Vec3b, Vector},
     imgproc,
     prelude::VectorToVec,
 };
@@ -14,6 +15,7 @@ use crate::constants::{BottleColor, color_distance_sq};
 
 use super::Bottle;
 use crate::Pos;
+use colored::Colorize;
 
 const CROP_X: i32 = 0;
 const CROP_Y: i32 = 143;
@@ -23,6 +25,10 @@ const FULL_BOTTLE_HEIGHT: f32 = 146.0;
 const COLOR_LAYER_HEIGHT_RATIO: f32 = 28.0 / FULL_BOTTLE_HEIGHT;
 const OFFSET_Y_RATIO: f32 = 29.0 / FULL_BOTTLE_HEIGHT;
 const COLOR_MATCH_DISTANCE: u32 = 30 * 30;
+
+lazy_static! {
+    static ref CROP_RECT: Rect = Rect::new(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
+}
 
 #[derive(Debug, Clone)]
 struct DetectedBottle {
@@ -44,6 +50,7 @@ fn detect_bottles_with_seen_colors(
     seen_colors: Option<&[Vec<BottleColor>]>,
 ) -> Result<Vec<Bottle>> {
     let cropped = crop_game_board(frame_raw)?;
+    let mut cropped_display = cropped.try_clone()?;
     let contour_candidates = find_contours(&cropped)?;
 
     let mut known_colors = seen_colors
@@ -55,12 +62,6 @@ fn detect_bottles_with_seen_colors(
             BottleColor::Mystery | BottleColor::Empty => None,
         })
         .collect::<Vec<_>>();
-
-    for color in BottleColor::values() {
-        if let BottleColor::Fill((b, g, r)) = color {
-            known_colors.push(Vec3b::from([b, g, r]));
-        }
-    }
 
     let mut detected = Vec::new();
     let mut curtain_indices = Vec::new();
@@ -77,7 +78,7 @@ fn detect_bottles_with_seen_colors(
         let is_normal_bottle = bottle_to_bounding_box_ratio > 0.9;
 
         imgproc::put_text(
-            frame_display,
+            &mut cropped_display,
             &format!("{}", index),
             Point::new(bounds.x, bounds.y + bounds.height / 2),
             imgproc::FONT_HERSHEY_SIMPLEX,
@@ -93,18 +94,23 @@ fn detect_bottles_with_seen_colors(
             continue;
         }
 
-        let detected_bottle =
-            detect_normal_bottle(frame_display, &cropped, &contour, bounds, &mut known_colors)?;
+        let detected_bottle = detect_normal_bottle(
+            &mut cropped_display,
+            &cropped,
+            &contour,
+            bounds,
+            &mut known_colors,
+        )?;
 
         detected.push(detected_bottle);
     }
 
     detected.extend(detect_curtain_bottles(
-        frame_display,
+        &mut cropped_display,
         &cropped,
         &contour_candidates,
         &curtain_indices,
-        &mut known_colors,
+        &known_colors,
     )?);
 
     let mut sorted = sort_detected_bottles_by_coordinates(detected);
@@ -120,12 +126,14 @@ fn detect_bottles_with_seen_colors(
             .set_hidden_requirement(hidden_requirement);
     }
 
+    let mut display_crop_area = frame_display.roi_mut(*CROP_RECT)?;
+    cropped_display.copy_to(&mut display_crop_area)?;
+
     Ok(sorted.into_iter().map(|detected| detected.bottle).collect())
 }
 
 fn crop_game_board(frame_raw: &Mat) -> Result<Mat> {
-    let crop_rect = Rect::new(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
-    let region = frame_raw.roi(crop_rect)?;
+    let region = frame_raw.roi(*CROP_RECT)?;
     Ok(region.try_clone()?)
 }
 
@@ -202,7 +210,7 @@ fn detect_normal_bottle(
 
         let layer_rect = build_inner_layer_rect(bounds.x, layer_y, bounds.width, layer_h);
         let layer_img = crop_submat(cropped, layer_rect)?;
-        let layer_color = classify_layer_color(&layer_img, known_colors)?;
+        let layer_color = classify_layer_color_and_add_to_known(&layer_img, known_colors)?;
         fills.push(layer_color);
 
         let rect_thickness = match layer_color {
@@ -236,7 +244,7 @@ fn detect_curtain_bottles(
     cropped: &Mat,
     contours: &Vector<Vector<Point>>,
     curtain_indices: &[usize],
-    known_colors: &mut Vec<Vec3b>,
+    known_colors: &[Vec3b],
 ) -> Result<Vec<DetectedBottle>> {
     let mut grouped: Vec<(i32, Vec<usize>)> = Vec::new();
 
@@ -287,6 +295,11 @@ fn detect_curtain_bottles(
 
         let sampled_img = crop_submat(cropped, sampled_rect)?;
         let avg_flask_color = mean_bgr(&sampled_img)?;
+        log::trace!(
+            "Countour index: {}, avg color: {:?}",
+            bottle_indices[1],
+            avg_flask_color
+        );
         let closest_color = nearest_known_color(avg_flask_color, known_colors)
             .or_else(|| nearest_color_unbounded(avg_flask_color, known_colors));
 
@@ -294,7 +307,20 @@ fn detect_curtain_bottles(
             continue;
         };
 
-        known_colors.push(unlock_color);
+        let mut contour_list = Vector::<Vector<Point>>::new();
+        contour_list.push(flask_contour.clone());
+
+        imgproc::draw_contours(
+            frame_display,
+            &contour_list,
+            -1,
+            Scalar::new(0.0, 0.0, 255.0, 0.0),
+            3,
+            imgproc::LINE_8,
+            &opencv::core::no_array(),
+            i32::MAX,
+            Point::new(0, 0),
+        )?;
 
         imgproc::rectangle(
             frame_display,
@@ -350,7 +376,10 @@ fn get_flask_body_contour(contour: &Vector<Point>) -> Result<(Vector<Point>, i32
     Ok((filtered, flask_start_y))
 }
 
-fn classify_layer_color(layer_img: &Mat, known_colors: &mut [Vec3b]) -> Result<BottleColor> {
+fn classify_layer_color_and_add_to_known(
+    layer_img: &Mat,
+    known_colors: &mut Vec<Vec3b>,
+) -> Result<BottleColor> {
     if super::empty_bottle_color_detection::is_empty_bottle_color(layer_img, 0.3)? {
         return Ok(BottleColor::Empty);
     }
@@ -363,19 +392,33 @@ fn classify_layer_color(layer_img: &Mat, known_colors: &mut [Vec3b]) -> Result<B
         return Ok(BottleColor::Mystery);
     }
 
-    let color = nearest_known_color(avg_color, known_colors)
-        .or_else(|| nearest_color_unbounded(avg_color, known_colors))
-        .unwrap_or(avg_color);
+    let color = nearest_known_color(avg_color, known_colors).unwrap_or_else(|| {
+        known_colors.push(avg_color);
+        avg_color
+    });
 
     Ok(bottle_color_from_bgr(color))
 }
 
-fn nearest_known_color(avg_color: Vec3b, known_colors: &mut [Vec3b]) -> Option<Vec3b> {
+fn nearest_known_color(avg_color: Vec3b, known_colors: &[Vec3b]) -> Option<Vec3b> {
     let mut closest = None;
     let mut min_distance = u32::MAX;
 
+    let hex_avg = format!(
+        "#{:02X}{:02X}{:02X}",
+        avg_color[2], avg_color[1], avg_color[0]
+    )
+    .on_truecolor(avg_color[2], avg_color[1], avg_color[0]);
     for color in known_colors.iter().copied() {
         let distance = color_distance_sq(&avg_color, &color);
+        let hex_color = format!("#{:02X}{:02X}{:02X}", color[2], color[1], color[0])
+            .on_truecolor(color[2], color[1], color[0]);
+        log::trace!(
+            "Avg color: {}, known color: {}, distance: {}",
+            hex_avg,
+            hex_color,
+            distance
+        );
         if distance < min_distance && distance < COLOR_MATCH_DISTANCE {
             min_distance = distance;
             closest = Some(color);

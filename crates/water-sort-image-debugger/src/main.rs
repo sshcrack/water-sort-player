@@ -11,7 +11,6 @@ use opencv::{
     core::{Mat, MatTraitConst},
     imgcodecs,
 };
-use water_sort_capture::bottles_to_sequence;
 use water_sort_core::detect_bottles;
 
 #[derive(Debug, Parser)]
@@ -85,7 +84,7 @@ fn run() -> Result<()> {
     let mut frame_display = frame_raw.try_clone()?;
 
     let bottles = detect_bottles(&frame_raw, &mut frame_display, None)?;
-    info!("Detected bottles: {}", bottles_to_sequence(&bottles));
+    info!("Detected bottles: {}", bottles.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(", "));
 
     let output_path = match args.output {
         Some(path) => path,
