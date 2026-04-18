@@ -1264,6 +1264,11 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 }
 
 fn are_states_equivalent(expected_state: &[Bottle], current_bottles: &[Bottle]) -> bool {
+    println!("Current state: {}", current_bottles.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
+    println!("Expected state: {}", expected_state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
+
+    println!("Verify manually pls..");
+    std::io::stdin().read_line(&mut String::new()).unwrap();
     current_bottles.iter().enumerate().all(|(i, b)| {
         let expected_bottle = &expected_state[i];
 
