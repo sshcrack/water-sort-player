@@ -92,6 +92,7 @@ pub struct OverlaySnapshot<'a> {
     pub phase: String,
     pub detail: String,
     pub until_ready: Option<Duration>,
+    pub motion_status: Option<String>,
     pub discovery_hidden: Option<usize>,
     pub discovery_total_slots: Option<usize>,
     pub discovery_depth: Option<usize>,
@@ -169,6 +170,7 @@ pub fn draw_state_hud(
     let timing = snapshot
         .until_ready
         .map(format_duration)
+        .or_else(|| snapshot.motion_status.clone())
         .unwrap_or_else(|| "ready".to_string());
     imgproc::put_text(
         frame_display,

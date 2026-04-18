@@ -10,21 +10,31 @@ use water_sort_core::bottles::detection::CROP_RECT;
 
 const HISTORY_COVERAGE_TOLERANCE: Duration = Duration::from_millis(20);
 
-pub fn has_no_movement_in_window(
+pub enum MotionWindowState {
+    Stable,
+    WaitingForCoverage {
+        missing_coverage: Duration,
+    },
+    MovementDetected,
+}
+
+pub fn evaluate_motion_window(
     recent_frame_matches: &VecDeque<(Instant, bool)>,
     now: Instant,
     no_movement_window: Duration,
-) -> bool {
+) -> MotionWindowState {
     let Some(cutoff) = now.checked_sub(no_movement_window) else {
-        trace!(
-            "Current time is before no-movement window duration; cannot determine stillness."
-        );
-        return false;
+        trace!("Current time is before no-movement window duration.");
+        return MotionWindowState::WaitingForCoverage {
+            missing_coverage: no_movement_window,
+        };
     };
 
     let Some((oldest_timestamp, _)) = recent_frame_matches.front() else {
         trace!("No frame history available to determine stillness.");
-        return false;
+        return MotionWindowState::WaitingForCoverage {
+            missing_coverage: no_movement_window,
+        };
     };
 
     // Require coverage for the full rolling window, allowing a small tolerance for frame timing jitter.
@@ -37,11 +47,26 @@ pub fn has_no_movement_in_window(
                 cutoff,
                 missing_coverage
             );
-            return false;
+            return MotionWindowState::WaitingForCoverage { missing_coverage };
         }
     }
 
-    recent_frame_matches.iter().all(|(_, is_match)| *is_match)
+    if recent_frame_matches.iter().any(|(_, is_match)| !*is_match) {
+        return MotionWindowState::MovementDetected;
+    }
+
+    MotionWindowState::Stable
+}
+
+pub fn has_no_movement_in_window(
+    recent_frame_matches: &VecDeque<(Instant, bool)>,
+    now: Instant,
+    no_movement_window: Duration,
+) -> bool {
+    matches!(
+        evaluate_motion_window(recent_frame_matches, now, no_movement_window),
+        MotionWindowState::Stable
+    )
 }
 
 pub fn frames_are_identical(previous: &Mat, current: &Mat, mean_diff_threshold: f64) -> Result<bool> {

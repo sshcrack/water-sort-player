@@ -30,7 +30,9 @@ use water_sort_core::{
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
-use self::frame_stability::{frames_are_identical, has_no_movement_in_window};
+use self::frame_stability::{
+    MotionWindowState, evaluate_motion_window, frames_are_identical, has_no_movement_in_window,
+};
 use crate::{
     app_visualization::{OverlaySnapshot, draw_detected_bottles_overlay, draw_state_hud},
     bottles::{Bottle, detect_bottles},
@@ -275,6 +277,9 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
         let frame_is_still =
             has_no_movement_in_window(&recent_frame_matches, now, NO_MOVEMENT_WINDOW);
+        let motion_status_text = format_motion_status(
+            evaluate_motion_window(&recent_frame_matches, now, NO_MOVEMENT_WINDOW),
+        );
         previous_frame_raw = Some(frame_raw.try_clone()?);
 
         let mut frame_display = frame_raw.try_clone()?;
@@ -1235,7 +1240,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
             }
         }
 
-        let overlay_snapshot = build_overlay_snapshot(&app_state, now);
+        let overlay_snapshot = build_overlay_snapshot(&app_state, now, &motion_status_text);
 
         if let Some(bottles) = latest_detected_bottles.as_deref() {
             draw_detected_bottles_overlay(&mut frame_display, bottles)?;
@@ -1469,12 +1474,27 @@ fn finalize_discovery_capture(discovery_capture: &mut Option<DiscoveryCaptureCon
     }
 }
 
-fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlaySnapshot<'a> {
+fn format_motion_status(motion_state: MotionWindowState) -> String {
+    match motion_state {
+        MotionWindowState::Stable => "motion: stable".to_string(),
+        MotionWindowState::MovementDetected => "motion: movement detected".to_string(),
+        MotionWindowState::WaitingForCoverage { missing_coverage } => {
+            format!("motion: building history ({:.0}ms)", missing_coverage.as_millis())
+        }
+    }
+}
+
+fn build_overlay_snapshot<'a>(
+    app_state: &'a AppState,
+    now: Instant,
+    motion_status: &str,
+) -> OverlaySnapshot<'a> {
     match app_state {
         AppState::WaitingToPressStart { trigger_at } => OverlaySnapshot {
             phase: "WaitingToPressStart".to_string(),
             detail: "Preparing initial level start tap".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
@@ -1488,6 +1508,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "ClickRetryOnNewLevel".to_string(),
             detail: "Preparing retry tap for new level start".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
@@ -1501,6 +1522,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "ClickNextLevel".to_string(),
             detail: "Waiting to advance to the next level".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
@@ -1514,6 +1536,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "CheckForRewards".to_string(),
             detail: "Looking for reward popup".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
@@ -1537,6 +1560,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
                 )
             },
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
@@ -1550,6 +1574,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "AwaitPostDetectionPlan".to_string(),
             detail: "Reviewing detected bottles before planning".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
@@ -1567,6 +1592,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "HiddenDiscoverBottles".to_string(),
             detail: "Scanning bottles to unlock hidden slots".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: Some(current_moves.len()),
@@ -1585,6 +1611,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "HiddenExecuteDiscoverMove".to_string(),
             detail: "Executing hidden-slot unlock sequence".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: Some(current_moves.len()),
@@ -1603,6 +1630,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "MysteryDiscoverColors".to_string(),
             detail: "Scanning bottles to reveal mystery colors".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: Some(count_total_mystery_colors(max_revealed_bottle_state)),
             discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
             discovery_depth: Some(current_moves.len()),
@@ -1622,6 +1650,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "MysteryExecuteDiscoverMove".to_string(),
             detail: "Executing discovery sequence".to_string(),
             until_ready: remaining_until(*trigger_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: Some(count_total_mystery_colors(max_revealed_bottle_state)),
             discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
             discovery_depth: Some(current_moves.len()),
@@ -1638,6 +1667,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             phase: "ExecutePlanSolverMoves".to_string(),
             detail: "Planning solver moves".to_string(),
             until_ready: None,
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: Some(count_total_mystery_colors(max_revealed_bottle_state)),
             discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
             discovery_depth: None,
@@ -1660,6 +1690,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
                 planned_moves.len()
             ),
             until_ready: remaining_until(*next_move_at, now),
+            motion_status: Some(motion_status.to_string()),
             discovery_hidden: None,
             discovery_total_slots: None,
             discovery_depth: None,
