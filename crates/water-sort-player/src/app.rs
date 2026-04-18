@@ -1,18 +1,20 @@
 use std::{
     collections::HashSet,
+    path::Path,
     time::{Duration, Instant},
 };
 
 #[cfg(feature = "save-states")]
 mod save_states;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use log::{debug, info, warn};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 #[cfg(feature = "save-states")]
 use save_states::SaveStatesRecorder;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use water_sort_core::{
     BottleColor,
     constants::{
@@ -61,37 +63,37 @@ const SOLVER_VISUALIZATION_UPDATE_INTERVAL: Duration = Duration::from_millis(50)
 #[cfg(feature = "solver-visualization")]
 const SOLVER_VISUALIZATION_FRAME_DELAY: Duration = Duration::from_millis(20);
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 enum AppState {
     WaitingToPressStart {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
     },
     ClickNextLevel {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
     },
     ClickRetryOnNewLevel {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
     },
     CheckForRewards {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
     },
     DetectAndPlan {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
         retries_remaining: u8,
     },
     AwaitPostDetectionPlan {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
         detected_bottles: Vec<Bottle>,
         known_colors: HashSet<BottleColor>,
     },
     HiddenDiscoverBottles {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
         known_colors: HashSet<BottleColor>,
@@ -102,7 +104,7 @@ enum AppState {
         retries_remaining: u8,
     },
     HiddenExecuteDiscoverMove {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
@@ -114,7 +116,7 @@ enum AppState {
         retries_remaining: u8,
     },
     MysteryDiscoverColors {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
         initial_state: Vec<Bottle>,
         known_colors: HashSet<BottleColor>,
@@ -124,7 +126,7 @@ enum AppState {
         retries_remaining: u8,
     },
     MysteryExecuteDiscoverMove {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         trigger_at: Instant,
         moves_to_execute: Vec<Move>,
         initial_state: Vec<Bottle>,
@@ -135,12 +137,16 @@ enum AppState {
         retries_remaining: u8,
     },
     ExecuteFinalSolveMoves {
-        #[serde(skip)]
+        #[serde(skip, default = "instant_now")]
         next_move_at: Instant,
         planned_moves: Vec<Move>,
         performed_moves: usize,
         known_colors: HashSet<BottleColor>,
     },
+}
+
+fn instant_now() -> Instant {
+    Instant::now()
 }
 
 impl AppState {
@@ -162,7 +168,7 @@ impl AppState {
     }
 }
 
-pub fn run(quick_mode: bool) -> Result<()> {
+pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
     if quick_mode {
         info!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
     }
@@ -175,7 +181,12 @@ pub fn run(quick_mode: bool) -> Result<()> {
     let mut window = Window::new("AutoPlayer", width, height, WindowOptions::default())?;
     let mut frame_raw: Mat;
 
-    let mut app_state = if quick_mode {
+    let mut app_state = if let Some(path) = use_state_path {
+        info!("Loading app state from {}...", path.display());
+        let loaded_state = load_app_state_from_file(path)?;
+        info!("Loaded initial app state: {}", loaded_state.get_name());
+        loaded_state
+    } else if quick_mode {
         AppState::DetectAndPlan {
             trigger_at: Instant::now() + Duration::from_secs(1),
             retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -1134,7 +1145,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
             } => {
                 if let Some(next) = planned_moves.get(*performed_moves).cloned() {
                     if now >= *next_move_at {
-                        info!("Performing move: {:?}.", next);
+                        info!("Performing move: {}.", next);
                         let use_hidden_reveal_delay = match detect_bottles(
                             &frame_raw,
                             &mut frame_display,
@@ -1229,6 +1240,22 @@ pub fn run(quick_mode: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn load_app_state_from_file(path: &Path) -> Result<AppState> {
+    let raw_state = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read app state JSON from {}", path.display()))?;
+
+    let json: Value = serde_json::from_str(&raw_state)?;
+    let app_state = json.get("app_state").ok_or_else(|| {
+        anyhow!(
+            "App state JSON does not contain 'app_state' field: {}",
+            path.display()
+        )
+    })?;
+
+    serde_json::from_value(app_state.clone())
+        .with_context(|| format!("Failed to deserialize app state JSON from {}", path.display()))
 }
 
 fn solve_with_visualization(

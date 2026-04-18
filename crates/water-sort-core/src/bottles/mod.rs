@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display, iter};
 
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 
 pub mod detection;
@@ -332,10 +332,10 @@ impl Display for Bottle {
             return match self.hidden_requirement {
                 HiddenRequirement::None => write!(f, "EEEE"),
                 HiddenRequirement::Locked(bottle_color) => {
-                    write!(f, "!{}", bottle_color.to_string().red())
+                    write!(f, "{}{}", "!".red(), bottle_color.to_string().bright_red())
                 }
                 HiddenRequirement::Unlocked(bottle_color) => {
-                    write!(f, "!{},EEEE", bottle_color.to_string().green())
+                    write!(f, "{}{},EEEE", "!".green(), bottle_color.to_string().bright_green())
                 }
             };
         }
@@ -357,10 +357,10 @@ impl Display for Bottle {
 
         match self.hidden_requirement {
             HiddenRequirement::Locked(requirement) => {
-                write!(f, "!{},{}", requirement.to_string().red(), fill_str)
+                write!(f, "{}{},{}", "!".red(), requirement, fill_str)
             }
             HiddenRequirement::Unlocked(requirement) => {
-                write!(f, "!{},{}", requirement.to_string().green(), fill_str)
+                write!(f, "{}{},{}", "!".green(), requirement, fill_str)
             }
             HiddenRequirement::None => write!(f, "{}", fill_str),
         }

@@ -2023,6 +2023,7 @@ name = "water-sort-player"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "env_logger",
  "lazy_static",
  "log",

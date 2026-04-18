@@ -29,6 +29,7 @@ ctrlc = "3.5.1"
 log = "0.4.28"
 env_logger = "0.11.8"
 test-log = "0.2.19"
+clap = { version = "4.5.41", features = ["derive"] }
 
 [profile.test]
 # Disable solver-visualization feature during testing

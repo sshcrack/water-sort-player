@@ -133,13 +133,17 @@ lazy_static! {
 }
 
 fn color_label_for_index(index: usize) -> String {
-    let letter_index = index % 52;
-    let suffix = index / 52;
+    // Skip uppercase 'E' to avoid colliding with the Empty bottle label.
+    const UPPERCASE_WITHOUT_E: &[u8; 25] = b"ABCDFGHIJKLMNOPQRSTUVWXYZ";
+    const LABEL_BASE: usize = 51;
 
-    let base_char = if letter_index < 26 {
-        (b'A' + letter_index as u8) as char
+    let letter_index = index % LABEL_BASE;
+    let suffix = index / LABEL_BASE;
+
+    let base_char = if letter_index < UPPERCASE_WITHOUT_E.len() {
+        UPPERCASE_WITHOUT_E[letter_index] as char
     } else {
-        (b'a' + (letter_index - 26) as u8) as char
+        (b'a' + (letter_index - UPPERCASE_WITHOUT_E.len()) as u8) as char
     };
 
     if suffix == 0 {

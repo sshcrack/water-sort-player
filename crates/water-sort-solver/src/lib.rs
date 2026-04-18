@@ -6,7 +6,7 @@ use anyhow::Result;
 #[cfg(feature = "discovery-debugging")]
 use log::debug;
 use log::info;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use water_sort_core::Pos;
 use water_sort_core::{
     bottles::{Bottle, HiddenRequirement},
@@ -17,7 +17,7 @@ use water_sort_device::CaptureDeviceBackend;
 pub mod discovery;
 
 /// Indicates the move to perform: pour from bottle at index 0 to bottle at index 1
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Move {
     source_idx: usize,
     source_clickable_pos: Option<Pos>,
@@ -624,7 +624,13 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::discovery::{find_best_hidden_unlock_moves, improve_best_revealed_state, improve_current_and_initial_bottles_with_revealed_state};
+    use crate::{
+        discovery::{
+            find_best_hidden_unlock_moves, improve_best_revealed_state,
+            improve_current_and_initial_bottles_with_revealed_state,
+        },
+        run_solver,
+    };
 
     use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::{
@@ -668,28 +674,46 @@ mod tests {
     #[test_log::test]
     fn solve_tester() {
         let (mut initial_state, mut max_revealed_bottle_state) = TestUtils::load_bottles_from_state(
-            "C:/Users/hendr/Documents/Coding/rust/water-sort-player/target/release/save-states/1776523435326/level-0001/0038-HiddenDiscoverBottles.json",
+            "C:/Users/hendr/Documents/Coding/rust/water-sort-player/target/release/save-states/1776525054234/level-0001/0078-MysteryDiscoverColors.json",
         );
         let mut current_bottles = initial_state.clone();
 
-        println!("Initial: {}", initial_state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
-        println!("Max revealed: {}", max_revealed_bottle_state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
+        println!(
+            "Initial: {}",
+            initial_state
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        println!(
+            "Max revealed: {}",
+            max_revealed_bottle_state
+                .iter()
+                .map(|b| b.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         improve_current_and_initial_bottles_with_revealed_state(
             &mut current_bottles,
             &mut initial_state,
             &max_revealed_bottle_state,
         );
-        improve_best_revealed_state(&mut max_revealed_bottle_state, &initial_state, &current_bottles);
+        improve_best_revealed_state(
+            &mut max_revealed_bottle_state,
+            &initial_state,
+            &current_bottles,
+        );
 
-        let x = find_best_hidden_unlock_moves(&current_bottles);
+        let x = run_solver(&max_revealed_bottle_state, &initial_state);
         match x {
-            crate::discovery::DiscoverResult::NoMove => panic!("NoMove"),
-            crate::discovery::DiscoverResult::MoveToDiscover(items) => {
-                for m in items {
-                    println!("{}", m);
+            Some(m) => {
+                println!("Found solution with {} moves:", m.len());
+                for (i, move_to_perform) in m.iter().enumerate() {
+                    println!("Move {}: {}", i + 1, move_to_perform);
                 }
             }
-            crate::discovery::DiscoverResult::AlreadySolved => println!("Already solved"),
+            None => panic!("Solver failed to find a solution"),
         }
     }
 }

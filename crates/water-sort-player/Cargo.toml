@@ -19,6 +19,7 @@ water-sort-capture = { path = "../water-sort-capture" }
 test-log = { workspace = true }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { workspace = true }
+clap = { workspace = true }
 
 [features]
 default = ["solver-visualization"]
