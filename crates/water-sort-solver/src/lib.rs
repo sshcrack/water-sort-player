@@ -624,7 +624,10 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::discovery::improve_best_revealed_state;
+    use crate::{
+        Move,
+        discovery::{find_best_hidden_unlock_moves, improve_best_revealed_state, improve_current_and_initial_bottles_with_revealed_state},
+    };
 
     use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::{
@@ -666,22 +669,30 @@ mod tests {
     }
 
     #[test_log::test]
-    fn quick_improvement_test() {
-        let current_bottles =
-            TestUtils::parse_bottles_sequence("P??? ORR? W??? W P?? OO RR YYYY BBBB");
-        let initial = TestUtils::parse_bottles_sequence("P??? !B W??? !Y Y??? BRYO YYBR EEEE EEEE");
-        let mut max_revealed_bottles =
-            TestUtils::parse_bottles_sequence("POGW !B,ORRG WGPP !Y,BOB? YPWG BRYO YYBR EEEE EEEE");
-
-        improve_best_revealed_state(&mut max_revealed_bottles, &initial, &current_bottles);
-
-        println!(
-            "After improvement: {}",
-            max_revealed_bottles
-                .iter()
-                .map(|b| b.to_string())
-                .collect::<Vec<_>>()
-                .join(" ")
+    fn solve_tester() {
+        let (mut initial_state, mut max_revealed_bottle_state) = TestUtils::load_bottles_from_state(
+            "C:\\Users\\hendr\\Documents\\Coding\\rust\\water-sort-player\\target\\release\\save-states\\1776447073776\\level-0001\\0028-HiddenDiscoverBottles.json",
         );
+        let mut current_bottles = initial_state.clone();
+
+        println!("Initial: {}", initial_state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
+        println!("Max revealed: {}", max_revealed_bottle_state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
+        improve_current_and_initial_bottles_with_revealed_state(
+            &mut current_bottles,
+            &mut initial_state,
+            &max_revealed_bottle_state,
+        );
+        improve_best_revealed_state(&mut max_revealed_bottle_state, &initial_state, &current_bottles);
+
+        let x = find_best_hidden_unlock_moves(&current_bottles);
+        match x {
+            crate::discovery::DiscoverResult::NoMove => panic!("NoMove"),
+            crate::discovery::DiscoverResult::MoveToDiscover(items) => {
+                for m in items {
+                    println!("{}", m);
+                }
+            }
+            crate::discovery::DiscoverResult::AlreadySolved => println!("Already solved"),
+        }
     }
 }

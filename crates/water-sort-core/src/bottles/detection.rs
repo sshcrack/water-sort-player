@@ -409,22 +409,27 @@ fn nearest_known_color(avg_color: Vec3b, known_colors: &[Vec3b]) -> Option<Vec3b
         avg_color[2], avg_color[1], avg_color[0]
     )
     .on_truecolor(avg_color[2], avg_color[1], avg_color[0]);
+    log::trace!("--");
+    log::trace!("Testing avg color {hex_avg}...");
     for color in known_colors.iter().copied() {
         let distance = color_distance_sq(&avg_color, &color);
         let hex_color = format!("#{:02X}{:02X}{:02X}", color[2], color[1], color[0])
             .on_truecolor(color[2], color[1], color[0]);
-        log::trace!(
-            "Avg color: {}, known color: {}, distance: {}",
-            hex_avg,
-            hex_color,
-            distance
-        );
+        log::trace!("known color: {}, distance: {}", hex_color, distance);
         if distance < min_distance && distance < COLOR_MATCH_DISTANCE {
             min_distance = distance;
             closest = Some(color);
         }
     }
 
+    if let Some(c) = closest.as_ref() {
+        let closest_hex =
+            format!("#{:02X}{:02X}{:02X}", c[2], c[1], c[0]).on_truecolor(c[2], c[1], c[0]);
+        log::trace!("Closest hex: {closest_hex}");
+    } else {
+        log::trace!("No closest color.");
+    }
+    log::trace!("--");
     closest
 }
 

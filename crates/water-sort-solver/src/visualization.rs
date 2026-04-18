@@ -24,9 +24,10 @@ pub fn draw_revealed_fill_markers(
             }
 
             // Fill indices are bottom->top while sampling layers are top->bottom.
+            /*
             let layer_index = (BOTTLE_CAPACITY - 1).saturating_sub(fill_index);
             //TODO
-            /* if let Some(sample_pos) = layout.get_sample_position(bottle_index, layer_index) {
+             if let Some(sample_pos) = layout.get_sample_position(bottle_index, layer_index) {
                 imgproc::rectangle(
                     frame_display,
                     opencv::core::Rect::new(sample_pos.0 - 10, sample_pos.1 - 10, 20, 20),

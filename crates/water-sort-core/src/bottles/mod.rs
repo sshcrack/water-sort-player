@@ -9,11 +9,11 @@ pub mod empty_bottle_color_detection;
 mod specific_tests;
 pub mod test_utils;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::constants::BottleColor;
 
-#[derive(Debug, Clone, Serialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum HiddenRequirement {
     #[default]
     None,
@@ -21,7 +21,7 @@ pub enum HiddenRequirement {
     Unlocked(BottleColor),
 }
 
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 pub struct Bottle {
     // Last element is the top color, first element is the bottom color
     // The boolean indicates whether the initial color was mystery, to properly handle filling in the solver
@@ -246,6 +246,7 @@ impl Bottle {
 
     pub fn solved_color(&self) -> Option<BottleColor> {
         if self.is_solved() {
+            println!("Bottle is solved with color {:?}", self.fills.first().map(|(color, _)| *color));
             self.fills.first().map(|(color, _)| *color)
         } else {
             None

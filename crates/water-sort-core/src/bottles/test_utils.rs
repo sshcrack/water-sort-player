@@ -1,6 +1,6 @@
 use std::{
     env, fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -39,6 +39,45 @@ impl TestUtils {
         );
 
         detection_result
+    }
+
+    pub fn load_bottles_from_state<P: AsRef<Path>>(state_path: P) -> (Vec<Bottle>, Vec<Bottle>) {
+        let state_path = state_path.as_ref();
+        let state_str = fs::read_to_string(state_path).unwrap_or_else(|_| {
+            panic!("Failed to read bottle state from {}", state_path.display())
+        });
+
+        let json = serde_json::from_str::<serde_json::Value>(&state_str).unwrap_or_else(|_| {
+            panic!(
+                "Failed to parse bottle state JSON from {}",
+                state_path.display()
+            )
+        });
+
+        let app_state = json
+            .get("app_state")
+            .expect("Missing 'app_state' field in JSON");
+        let state = app_state
+            .as_object()
+            .expect("'app_state' should be a JSON object")
+            .values()
+            .next()
+            .expect("No state found in 'app_state'");
+
+        let initial_state = state
+            .get("initial_state")
+            .expect("Missing 'initial_state' field in state");
+
+        let max_revealed_colors = state
+            .get("max_revealed_bottle_state")
+            .expect("Missing 'max_revealed_bottle_state' field in state");
+        let initial_bottles = serde_json::from_value::<Vec<Bottle>>(initial_state.clone())
+            .expect("Failed to deserialize initial bottle state from JSON");
+        let max_revealed_bottles =
+            serde_json::from_value::<Vec<Bottle>>(max_revealed_colors.clone())
+                .expect("Failed to deserialize max revealed bottle state from JSON");
+
+        (initial_bottles, max_revealed_bottles)
     }
 
     pub fn save_test_debug_image(

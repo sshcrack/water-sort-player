@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Display, sync::Mutex};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use opencv::core::{Scalar, Vec3b};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::position::Pos;
 
@@ -34,7 +34,7 @@ lazy_static! {
 pub const COLOR_DISTANCE_THRESHOLD_SQ: u32 = 50 * 50;
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BottleColor {
     Empty,
     Mystery,
@@ -127,8 +127,26 @@ impl BottleColor {
 }
 
 lazy_static! {
-    pub static ref CURR_COLOR_CHAR: Mutex<char> = Mutex::new('A');
-    pub static ref COLOR_CHAR_MAP: Mutex<HashMap<(u8, u8, u8), char>> = Mutex::new(HashMap::new());
+    pub static ref NEXT_COLOR_LABEL_INDEX: Mutex<usize> = Mutex::new(0);
+    pub static ref COLOR_LABEL_MAP: Mutex<HashMap<(u8, u8, u8), String>> =
+        Mutex::new(HashMap::new());
+}
+
+fn color_label_for_index(index: usize) -> String {
+    let letter_index = index % 52;
+    let suffix = index / 52;
+
+    let base_char = if letter_index < 26 {
+        (b'A' + letter_index as u8) as char
+    } else {
+        (b'a' + (letter_index - 26) as u8) as char
+    };
+
+    if suffix == 0 {
+        base_char.to_string()
+    } else {
+        format!("{}{}", base_char, suffix)
+    }
 }
 
 impl Display for BottleColor {
@@ -137,30 +155,18 @@ impl Display for BottleColor {
             BottleColor::Empty => write!(f, "E"),
             BottleColor::Mystery => write!(f, "?"),
             BottleColor::Fill((b, g, r)) => {
-                let mut color_map = COLOR_CHAR_MAP.lock().unwrap();
-                let char_to_use = color_map.entry((*b, *g, *r)).or_insert_with(|| {
-                    let mut curr_char_mutex = CURR_COLOR_CHAR.lock().unwrap();
-                    let assigned_char = *curr_char_mutex;
-                    *curr_char_mutex = ((assigned_char as u8) + 1) as char;
-
-                    let new_char = *curr_char_mutex;
-                    if new_char > 'Z' {
-                        panic!("Too many colors detected, ran out of characters to assign");
-                    }
-
-                    if new_char == 'E' || new_char == '?' {
-                        *curr_char_mutex = ((new_char as u8) + 1) as char;
-                    }
+                let mut color_map = COLOR_LABEL_MAP.lock().unwrap();
+                let label_to_use = color_map.entry((*b, *g, *r)).or_insert_with(|| {
+                    let mut next_label_index = NEXT_COLOR_LABEL_INDEX.lock().unwrap();
+                    let assigned_label = color_label_for_index(*next_label_index);
+                    *next_label_index += 1;
 
                     let hex = format!("#{:02x}{:02x}{:02x}", r, g, b).on_truecolor(*r, *g, *b);
-                    log::trace!(
-                        "Assigning color {} to char '{}'",
-                        hex, assigned_char
-                    );
-                    assigned_char
+                    log::trace!("Assigning color {} to label '{}'", hex, assigned_label);
+                    assigned_label
                 });
 
-                write!(f, "{}", char_to_use.to_string().on_truecolor(*r, *g, *b))
+                write!(f, "{}", label_to_use.as_str().on_truecolor(*r, *g, *b))
             }
         }
     }

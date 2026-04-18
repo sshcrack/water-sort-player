@@ -64,6 +64,7 @@ pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResu
         current_bottles.to_vec(),
         None,
         |state, move_count| {
+            println!("Checking state: {}, move_count: {}", state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "), move_count);
             move_count > 0
                 && state.iter().any(|bottle| {
                     bottle

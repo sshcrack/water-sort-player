@@ -453,6 +453,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let mystery_count = count_total_mystery_colors(max_revealed_bottle_state);
                     let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
 
+                    log::trace!("Mystery {mystery_count}, hidden {hidden_count}, forced: {force_hidden_discovery}");
                     if hidden_count == 0 {
                         if mystery_count > 0 {
                             info!(
