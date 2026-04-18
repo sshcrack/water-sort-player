@@ -1,4 +1,4 @@
-use std::{fmt::Display, iter};
+use std::{collections::HashSet, fmt::Display, iter};
 
 use colored::Colorize;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
@@ -246,7 +246,6 @@ impl Bottle {
 
     pub fn solved_color(&self) -> Option<BottleColor> {
         if self.is_solved() {
-            println!("Bottle is solved with color {:?}", self.fills.first().map(|(color, _)| *color));
             self.fills.first().map(|(color, _)| *color)
         } else {
             None
@@ -382,7 +381,7 @@ pub fn has_failed_level(image: &Mat) -> anyhow::Result<bool> {
 pub fn detect_bottles(
     frame_raw: &Mat,
     frame_display: &mut Mat,
-    seen_colors: Option<&[Vec<BottleColor>]>,
+    seen_colors: &mut HashSet<BottleColor>,
 ) -> anyhow::Result<Vec<Bottle>> {
     detection::detect_bottles(frame_raw, frame_display, seen_colors)
 }

@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 
 #[cfg(feature = "save-states")]
 mod save_states;
@@ -85,12 +88,13 @@ enum AppState {
         #[serde(skip)]
         trigger_at: Instant,
         detected_bottles: Vec<Bottle>,
+        known_colors: HashSet<BottleColor>,
     },
     HiddenDiscoverBottles {
         #[serde(skip)]
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
-        known_colors: Vec<BottleColor>,
+        known_colors: HashSet<BottleColor>,
         initial_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         force_hidden_discovery: bool,
@@ -102,7 +106,7 @@ enum AppState {
         trigger_at: Instant,
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
-        known_colors: Vec<BottleColor>,
+        known_colors: HashSet<BottleColor>,
         moves_to_execute: Vec<Move>,
         current_moves: Vec<Move>,
         force_hidden_discovery: bool,
@@ -113,7 +117,7 @@ enum AppState {
         #[serde(skip)]
         trigger_at: Instant,
         initial_state: Vec<Bottle>,
-        known_colors: Vec<BottleColor>,
+        known_colors: HashSet<BottleColor>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         mystery_level_retried: bool,
@@ -124,7 +128,7 @@ enum AppState {
         trigger_at: Instant,
         moves_to_execute: Vec<Move>,
         initial_state: Vec<Bottle>,
-        known_colors: Vec<BottleColor>,
+        known_colors: HashSet<BottleColor>,
         max_revealed_bottle_state: Vec<Bottle>,
         current_moves: Vec<Move>,
         mystery_level_retried: bool,
@@ -135,6 +139,7 @@ enum AppState {
         next_move_at: Instant,
         planned_moves: Vec<Move>,
         performed_moves: usize,
+        known_colors: HashSet<BottleColor>,
     },
 }
 
@@ -267,13 +272,15 @@ pub fn run(quick_mode: bool) -> Result<()> {
             } => {
                 if now >= *trigger_at {
                     info!("Detecting bottles for new level...");
-                    let bottles = detect_bottles(&frame_raw, &mut frame_display, None);
+                    let mut known_colors = HashSet::new();
+                    let bottles = detect_bottles(&frame_raw, &mut frame_display, &mut known_colors);
                     match bottles {
                         Ok(detected_bottles) => {
                             latest_detected_bottles = Some(detected_bottles.clone());
                             app_state = AppState::AwaitPostDetectionPlan {
                                 trigger_at: now + POST_DETECTION_WAIT,
                                 detected_bottles,
+                                known_colors,
                             };
                         }
                         Err(error) => {
@@ -303,14 +310,10 @@ pub fn run(quick_mode: bool) -> Result<()> {
             AppState::AwaitPostDetectionPlan {
                 trigger_at,
                 detected_bottles,
+                known_colors,
             } => {
                 if now >= *trigger_at {
                     let detected_bottles = detected_bottles.clone();
-                    let known_colors = detected_bottles
-                        .iter()
-                        .flat_map(|b| b.get_fills().into_iter())
-                        .collect::<Vec<_>>();
-
                     discovery_capture =
                         maybe_start_discovery_capture(&frame_raw, &detected_bottles);
 
@@ -336,6 +339,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             planned_moves: solution,
                             performed_moves: 0,
                             next_move_at: Instant::now() + MOVE_DELAY,
+                            known_colors: known_colors.clone(),
                         };
                     } else if mystery_count > 0 {
                         info!(
@@ -356,7 +360,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             trigger_at: now,
                             initial_state: detected_bottles.clone(),
                             max_revealed_bottle_state: detected_bottles.clone(),
-                            known_colors,
+                            known_colors: known_colors.clone(),
                             current_moves: vec![],
                             mystery_level_retried: false,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -372,7 +376,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             initial_state: detected_bottles.clone(),
                             max_revealed_bottle_state: detected_bottles.clone(),
                             current_moves: vec![],
-                            known_colors,
+                            known_colors: known_colors.clone(),
                             force_hidden_discovery: false,
                             hidden_level_retried: false,
                             retries_remaining: BOTTLE_DETECTION_RETRIES,
@@ -399,7 +403,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
+                    let current_bottles =
+                        detect_bottles(&frame_raw, &mut frame_display, known_colors);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -453,7 +458,9 @@ pub fn run(quick_mode: bool) -> Result<()> {
                     let mystery_count = count_total_mystery_colors(max_revealed_bottle_state);
                     let hidden_count = count_hidden_bottles(max_revealed_bottle_state);
 
-                    log::trace!("Mystery {mystery_count}, hidden {hidden_count}, forced: {force_hidden_discovery}");
+                    log::trace!(
+                        "Mystery {mystery_count}, hidden {hidden_count}, forced: {force_hidden_discovery}"
+                    );
                     if hidden_count == 0 {
                         if mystery_count > 0 {
                             info!(
@@ -505,6 +512,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                                 planned_moves: solution,
                                 performed_moves: 0,
                                 next_move_at: Instant::now() + MOVE_DELAY,
+                                known_colors: known_colors.clone(),
                             };
                         }
                     } else if mystery_count > 0 && !*force_hidden_discovery {
@@ -661,7 +669,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
+                    let current_bottles =
+                        detect_bottles(&frame_raw, &mut frame_display, known_colors);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -763,6 +772,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             planned_moves: solution,
                             performed_moves: 0,
                             next_move_at: Instant::now() + MOVE_DELAY,
+                            known_colors: known_colors.clone(),
                         };
                     } else {
                         #[cfg(feature = "discovery-debugging")]
@@ -903,7 +913,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
+                    let current_bottles =
+                        detect_bottles(&frame_raw, &mut frame_display, known_colors);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -1006,7 +1017,8 @@ pub fn run(quick_mode: bool) -> Result<()> {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    let current_bottles = detect_bottles(&frame_raw, &mut frame_display, None);
+                    let current_bottles =
+                        detect_bottles(&frame_raw, &mut frame_display, known_colors);
 
                     if let Err(error) = current_bottles {
                         if *retries_remaining == 0 {
@@ -1118,6 +1130,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 planned_moves,
                 performed_moves,
                 next_move_at,
+                known_colors,
             } => {
                 if let Some(next) = planned_moves.get(*performed_moves).cloned() {
                     if now >= *next_move_at {
@@ -1125,7 +1138,7 @@ pub fn run(quick_mode: bool) -> Result<()> {
                         let use_hidden_reveal_delay = match detect_bottles(
                             &frame_raw,
                             &mut frame_display,
-                            None,
+                            known_colors,
                         ) {
                             Ok(current_bottles) => {
                                 latest_detected_bottles = Some(current_bottles.clone());
@@ -1198,8 +1211,6 @@ pub fn run(quick_mode: bool) -> Result<()> {
                 debug!(
                     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                 );
-            } else {
-                log::trace!("Saving snapshot of new state...");
             }
 
             #[cfg(feature = "save-states")]
@@ -1539,6 +1550,7 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             next_move_at,
             planned_moves,
             performed_moves,
+            known_colors: _,
         } => OverlaySnapshot {
             phase: "ExecuteFinalSolveMoves".to_string(),
             detail: format!(

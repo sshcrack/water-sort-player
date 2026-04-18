@@ -1,7 +1,5 @@
 use std::{
-    fs,
-    path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    collections::HashSet, fs, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}
 };
 
 use anyhow::{Result, anyhow, bail};
@@ -83,8 +81,15 @@ fn run() -> Result<()> {
     let frame_raw = load_image(&input_path)?;
     let mut frame_display = frame_raw.try_clone()?;
 
-    let bottles = detect_bottles(&frame_raw, &mut frame_display, None)?;
-    info!("Detected bottles: {}", bottles.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(", "));
+    let bottles = detect_bottles(&frame_raw, &mut frame_display, &mut HashSet::new())?;
+    info!(
+        "Detected bottles: {}",
+        bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
 
     let output_path = match args.output {
         Some(path) => path,

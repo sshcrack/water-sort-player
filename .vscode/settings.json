@@ -5,5 +5,6 @@
             "fileMatch": ["/crates/water-sort-core/assets/layout.json"],
             "url": "./crates/water-sort-core/assets/layout.schema.json"
         }
-    ]
+    ],
+    "terminal.integrated.scrollback": 9999
 }

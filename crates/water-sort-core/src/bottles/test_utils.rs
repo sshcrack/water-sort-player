@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     env, fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
@@ -31,7 +32,7 @@ impl TestUtils {
         debug_filename_prefix: &str,
     ) -> anyhow::Result<Vec<Bottle>> {
         let mut frame_display = image.try_clone()?;
-        let detection_result = detect_bottles(image, &mut frame_display, None);
+        let detection_result = detect_bottles(image, &mut frame_display, &mut HashSet::new());
         let saved_path = Self::save_test_debug_image(&frame_display, debug_filename_prefix)?;
         println!(
             "Saved bottle detection debug image to {}",

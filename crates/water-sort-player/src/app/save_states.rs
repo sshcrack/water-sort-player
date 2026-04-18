@@ -57,6 +57,7 @@ impl SaveStatesRecorder {
             .join(format!("level-{:04}", self.current_level_id));
         fs::create_dir_all(&level_dir)?;
 
+        log::trace!("Saving transition {} for level {}", self.transition_index, self.current_level_id);
         let file_stem = format!("{:04}-{}", self.transition_index, app_state.get_name());
         let raw_image_filename = format!("{file_stem}.png");
         let ui_image_filename = format!("{file_stem}-ui.png");

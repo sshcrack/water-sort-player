@@ -166,7 +166,7 @@ fn is_single_color_bottle(bottle: &Bottle) -> bool {
         return false;
     }
 
-    let hash_set = std::collections::HashSet::<BottleColor>::from_iter(fills.into_iter());
+    let hash_set = std::collections::HashSet::<BottleColor>::from_iter(fills);
     hash_set.len() == 1 && !hash_set.contains(&BottleColor::Mystery)
 }
 
@@ -624,10 +624,7 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        Move,
-        discovery::{find_best_hidden_unlock_moves, improve_best_revealed_state, improve_current_and_initial_bottles_with_revealed_state},
-    };
+    use crate::discovery::{find_best_hidden_unlock_moves, improve_best_revealed_state, improve_current_and_initial_bottles_with_revealed_state};
 
     use super::{find_shortest_move_sequence, unlock_hidden_bottles_with_solved_colors};
     use water_sort_core::{
@@ -671,7 +668,7 @@ mod tests {
     #[test_log::test]
     fn solve_tester() {
         let (mut initial_state, mut max_revealed_bottle_state) = TestUtils::load_bottles_from_state(
-            "C:\\Users\\hendr\\Documents\\Coding\\rust\\water-sort-player\\target\\release\\save-states\\1776447073776\\level-0001\\0028-HiddenDiscoverBottles.json",
+            "C:/Users/hendr/Documents/Coding/rust/water-sort-player/target/release/save-states/1776523435326/level-0001/0038-HiddenDiscoverBottles.json",
         );
         let mut current_bottles = initial_state.clone();
 
