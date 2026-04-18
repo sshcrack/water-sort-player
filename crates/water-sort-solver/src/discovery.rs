@@ -200,7 +200,7 @@ pub fn improve_current_and_initial_bottles_with_revealed_state(
         .zip(max_revealed_bottle_state.iter())
         .for_each(|(initial_bottle, revealed_bottle)| {
             if initial_bottle.is_hidden_and_locked() && initial_bottle.is_empty() && !revealed_bottle.is_empty() {
-                println!(
+                log::trace!(
                     "Setting initial bottle fills from revealed bottle. Initial bottle: {}, Revealed bottle: {}",
                     initial_bottle, revealed_bottle
                 );

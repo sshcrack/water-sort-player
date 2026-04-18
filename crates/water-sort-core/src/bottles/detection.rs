@@ -27,7 +27,7 @@ const OFFSET_Y_RATIO: f32 = 29.0 / FULL_BOTTLE_HEIGHT;
 const COLOR_MATCH_DISTANCE: u32 = 30 * 30;
 
 lazy_static! {
-    static ref CROP_RECT: Rect = Rect::new(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
+    pub static ref CROP_RECT: Rect = Rect::new(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
 }
 
 #[derive(Debug, Clone)]

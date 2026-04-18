@@ -270,7 +270,7 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
             }
 
             let mut new_bottles = bottles.to_owned();
-            let mut move_to_try = Move {
+            let move_to_try = Move {
                 source_idx,
                 source_clickable_pos: *source_bottle.click_position(),
                 destination_idx,

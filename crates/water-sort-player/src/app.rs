@@ -1,8 +1,11 @@
 use std::{
     collections::HashSet,
+    collections::VecDeque,
     path::Path,
     time::{Duration, Instant},
 };
+
+mod frame_stability;
 
 #[cfg(feature = "save-states")]
 mod save_states;
@@ -10,7 +13,10 @@ mod save_states;
 use anyhow::{Context, Result, anyhow};
 use log::{debug, info, warn};
 use minifb::{MouseButton, MouseMode, Window, WindowOptions};
-use opencv::core::{Mat, MatTraitConst, Vec3b};
+use opencv::{
+    core::{Mat, MatTraitConst, Vec3b, Vector},
+    imgcodecs,
+};
 #[cfg(feature = "save-states")]
 use save_states::SaveStatesRecorder;
 use serde::{Deserialize, Serialize};
@@ -24,6 +30,7 @@ use water_sort_core::{
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
 
+use self::frame_stability::{frames_are_identical, has_no_movement_in_window};
 use crate::{
     app_visualization::{OverlaySnapshot, draw_detected_bottles_overlay, draw_state_hud},
     bottles::{Bottle, detect_bottles},
@@ -32,8 +39,8 @@ use crate::{
     solver::{
         Move,
         discovery::{
-            self, collect_hidden_requirements, count_hidden_bottles, count_total_mystery_colors,
-            find_best_discovery_moves, find_best_hidden_unlock_moves, improve_best_revealed_state,
+            self, count_hidden_bottles, count_total_mystery_colors, find_best_discovery_moves,
+            find_best_hidden_unlock_moves, improve_best_revealed_state,
             improve_current_and_initial_bottles_with_revealed_state,
         },
         visualization::draw_revealed_fill_markers,
@@ -54,10 +61,8 @@ const NO_THANK_YOU_REWARDS_WAIT: Duration = Duration::from_secs(15);
 const BOTTLE_DETECTION_RETRY_DELAY: Duration = Duration::from_secs(1);
 const BOTTLE_DETECTION_RETRIES: u8 = 3;
 const POST_DETECTION_WAIT: Duration = Duration::from_secs(1);
-const MOVE_DELAY: Duration = Duration::from_millis(3000);
-// Just turned this up to also have the reveal bottle animation be detected (was 3000ms)
-const DISCOVERY_MOVE_DELAY: Duration = Duration::from_millis(5500);
-const HIDDEN_REVEAL_DETECTION_DELAY: Duration = Duration::from_millis(5500);
+const NO_MOVEMENT_WINDOW: Duration = Duration::from_millis(1000);
+const FRAME_SIMILARITY_MEAN_DIFF_THRESHOLD: f64 = 0.1;
 #[cfg(feature = "solver-visualization")]
 const SOLVER_VISUALIZATION_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 #[cfg(feature = "solver-visualization")]
@@ -204,6 +209,8 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
     let mut first_frame_read = true;
     let mut prev_app_state = app_state.clone();
+    let mut previous_frame_raw: Option<Mat> = None;
+    let mut recent_frame_matches: VecDeque<(Instant, bool)> = VecDeque::new();
     while window.is_open() {
         if first_frame_read {
             debug!("Reading first frame...");
@@ -231,6 +238,39 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
         previous_right_click = right_click;
 
         let now = Instant::now();
+        let frames_match_previous = if let Some(previous_frame) = previous_frame_raw.as_ref() {
+            match frames_are_identical(
+                previous_frame,
+                &frame_raw,
+                FRAME_SIMILARITY_MEAN_DIFF_THRESHOLD,
+            ) {
+                Ok(matches) => matches,
+                Err(error) => {
+                    warn!(
+                        "Failed to compare frames for movement detection: {:?}",
+                        error
+                    );
+                    false
+                }
+            }
+        } else {
+            false
+        };
+
+        recent_frame_matches.push_back((now, frames_match_previous));
+        if let Some(cutoff) = now.checked_sub(NO_MOVEMENT_WINDOW) {
+            while recent_frame_matches
+                .front()
+                .is_some_and(|(timestamp, _)| *timestamp < cutoff)
+            {
+                recent_frame_matches.pop_front();
+            }
+        }
+
+        let frame_is_still =
+            has_no_movement_in_window(&recent_frame_matches, now, NO_MOVEMENT_WINDOW);
+        previous_frame_raw = Some(frame_raw.try_clone()?);
+
         let mut frame_display = frame_raw.try_clone()?;
 
         match &mut app_state {
@@ -272,7 +312,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                     capture.click_at_position(RETRY_BUTTON_POS)?;
 
                     app_state = AppState::DetectAndPlan {
-                        trigger_at: now + DISCOVERY_MOVE_DELAY,
+                        trigger_at: now,
                         retries_remaining: BOTTLE_DETECTION_RETRIES,
                     };
                 }
@@ -281,7 +321,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                 trigger_at,
                 retries_remaining,
             } => {
-                if now >= *trigger_at {
+                if now >= *trigger_at && frame_is_still {
                     info!("Detecting bottles for new level...");
                     let mut known_colors = HashSet::new();
                     let bottles = detect_bottles(&frame_raw, &mut frame_display, &mut known_colors);
@@ -349,7 +389,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         app_state = AppState::ExecuteFinalSolveMoves {
                             planned_moves: solution,
                             performed_moves: 0,
-                            next_move_at: Instant::now() + MOVE_DELAY,
+                            next_move_at: Instant::now(),
                             known_colors: known_colors.clone(),
                         };
                     } else if mystery_count > 0 {
@@ -522,7 +562,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             app_state = AppState::ExecuteFinalSolveMoves {
                                 planned_moves: solution,
                                 performed_moves: 0,
-                                next_move_at: Instant::now() + MOVE_DELAY,
+                                next_move_at: Instant::now(),
                                 known_colors: known_colors.clone(),
                             };
                         }
@@ -600,7 +640,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                         capture.click_at_position(RETRY_BUTTON_POS)?;
 
                                         app_state = AppState::HiddenDiscoverBottles {
-                                            trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                            trigger_at: Instant::now(),
                                             initial_state: initial_state.clone(),
                                             current_moves: vec![],
                                             known_colors: known_colors.clone(),
@@ -619,7 +659,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                     capture.click_at_position(RETRY_BUTTON_POS)?;
 
                                     app_state = AppState::HiddenDiscoverBottles {
-                                        trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                        trigger_at: Instant::now(),
                                         initial_state: initial_state.clone(),
                                         current_moves: vec![],
                                         known_colors: known_colors.clone(),
@@ -655,7 +695,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 );
 
                                 app_state = AppState::HiddenDiscoverBottles {
-                                    trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                    trigger_at: Instant::now(),
                                     initial_state: initial_state.clone(),
                                     known_colors: known_colors.clone(),
                                     current_moves: current_moves.clone(),
@@ -789,7 +829,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         app_state = AppState::ExecuteFinalSolveMoves {
                             planned_moves: solution,
                             performed_moves: 0,
-                            next_move_at: Instant::now() + MOVE_DELAY,
+                            next_move_at: Instant::now(),
                             known_colors: known_colors.clone(),
                         };
                     } else {
@@ -868,7 +908,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                     capture.click_at_position(RETRY_BUTTON_POS)?;
 
                                     app_state = AppState::MysteryDiscoverColors {
-                                        trigger_at: Instant::now() + DISCOVERY_MOVE_DELAY,
+                                        trigger_at: Instant::now(),
                                         known_colors: known_colors.clone(),
                                         initial_state: initial_state.clone(),
                                         max_revealed_bottle_state: max_revealed_bottle_state
@@ -929,7 +969,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                 known_colors,
                 retries_remaining,
             } => {
-                if now >= *trigger_at {
+                if now >= *trigger_at && frame_is_still {
                     log::debug!(
                         "Max revealed {}",
                         max_revealed_bottle_state
@@ -990,8 +1030,6 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
-                        let reveal_wait_needed =
-                            move_satisfies_hidden_requirement(&current_bottles, &next_move);
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
@@ -1014,12 +1052,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         next_move.perform_move_on_device(&capture)?;
 
                         current_moves.push(next_move);
-                        *trigger_at = Instant::now()
-                            + if reveal_wait_needed {
-                                HIDDEN_REVEAL_DETECTION_DELAY
-                            } else {
-                                DISCOVERY_MOVE_DELAY
-                            };
+                        *trigger_at = Instant::now();
                     }
                 }
             }
@@ -1033,7 +1066,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                 retries_remaining,
                 known_colors,
             } => {
-                if now >= *trigger_at {
+                if now >= *trigger_at && frame_is_still {
                     log::debug!(
                         "Max revealed {}",
                         max_revealed_bottle_state
@@ -1108,8 +1141,6 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         };
                     } else {
                         let next_move = moves_to_execute.remove(0);
-                        let reveal_wait_needed =
-                            move_satisfies_hidden_requirement(&current_bottles, &next_move);
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
                                 "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {}, Detected bottles: {}",
@@ -1141,13 +1172,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         // Remove the executed move from the list
                         current_moves.push(next_move);
 
-                        // Schedule the next move or go back to discovery state after a delay
-                        *trigger_at = Instant::now()
-                            + if reveal_wait_needed {
-                                HIDDEN_REVEAL_DETECTION_DELAY
-                            } else {
-                                DISCOVERY_MOVE_DELAY
-                            };
+                        *trigger_at = Instant::now();
                     }
                 }
             }
@@ -1158,19 +1183,23 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                 known_colors,
             } => {
                 if let Some(next) = planned_moves.get(*performed_moves).cloned() {
-                    if now >= *next_move_at {
+                    if now >= *next_move_at && frame_is_still {
                         info!("Performing move: {}.", next);
-                        let use_hidden_reveal_delay = match detect_bottles(
-                            &frame_raw,
-                            &mut frame_display,
-                            known_colors,
-                        ) {
+                        match detect_bottles(&frame_raw, &mut frame_display, known_colors) {
                             Ok(current_bottles) => {
                                 let expected_state = next.get_expected_state_before_move();
                                 let state_matches =
                                     are_states_equivalent(expected_state, &current_bottles);
 
                                 if !state_matches {
+                                    log::debug!(
+                                        "Writing frame_display to discovery_move_error.png for debugging..."
+                                    );
+                                    let _ = imgcodecs::imwrite(
+                                        "target/discovery_move_error.png",
+                                        &frame_display,
+                                        &Vector::new(),
+                                    );
                                     panic!(
                                         "Expected state doesn't match the current detected state before performing a solve move. This should not happen. Move: {}, Expected state: {}, Detected state: {}",
                                         next,
@@ -1188,28 +1217,18 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 }
 
                                 latest_detected_bottles = Some(current_bottles.clone());
-                                move_satisfies_hidden_requirement(&current_bottles, &next)
                             }
                             Err(error) => {
                                 warn!(
                                     "Could not detect bottles before solve move timing check: {:?}",
                                     error
                                 );
-                                false
                             }
                         };
 
                         next.perform_move_on_device(&capture)?;
                         *performed_moves += 1;
-                        *next_move_at = now
-                            + if use_hidden_reveal_delay {
-                                info!(
-                                    "Solve move unlocked a hidden bottle requirement; waiting longer before next move."
-                                );
-                                HIDDEN_REVEAL_DETECTION_DELAY
-                            } else {
-                                MOVE_DELAY
-                            };
+                        *next_move_at = now;
                     }
                 } else {
                     app_state = AppState::CheckForRewards {
@@ -1259,6 +1278,9 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                 );
             }
 
+            log::trace!("Clearing latest similar scores");
+            recent_frame_matches.clear();
+
             #[cfg(feature = "save-states")]
             state_capture.capture_transition(
                 &prev_app_state,
@@ -1278,7 +1300,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 }
 
 fn are_states_equivalent(expected_state: &[Bottle], current_bottles: &[Bottle]) -> bool {
-    println!(
+    log::trace!(
         "Current state: {}",
         current_bottles
             .iter()
@@ -1286,7 +1308,7 @@ fn are_states_equivalent(expected_state: &[Bottle], current_bottles: &[Bottle]) 
             .collect::<Vec<_>>()
             .join(" ")
     );
-    println!(
+    log::trace!(
         "Expected state: {}",
         expected_state
             .iter()
@@ -1295,8 +1317,6 @@ fn are_states_equivalent(expected_state: &[Bottle], current_bottles: &[Bottle]) 
             .join(" ")
     );
 
-    println!("Verify manually pls..");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
     current_bottles.iter().enumerate().all(|(i, b)| {
         let expected_bottle = &expected_state[i];
 
@@ -1410,22 +1430,6 @@ fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {
     } else {
         None
     }
-}
-
-fn move_satisfies_hidden_requirement(current_bottles: &[Bottle], mv: &Move) -> bool {
-    let hidden_requirements = collect_hidden_requirements(current_bottles);
-    if hidden_requirements.is_empty() || !mv.can_perform_on_bottles(current_bottles) {
-        return false;
-    }
-
-    let mut simulated = current_bottles.to_vec();
-    mv.perform_move_on_bottles(&mut simulated);
-
-    simulated.iter().any(|bottle| {
-        bottle
-            .solved_color()
-            .is_some_and(|color| hidden_requirements.contains(&color))
-    })
 }
 
 fn maybe_start_discovery_capture(
