@@ -25,7 +25,7 @@ use water_sort_core::{
     BottleColor,
     constants::{
         NEXT_LEVEL_BUTTON_COLOR, NEXT_LEVEL_BUTTON_POSITIONS, NO_THANK_YOU_POSITIONS,
-        NO_THANK_YOU_REWARDS_COLOR, color_distance_sq,
+        NO_THANK_YOU_REWARDS_COLOR, color_distance_sq, reset_color_label_assignments,
     },
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
@@ -1250,6 +1250,10 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
         if prev_app_state != app_state {
             if prev_app_state.get_name() != app_state.get_name() {
+                if matches!(app_state, AppState::CheckForRewards { .. }) {
+                    reset_color_label_assignments();
+                }
+
                 debug!(
                     "Transitioning from state {} to state {}...",
                     prev_app_state.get_name(),

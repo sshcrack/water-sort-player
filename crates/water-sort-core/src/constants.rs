@@ -132,6 +132,14 @@ lazy_static! {
         Mutex::new(HashMap::new());
 }
 
+pub fn reset_color_label_assignments() {
+    let mut next_color_label_index = NEXT_COLOR_LABEL_INDEX.lock().unwrap();
+    *next_color_label_index = 0;
+
+    let mut color_label_map = COLOR_LABEL_MAP.lock().unwrap();
+    color_label_map.clear();
+}
+
 fn color_label_for_index(index: usize) -> String {
     // Skip uppercase 'E' to avoid colliding with the Empty bottle label.
     const UPPERCASE_WITHOUT_E: &[u8; 25] = b"ABCDFGHIJKLMNOPQRSTUVWXYZ";
