@@ -144,6 +144,7 @@ enum AppState {
     ExecutePlanSolverMoves {
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
+        known_colors: HashSet<BottleColor>,
     },
     ExecuteFinalSolveMoves {
         #[serde(skip, default = "instant_now")]
@@ -172,6 +173,7 @@ impl AppState {
             AppState::MysteryDiscoverColors { .. } => "MysteryDiscoverColors",
             AppState::MysteryExecuteDiscoverMove { .. } => "MysteryExecuteDiscoverMove",
             AppState::ExecuteFinalSolveMoves { .. } => "ExecuteFinalSolveMoves",
+            AppState::ExecutePlanSolverMoves { .. } => "ExecutePlanSolverMoves",
         }
         .to_string()
     }
@@ -382,23 +384,9 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         let hidden_count = count_hidden_bottles(&detected_bottles);
                         if mystery_count == 0 && hidden_count == 0 {
                             info!("No mystery colors detected, running solver directly...");
-
-                            maybe_set_resolved_bottles(&mut discovery_capture, &detected_bottles);
-                            finalize_discovery_capture(&mut discovery_capture);
-
-                            let solution = solve_with_visualization(
-                                &detected_bottles,
-                                &detected_bottles,
-                                &frame_raw,
-                                &mut window,
-                                width,
-                                height,
-                            )?;
-
-                            app_state = AppState::ExecuteFinalSolveMoves {
-                                planned_moves: solution,
-                                performed_moves: 0,
-                                next_move_at: Instant::now(),
+                            app_state = AppState::ExecutePlanSolverMoves {
+                                max_revealed_bottle_state: detected_bottles.clone(),
+                                initial_state: detected_bottles.clone(),
                                 known_colors: known_colors.clone(),
                             };
                         } else if mystery_count > 0 {
@@ -551,28 +539,9 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                         .join(" ")
                                 );
 
-                                maybe_set_resolved_bottles(
-                                    &mut discovery_capture,
-                                    max_revealed_bottle_state,
-                                );
-                                finalize_discovery_capture(&mut discovery_capture);
-
-                                log::debug!("Clicking retry button...");
-                                capture.click_at_position(RETRY_BUTTON_POS)?;
-
-                                let solution = solve_with_visualization(
-                                    max_revealed_bottle_state,
-                                    initial_state,
-                                    &frame_raw,
-                                    &mut window,
-                                    width,
-                                    height,
-                                )?;
-
-                                app_state = AppState::ExecuteFinalSolveMoves {
-                                    planned_moves: solution,
-                                    performed_moves: 0,
-                                    next_move_at: Instant::now(),
+                                app_state = AppState::ExecutePlanSolverMoves {
+                                    max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                    initial_state: initial_state.clone(),
                                     known_colors: known_colors.clone(),
                                 };
                             }
@@ -820,28 +789,9 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
                             info!("All mystery colors revealed! Running solver...");
 
-                            maybe_set_resolved_bottles(
-                                &mut discovery_capture,
-                                max_revealed_bottle_state,
-                            );
-
-                            finalize_discovery_capture(&mut discovery_capture);
-
-                            let solution = solve_with_visualization(
-                                max_revealed_bottle_state,
-                                initial_state,
-                                &frame_raw,
-                                &mut window,
-                                width,
-                                height,
-                            )?;
-
-                            info!("Resetting level for the solver...");
-                            capture.click_at_position(RETRY_BUTTON_POS)?;
-                            app_state = AppState::ExecuteFinalSolveMoves {
-                                planned_moves: solution,
-                                performed_moves: 0,
-                                next_move_at: Instant::now(),
+                            app_state = AppState::ExecutePlanSolverMoves {
+                                max_revealed_bottle_state: max_revealed_bottle_state.clone(),
+                                initial_state: initial_state.clone(),
                                 known_colors: known_colors.clone(),
                             };
                         } else {
@@ -1175,12 +1125,32 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             *trigger_at = Instant::now();
                         }
                     }
-                },
+                }
                 AppState::ExecutePlanSolverMoves {
                     initial_state,
-                    max_revealed_bottle_state
+                    max_revealed_bottle_state,
+                    known_colors,
                 } => {
+                    maybe_set_resolved_bottles(&mut discovery_capture, &max_revealed_bottle_state);
+                    finalize_discovery_capture(&mut discovery_capture);
 
+                    let solution = solve_with_visualization(
+                        &max_revealed_bottle_state,
+                        &initial_state,
+                        &frame_raw,
+                        &mut window,
+                        width,
+                        height,
+                    )?;
+
+                    info!("Resetting level for the solver...");
+                    capture.click_at_position(RETRY_BUTTON_POS)?;
+                    app_state = AppState::ExecuteFinalSolveMoves {
+                        planned_moves: solution,
+                        performed_moves: 0,
+                        next_move_at: Instant::now(),
+                        known_colors: known_colors.clone(),
+                    };
                 }
                 AppState::ExecuteFinalSolveMoves {
                     planned_moves,
@@ -1656,6 +1626,22 @@ fn build_overlay_snapshot<'a>(app_state: &'a AppState, now: Instant) -> OverlayS
             discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
             discovery_depth: Some(current_moves.len()),
             discovery_queue: Some(moves_to_execute.len()),
+            solve_moves: &[],
+            solve_performed_moves: 0,
+            #[cfg(feature = "solver-visualization")]
+            solve_current_move_index: 0,
+        },
+        AppState::ExecutePlanSolverMoves {
+            max_revealed_bottle_state,
+            ..
+        } => OverlaySnapshot {
+            phase: "ExecutePlanSolverMoves".to_string(),
+            detail: "Planning solver moves".to_string(),
+            until_ready: None,
+            discovery_hidden: Some(count_total_mystery_colors(max_revealed_bottle_state)),
+            discovery_total_slots: Some(max_revealed_bottle_state.len() * 4),
+            discovery_depth: None,
+            discovery_queue: None,
             solve_moves: &[],
             solve_performed_moves: 0,
             #[cfg(feature = "solver-visualization")]
