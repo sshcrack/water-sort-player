@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants::BottleColor;
 
+const DEFAULT_BOTTLE_CAPACITY: usize = 4;
+
 #[derive(
     Debug, Clone, Serialize, Deserialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default,
 )]
@@ -80,7 +82,7 @@ impl Bottle {
         click_position: Option<crate::Pos>,
     ) -> Self {
         Bottle {
-            fills: vec![],
+            fills: vec![(BottleColor::Empty, false); DEFAULT_BOTTLE_CAPACITY],
             hidden_requirement: HiddenRequirement::Locked(requirement),
             click_position,
         }
@@ -147,7 +149,12 @@ impl Bottle {
             .iter()
             .rposition(|(color, _)| !color.is_empty())?;
 
-        let top_color = self.fills[top_non_empty_index].0;
+        let (top_color, top_was_mystery) = self.fills[top_non_empty_index];
+
+        if top_was_mystery {
+            return Some((1, top_color));
+        }
+
         let mut amount = 1;
 
         for index in (0..top_non_empty_index).rev() {
@@ -266,8 +273,8 @@ impl Bottle {
             panic!("Not enough space in the destination bottle to fill from the source");
         }
 
-        let dest_idx_end= self.get_capacity() - destination_fill_count;
-        let dest_idx_start = dest_idx_end - source_top_amount;
+        let dest_idx_start = destination_fill_count;
+        let dest_idx_end = destination_fill_count + source_top_amount;
         for index in dest_idx_start..dest_idx_end {
             self.fills[index] = (source_top_color, false);
         }
@@ -333,12 +340,35 @@ mod tests {
         assert_eq!(
             empty_bottle.get_fills(),
             vec![
-                BottleColor::Empty,
-                BottleColor::Empty,
-                BottleColor::Empty,
                 BottleColor::orange(),
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Empty,
             ]
         )
+    }
+
+    #[test_log::test]
+    fn top_mystery_returns_single_fill() {
+        use super::BottleColor;
+
+        let bottle = super::Bottle::from_fills_with_initial(
+            vec![
+                BottleColor::orange(),
+                BottleColor::orange(),
+                BottleColor::Empty,
+                BottleColor::Empty,
+            ],
+            vec![
+                BottleColor::orange(),
+                BottleColor::Mystery,
+                BottleColor::Empty,
+                BottleColor::Empty,
+            ],
+            None,
+        );
+
+        assert_eq!(bottle.get_top_fill(), Some((1, BottleColor::orange())));
     }
 }
 
