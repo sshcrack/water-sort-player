@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display, iter};
 
-use colored::{ColoredString, Colorize};
+use colored::Colorize;
 use opencv::core::{Mat, MatTraitConst, Vec3b};
 
 pub mod detection;
@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants::BottleColor;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default,
+)]
 pub enum HiddenRequirement {
     #[default]
     None,
@@ -31,40 +33,12 @@ pub struct Bottle {
     click_position: Option<crate::Pos>,
 }
 
-impl Default for Bottle {
-    fn default() -> Self {
-        Bottle {
-            fills: vec![(BottleColor::Empty, false); FULL_BOTTLE_COUNT],
-            hidden_requirement: HiddenRequirement::None,
-            click_position: None,
-        }
-    }
-}
-
-// Remove hardcoded constants - using layouts now
-const FULL_BOTTLE_COUNT: usize = 4;
-
 impl Bottle {
-    fn normalize_fills(mut fills: Vec<BottleColor>) -> Vec<(BottleColor, bool)> {
-        let mut normalized = fills
-            .drain(..)
-            .filter(|color| !color.is_empty())
-            .map(|color| (color, color == BottleColor::Mystery))
-            .collect::<Vec<_>>();
-
-        while normalized.len() < FULL_BOTTLE_COUNT {
-            normalized.push((BottleColor::Empty, false));
-        }
-
-        normalized.truncate(FULL_BOTTLE_COUNT);
-        normalized
-    }
-
     fn normalize_fills_with_initial(
         fills: Vec<BottleColor>,
         initial: Vec<BottleColor>,
     ) -> Vec<(BottleColor, bool)> {
-        let mut normalized = fills
+        fills
             .into_iter()
             .zip(
                 initial
@@ -78,20 +52,12 @@ impl Bottle {
                     initial_color.is_some_and(|e| e == BottleColor::Mystery),
                 )
             })
-            .filter(|(color, _)| !color.is_empty())
-            .collect::<Vec<_>>();
-
-        while normalized.len() < FULL_BOTTLE_COUNT {
-            normalized.push((BottleColor::Empty, false));
-        }
-
-        normalized.truncate(FULL_BOTTLE_COUNT);
-        normalized
+            .collect()
     }
 
     pub fn from_fills(fills: Vec<BottleColor>, click_position: Option<crate::Pos>) -> Self {
         Bottle {
-            fills: Self::normalize_fills(fills),
+            fills: fills.into_iter().map(|c| (c, false)).collect(),
             hidden_requirement: HiddenRequirement::None,
             click_position,
         }
@@ -114,19 +80,8 @@ impl Bottle {
         click_position: Option<crate::Pos>,
     ) -> Self {
         Bottle {
-            fills: vec![(BottleColor::Empty, false); FULL_BOTTLE_COUNT],
+            fills: vec![],
             hidden_requirement: HiddenRequirement::Locked(requirement),
-            click_position,
-        }
-    }
-
-    pub fn from_unlocked_hidden_requirement(
-        requirement: BottleColor,
-        click_position: Option<crate::Pos>,
-    ) -> Self {
-        Bottle {
-            fills: vec![(BottleColor::Empty, false); FULL_BOTTLE_COUNT],
-            hidden_requirement: HiddenRequirement::Unlocked(requirement),
             click_position,
         }
     }
@@ -201,18 +156,18 @@ impl Bottle {
                 break;
             }
 
-            amount += 1;
-
             if was_mystery {
                 break;
             }
+
+            amount += 1;
         }
 
         Some((amount, top_color))
     }
 
     pub fn is_full(&self) -> bool {
-        self.get_fill_count() >= FULL_BOTTLE_COUNT
+        self.get_fill_count() >= self.get_capacity()
     }
 
     pub fn get_fill_count(&self) -> usize {
@@ -220,6 +175,10 @@ impl Bottle {
             .iter()
             .filter(|(color, _)| !color.is_empty())
             .count()
+    }
+
+    pub fn get_capacity(&self) -> usize {
+        self.fills.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -231,7 +190,7 @@ impl Bottle {
             return false;
         }
 
-        if self.get_fill_count() != FULL_BOTTLE_COUNT {
+        if self.get_fill_count() != self.get_capacity() {
             return false;
         }
 
@@ -289,7 +248,7 @@ impl Bottle {
             return false;
         }
 
-        self.get_fill_count() + other_top_amount <= FULL_BOTTLE_COUNT
+        self.get_fill_count() + other_top_amount <= self.get_capacity()
     }
 
     pub fn fill_from(&mut self, source: &mut Bottle) {
@@ -301,28 +260,85 @@ impl Bottle {
 
         let destination_fill_count = self.get_fill_count();
         let source_fill_count = source.get_fill_count();
-        let available_space = FULL_BOTTLE_COUNT - destination_fill_count;
-        if available_space < source_top_amount {
+        let destination_available_space =
+            self.get_capacity().saturating_sub(destination_fill_count);
+        if destination_available_space < source_top_amount {
             panic!("Not enough space in the destination bottle to fill from the source");
         }
 
-        for index in destination_fill_count..(destination_fill_count + source_top_amount) {
-            if index < self.fills.len() {
-                self.fills[index] = (source_top_color, false);
-            } else {
-                self.fills.push((source_top_color, false));
-            }
+        let dest_idx_end= self.get_capacity() - destination_fill_count;
+        let dest_idx_start = dest_idx_end - source_top_amount;
+        for index in dest_idx_start..dest_idx_end {
+            self.fills[index] = (source_top_color, false);
         }
 
-        for index in (source_fill_count - source_top_amount)..source_fill_count {
-            if index < source.fills.len() {
-                source.fills[index] = (BottleColor::Empty, false);
-            }
+        let source_idx_start = source_fill_count - source_top_amount;
+        let source_idx_end = source_fill_count;
+
+        for index in source_idx_start..source_idx_end {
+            source.fills[index] = (BottleColor::Empty, false);
         }
     }
 
     pub fn click_position(&self) -> &Option<crate::Pos> {
         &self.click_position
+    }
+
+    #[cfg(test)]
+    pub fn empty() -> Self {
+        Self::from_fills(
+            vec![
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Empty,
+            ],
+            None,
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test_log::test]
+    fn mystery_pour() {
+        use super::BottleColor;
+        let mut empty_bottle = super::Bottle::from_fills(
+            vec![
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Empty,
+            ],
+            None,
+        );
+        let mut mystery_bottle = super::Bottle::from_fills_with_initial(
+            vec![
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::orange(),
+                BottleColor::orange(),
+            ],
+            vec![
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Mystery,
+                BottleColor::Mystery,
+            ],
+            None,
+        );
+
+        println!("Mystery top fill: {:?}", mystery_bottle.get_top_fill());
+        empty_bottle.fill_from(&mut mystery_bottle);
+        assert_eq!(
+            empty_bottle.get_fills(),
+            vec![
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::Empty,
+                BottleColor::orange(),
+            ]
+        )
     }
 }
 
@@ -335,7 +351,12 @@ impl Display for Bottle {
                     write!(f, "{}{}", "!".red(), bottle_color.to_string().bright_red())
                 }
                 HiddenRequirement::Unlocked(bottle_color) => {
-                    write!(f, "{}{},EEEE", "!".green(), bottle_color.to_string().bright_green())
+                    write!(
+                        f,
+                        "{}{},EEEE",
+                        "!".green(),
+                        bottle_color.to_string().bright_green()
+                    )
                 }
             };
         }

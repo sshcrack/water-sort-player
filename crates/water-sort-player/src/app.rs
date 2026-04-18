@@ -981,7 +981,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
-                                "Planned hidden-bottle move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
+                                "Planned hidden-bottle move cannot be performed on the currently detected bottle state. This should not happen. Move: {}, Detected bottles: {}",
                                 next_move,
                                 current_bottles
                                     .iter()
@@ -991,7 +991,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             ));
                         }
 
-                        info!("Performing hidden-bottle move: {:?}.", next_move);
+                        info!("Performing hidden-bottle move: {}.", next_move);
                         #[cfg(feature = "discovery-debugging")]
                         {
                             info!("Press enter to perform the next move...");
@@ -1098,7 +1098,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             move_satisfies_hidden_requirement(&current_bottles, &next_move);
                         if !next_move.can_perform_on_bottles(&current_bottles) {
                             return Err(anyhow!(
-                                "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {:?}, Detected bottles: {}",
+                                "Planned discovery move cannot be performed on the currently detected bottle state. This should not happen. Move: {}, Detected bottles: {}",
                                 next_move,
                                 current_bottles
                                     .iter()
@@ -1108,7 +1108,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             ));
                         }
 
-                        info!("Performing discovery move: {:?}.", next_move);
+                        info!("Performing discovery move: {}.", next_move);
                         debug!(
                             "Current bottles at discovery move execution: {}",
                             current_bottles
@@ -1152,6 +1152,27 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             known_colors,
                         ) {
                             Ok(current_bottles) => {
+                                let expected_state = next.get_expected_state_before_move();
+                                let state_matches =
+                                    are_states_equivalent(expected_state, &current_bottles);
+
+                                if !state_matches {
+                                    panic!(
+                                        "Expected state doesn't match the current detected state before performing a solve move. This should not happen. Move: {}, Expected state: {}, Detected state: {}",
+                                        next,
+                                        expected_state
+                                            .iter()
+                                            .map(|b| b.to_string())
+                                            .collect::<Vec<_>>()
+                                            .join(" "),
+                                        current_bottles
+                                            .iter()
+                                            .map(|b| b.to_string())
+                                            .collect::<Vec<_>>()
+                                            .join(" ")
+                                    );
+                                }
+
                                 latest_detected_bottles = Some(current_bottles.clone());
                                 move_satisfies_hidden_requirement(&current_bottles, &next)
                             }
@@ -1242,9 +1263,28 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
+fn are_states_equivalent(expected_state: &[Bottle], current_bottles: &[Bottle]) -> bool {
+    current_bottles.iter().enumerate().all(|(i, b)| {
+        let expected_bottle = &expected_state[i];
+
+        if b.is_hidden_and_locked() {
+            expected_bottle.hidden_requirement() == b.hidden_requirement()
+        } else {
+            let expected_fills = expected_bottle.get_fills();
+            b.get_fills().iter().enumerate().all(|(j, c)| {
+                if c == &BottleColor::Mystery {
+                    true
+                } else {
+                    *c == expected_fills[j]
+                }
+            })
+        }
+    })
+}
+
 fn load_app_state_from_file(path: &Path) -> Result<AppState> {
     let raw_state = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read app state JSON from {}", path.display()))?;
+        .with_context(|| format!("Failed to read state JSON from {}", path.display()))?;
 
     let json: Value = serde_json::from_str(&raw_state)?;
     let app_state = json.get("app_state").ok_or_else(|| {
@@ -1254,8 +1294,12 @@ fn load_app_state_from_file(path: &Path) -> Result<AppState> {
         )
     })?;
 
-    serde_json::from_value(app_state.clone())
-        .with_context(|| format!("Failed to deserialize app state JSON from {}", path.display()))
+    serde_json::from_value(app_state.clone()).with_context(|| {
+        format!(
+            "Failed to deserialize app state JSON from {}",
+            path.display()
+        )
+    })
 }
 
 fn solve_with_visualization(

@@ -24,6 +24,8 @@ pub struct Move {
 
     destination_idx: usize,
     destination_clickable_pos: Option<Pos>,
+
+    expected_state_before_move: Vec<Bottle>,
 }
 
 impl Display for Move {
@@ -268,11 +270,12 @@ fn generate_possible_moves(bottles: &[Bottle]) -> Vec<(Move, Vec<Bottle>)> {
             }
 
             let mut new_bottles = bottles.to_owned();
-            let move_to_try = Move {
+            let mut move_to_try = Move {
                 source_idx,
                 source_clickable_pos: *source_bottle.click_position(),
                 destination_idx,
                 destination_clickable_pos: *destination_bottle.click_position(),
+                expected_state_before_move: bottles.to_owned(),
             };
             if !move_to_try.can_perform_on_bottles(&new_bottles) {
                 /* log::trace!(
@@ -492,6 +495,10 @@ impl Move {
 
         destination_bottle.fill_from(source_bottle);
     }
+    
+    pub fn get_expected_state_before_move(&self) -> &Vec<Bottle> {
+        &self.expected_state_before_move
+    }
 }
 
 pub fn build_solver_initial_bottle_state(
@@ -626,7 +633,7 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 mod tests {
     use crate::{
         discovery::{
-            find_best_hidden_unlock_moves, improve_best_revealed_state,
+            improve_best_revealed_state,
             improve_current_and_initial_bottles_with_revealed_state,
         },
         run_solver,
