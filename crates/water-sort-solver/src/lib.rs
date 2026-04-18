@@ -681,7 +681,7 @@ mod tests {
     #[test_log::test]
     fn solve_tester() {
         let (mut initial_state, mut max_revealed_bottle_state) = TestUtils::load_bottles_from_state(
-            "C:/Users/hendr/Documents/Coding/rust/water-sort-player/target/release/save-states/1776525054234/level-0001/0078-MysteryDiscoverColors.json",
+            r"C:\Users\hendr\Documents\Coding\rust\water-sort-player\target\release\save-states\1776553232913\level-0001\0078-MysteryDiscoverColors.json",
         );
         let mut current_bottles = initial_state.clone();
 

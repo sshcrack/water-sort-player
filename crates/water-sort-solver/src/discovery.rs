@@ -86,6 +86,22 @@ pub fn find_best_discovery_moves(
     current_bottles: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) -> DiscoverResult {
+    log::debug!(
+        "Discovery: Current bottles used for the algorithm: {}",
+        current_bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    log::debug!(
+        "Discovery: Max revealed bottle state used for the algorithm: {}",
+        max_revealed_bottle_state
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     let already_solved = max_revealed_bottle_state
         .iter()
         .all(|b| b.is_solved() || b.is_empty());

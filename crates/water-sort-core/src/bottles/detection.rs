@@ -109,11 +109,39 @@ fn detect_bottles_with_seen_colors(
         let hidden_requirement = detected_bottle.bottle.hidden_requirement_state();
         let fills = detected_bottle.bottle.get_fills();
         let click_position = bottle_click_position(detected_bottle.bounds);
-        detected_bottle.bottle =
-            Bottle::from_fills_with_initial(fills.clone(), fills, Some(click_position));
+        detected_bottle.bottle = Bottle::from_fills(fills, Some(click_position));
         detected_bottle
             .bottle
             .set_hidden_requirement(hidden_requirement);
+
+        if !detected_bottle.bottle.is_empty() {
+            let mut has_seen_color = false;
+            for bottle_color in detected_bottle.bottle.get_fills().iter().rev() {
+                if bottle_color.is_empty() {
+                    if has_seen_color {
+                        log::debug!(
+                            "Invalid bottle: {}",
+                            detected_bottle
+                                .bottle
+                                .get_fills()
+                                .iter()
+                                .rev()
+                                .map(|e| e.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                        anyhow::bail!(
+                            "Unexpected empty layer above fill in bottle at position ({}, {})",
+                            click_position.0,
+                            click_position.1
+                        );
+                    }
+                    continue;
+                }
+
+                has_seen_color = true;
+            }
+        }
     }
 
     let mut display_crop_area = frame_display.roi_mut(*CROP_RECT)?;
