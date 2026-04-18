@@ -553,7 +553,14 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
                         match find_best_hidden_unlock_moves(&current_bottles) {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
-                                info!("Best hidden unlock sequence found: {:?}", best_moves);
+                                info!(
+                                    "Best hidden unlock sequence found: {}",
+                                    best_moves
+                                        .iter()
+                                        .map(|m| m.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ")
+                                );
                                 app_state = AppState::HiddenExecuteDiscoverMove {
                                     moves_to_execute: best_moves,
                                     initial_state: initial_state.clone(),
@@ -801,7 +808,14 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
                         match best_move {
                             discovery::DiscoverResult::MoveToDiscover(best_moves) => {
-                                info!("Best discovery move sequence found: {:?}", best_moves);
+                                info!(
+                                    "Best discovery move sequence found: {}",
+                                    best_moves
+                                        .iter()
+                                        .map(|m| m.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ")
+                                );
                                 debug!(
                                     "Current bottles used for the algorithm: {}",
                                     current_bottles
@@ -1264,8 +1278,22 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 }
 
 fn are_states_equivalent(expected_state: &[Bottle], current_bottles: &[Bottle]) -> bool {
-    println!("Current state: {}", current_bottles.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
-    println!("Expected state: {}", expected_state.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(" "));
+    println!(
+        "Current state: {}",
+        current_bottles
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    println!(
+        "Expected state: {}",
+        expected_state
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
 
     println!("Verify manually pls..");
     std::io::stdin().read_line(&mut String::new()).unwrap();
