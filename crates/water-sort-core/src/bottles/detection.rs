@@ -364,7 +364,7 @@ fn detect_curtain_bottles(
         let avg_flask_color = mean_bgr(&sampled_img)?;
         log::trace!(
             "Countour index: {}, avg color: {:?}",
-            bottle_indices[1],
+            bottle_indices[best_contour_bottle_idx],
             avg_flask_color
         );
         let unlock_color =
