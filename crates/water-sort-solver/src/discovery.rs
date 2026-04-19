@@ -39,6 +39,17 @@ pub enum DiscoverResult {
 }
 
 pub fn find_best_hidden_unlock_moves(current_bottles: &[Bottle]) -> DiscoverResult {
+    /* let unix_str = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    std::fs::write(
+        format!("{}_hidden_unlock.json", unix_str),
+        serde_json::to_string(&current_bottles).unwrap(),
+    )
+    .unwrap(); */
+
     log::debug!(
         "Finding best hidden unlock moves for current bottles: {}",
         current_bottles
@@ -86,6 +97,21 @@ pub fn find_best_discovery_moves(
     current_bottles: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) -> DiscoverResult {
+    /* let unix_str = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    std::fs::write(
+        format!("{}_discovery_moves.json", unix_str),
+        serde_json::to_string(&serde_json::json!({
+            "current_bottles": current_bottles,
+            "max_revealed_bottle_state": max_revealed_bottle_state,
+        }))
+        .unwrap(),
+    )
+    .unwrap(); */
+
     log::debug!(
         "Discovery: Current bottles used for the algorithm: {}",
         current_bottles
@@ -232,9 +258,10 @@ pub fn improve_current_and_initial_bottles_with_revealed_state(
                 .get_fills_mut()
                 .iter_mut()
                 .zip(revealed_bottle.get_fills().iter())
-                .for_each(|((current_color, _), revealed_color)| {
+                .for_each(|((current_color, was_mystery), revealed_color)| {
                     if *current_color == BottleColor::Mystery {
                         *current_color = *revealed_color;
+                        *was_mystery = true;
                     }
                 });
 

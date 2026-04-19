@@ -25,6 +25,7 @@ const FULL_BOTTLE_HEIGHT: f32 = 146.0;
 const COLOR_LAYER_HEIGHT_RATIO: f32 = 28.0 / FULL_BOTTLE_HEIGHT;
 const OFFSET_Y_RATIO: f32 = 29.0 / FULL_BOTTLE_HEIGHT;
 const COLOR_MATCH_DISTANCE: u32 = 30 * 30;
+const MIN_CURTAIN_BOTTLE_AREA: f64 = 490.0;
 
 lazy_static! {
     pub static ref CROP_RECT: Rect = Rect::new(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
@@ -262,7 +263,7 @@ fn detect_curtain_bottles(
     cropped: &Mat,
     contours: &Vector<Vector<Point>>,
     curtain_indices: &[usize],
-    known_colors: &HashSet<BottleColor>,
+    known_colors: &mut HashSet<BottleColor>,
 ) -> Result<Vec<DetectedBottle>> {
     let mut grouped: Vec<(i32, Vec<usize>)> = Vec::new();
 
@@ -291,11 +292,34 @@ fn detect_curtain_bottles(
                 .unwrap_or(0)
         });
 
-        if bottle_indices.len() != 3 {
+        let best_contour_bottle_idx = (0..bottle_indices.len())
+            .max_by_key(|idx| {
+                let contour = contours.get(bottle_indices[*idx]).unwrap();
+                imgproc::contour_area(&contour, false).unwrap_or(0.0) as i32
+            })
+            .unwrap_or(0);
+
+        let contour_area = imgproc::contour_area(
+            &contours.get(bottle_indices[best_contour_bottle_idx])?,
+            false,
+        )?;
+        if contour_area < MIN_CURTAIN_BOTTLE_AREA {
+            log::debug!(
+                "Skipping contour group with area {} below threshold: {:?}",
+                contour_area,
+                bottle_indices
+            );
             continue;
         }
 
-        let flask_contour = contours.get(bottle_indices[1])?;
+        if best_contour_bottle_idx != 1 {
+            log::debug!(
+                "Unexpected contour grouping for curtain bottle: {:?}",
+                bottle_indices
+            );
+        }
+
+        let flask_contour = contours.get(bottle_indices[best_contour_bottle_idx])?;
         let (filtered_flask_contour, _) = get_flask_body_contour(&flask_contour)?;
         let flask_bounds = imgproc::bounding_rect(&filtered_flask_contour)?;
 
@@ -318,12 +342,17 @@ fn detect_curtain_bottles(
             bottle_indices[1],
             avg_flask_color
         );
-        let closest_color = nearest_known_color(avg_flask_color, known_colors)
-            .or_else(|| nearest_color_unbounded(avg_flask_color, known_colors));
+        let unlock_color =
+            nearest_known_color(avg_flask_color, known_colors).unwrap_or_else(|| {
+                log::trace!("Could not detect curtain color, falling back to avg...");
+                known_colors.insert(BottleColor::Fill((
+                    avg_flask_color[0],
+                    avg_flask_color[1],
+                    avg_flask_color[2],
+                )));
 
-        let Some(unlock_color) = closest_color else {
-            continue;
-        };
+                avg_flask_color
+            });
 
         let mut contour_list = Vector::<Vector<Point>>::new();
         contour_list.push(flask_contour.clone());
@@ -457,26 +486,6 @@ fn nearest_known_color(avg_color: Vec3b, known_colors: &HashSet<BottleColor>) ->
         log::trace!("No closest color.");
     }
     log::trace!("--");
-    closest
-}
-
-fn nearest_color_unbounded(avg_color: Vec3b, known_colors: &HashSet<BottleColor>) -> Option<Vec3b> {
-    let mut closest = None;
-    let mut min_distance = u32::MAX;
-
-    for color in known_colors.iter().copied() {
-        let color = match color {
-            BottleColor::Fill((b, g, r)) => Vec3b::from([b, g, r]),
-            _ => continue,
-        };
-
-        let distance = color_distance_sq(&avg_color, &color);
-        if distance < min_distance {
-            min_distance = distance;
-            closest = Some(color);
-        }
-    }
-
     closest
 }
 

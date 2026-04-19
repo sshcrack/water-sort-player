@@ -82,7 +82,8 @@ impl Bottle {
         click_position: Option<crate::Pos>,
     ) -> Self {
         Bottle {
-            fills: vec![(BottleColor::Empty, false); DEFAULT_BOTTLE_CAPACITY],
+            // Length should be zero because we don't have any fills right now and can't improve current bottles
+            fills: vec![], //vec![(BottleColor::Empty, false); DEFAULT_BOTTLE_CAPACITY],
             hidden_requirement: HiddenRequirement::Locked(requirement),
             click_position,
         }
@@ -197,7 +198,9 @@ impl Bottle {
             return false;
         }
 
-        if self.get_fill_count() != self.get_capacity() {
+        // Setting a bottle as solved it it has at least capacity or 4 solved
+        let needed_solve_colors = self.get_capacity().max(DEFAULT_BOTTLE_CAPACITY);
+        if self.get_fill_count() != needed_solve_colors {
             return false;
         }
 
@@ -305,6 +308,54 @@ impl Bottle {
     }
 }
 
+impl Display for Bottle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fill_str: String = self
+            .fills
+            .iter()
+            .rev()
+            .map(|(color, was_mystery)| {
+                let c = color.to_string();
+
+                if *was_mystery {
+                    c.underline().to_string()
+                } else {
+                    c
+                }
+            })
+            .collect();
+
+        match self.hidden_requirement {
+            HiddenRequirement::Locked(requirement) => {
+                write!(f, "{}{},{}", "!".red(), requirement, fill_str)
+            }
+            HiddenRequirement::Unlocked(requirement) => {
+                write!(f, "{}{},{}", "!".green(), requirement, fill_str)
+            }
+            HiddenRequirement::None => write!(f, "{}", fill_str),
+        }
+    }
+}
+
+pub fn has_failed_level(image: &Mat) -> anyhow::Result<bool> {
+    let failed_color = image.at_2d::<Vec3b>(
+        crate::constants::FAILED_LEVEL_TEXT.1,
+        crate::constants::FAILED_LEVEL_TEXT.0,
+    )?;
+    Ok(
+        crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR)
+            <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ,
+    )
+}
+
+pub fn detect_bottles(
+    frame_raw: &Mat,
+    frame_display: &mut Mat,
+    seen_colors: &mut HashSet<BottleColor>,
+) -> anyhow::Result<Vec<Bottle>> {
+    detection::detect_bottles(frame_raw, frame_display, seen_colors)
+}
+
 #[cfg(test)]
 mod tests {
     #[test_log::test]
@@ -370,52 +421,4 @@ mod tests {
 
         assert_eq!(bottle.get_top_fill(), Some((1, BottleColor::orange())));
     }
-}
-
-impl Display for Bottle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fill_str: String = self
-            .fills
-            .iter()
-            .rev()
-            .map(|(color, was_mystery)| {
-                let c = color.to_string();
-
-                if *was_mystery {
-                    c.underline().to_string()
-                } else {
-                    c
-                }
-            })
-            .collect();
-
-        match self.hidden_requirement {
-            HiddenRequirement::Locked(requirement) => {
-                write!(f, "{}{},{}", "!".red(), requirement, fill_str)
-            }
-            HiddenRequirement::Unlocked(requirement) => {
-                write!(f, "{}{},{}", "!".green(), requirement, fill_str)
-            }
-            HiddenRequirement::None => write!(f, "{}", fill_str),
-        }
-    }
-}
-
-pub fn has_failed_level(image: &Mat) -> anyhow::Result<bool> {
-    let failed_color = image.at_2d::<Vec3b>(
-        crate::constants::FAILED_LEVEL_TEXT.1,
-        crate::constants::FAILED_LEVEL_TEXT.0,
-    )?;
-    Ok(
-        crate::constants::color_distance_sq(failed_color, &crate::constants::FAILED_LEVEL_COLOR)
-            <= crate::constants::COLOR_DISTANCE_THRESHOLD_SQ,
-    )
-}
-
-pub fn detect_bottles(
-    frame_raw: &Mat,
-    frame_display: &mut Mat,
-    seen_colors: &mut HashSet<BottleColor>,
-) -> anyhow::Result<Vec<Bottle>> {
-    detection::detect_bottles(frame_raw, frame_display, seen_colors)
 }

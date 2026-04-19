@@ -400,6 +400,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 mystery_count
                             );
 
+                            //opencv::imgcodecs::imwrite("initial_detected_bottles.png", &frame_raw, &Vector::new())?;
                             log::debug!(
                                 "Initial detected bottles: {}",
                                 detected_bottles
@@ -566,6 +567,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 retries_remaining: BOTTLE_DETECTION_RETRIES,
                             };
                         } else {
+                            let moves = find_best_hidden_unlock_moves(&current_bottles);
                             #[cfg(feature = "discovery-debugging")]
                             {
                                 let buffer = frame_to_window_buffer(&frame_display)?;
@@ -575,7 +577,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 std::io::stdin().read_line(&mut String::new()).unwrap();
                             }
 
-                            match find_best_hidden_unlock_moves(&current_bottles) {
+                            match moves {
                                 discovery::DiscoverResult::MoveToDiscover(best_moves) => {
                                     info!(
                                         "Best hidden unlock sequence found: {}",
@@ -800,6 +802,12 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 known_colors: known_colors.clone(),
                             };
                         } else {
+
+                            // Find best move to reveal more colors
+                            let best_move = find_best_discovery_moves(
+                                &current_bottles,
+                                max_revealed_bottle_state,
+                            );
                             #[cfg(feature = "discovery-debugging")]
                             {
                                 let buffer = frame_to_window_buffer(&frame_display)?;
@@ -808,12 +816,6 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 info!("Press enter to continue discovery...");
                                 std::io::stdin().read_line(&mut String::new()).unwrap();
                             }
-
-                            // Find best move to reveal more colors
-                            let best_move = find_best_discovery_moves(
-                                &current_bottles,
-                                max_revealed_bottle_state,
-                            );
 
                             match best_move {
                                 discovery::DiscoverResult::MoveToDiscover(best_moves) => {
@@ -1136,12 +1138,12 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                     max_revealed_bottle_state,
                     known_colors,
                 } => {
-                    maybe_set_resolved_bottles(&mut discovery_capture, &max_revealed_bottle_state);
+                    maybe_set_resolved_bottles(&mut discovery_capture, max_revealed_bottle_state);
                     finalize_discovery_capture(&mut discovery_capture);
 
                     let solution = solve_with_visualization(
-                        &max_revealed_bottle_state,
-                        &initial_state,
+                        max_revealed_bottle_state,
+                        initial_state,
                         &frame_raw,
                         &mut window,
                         width,
