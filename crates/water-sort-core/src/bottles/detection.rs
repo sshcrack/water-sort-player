@@ -349,7 +349,7 @@ fn detect_curtain_bottles(
         if best_contour_bottle_idx != 1 {
             log::debug!(
                 "Unexpected contour grouping for curtain bottle: {:?}",
-                bottle_indices
+                best_contour_bottle_idx
             );
         }
 

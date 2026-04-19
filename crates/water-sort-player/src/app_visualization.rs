@@ -273,10 +273,8 @@ pub fn draw_detected_bottles_overlay(frame_display: &mut Mat, bottles: &[Bottle]
         let layer_spacing = 28;
 
         for layer_index in 0..4usize {
-            let sample_pos = crate::position::Pos(
-                click_pos.0,
-                click_pos.1 - layer_spacing * (3 - layer_index as i32),
-            );
+            let offset_y = (layer_index as i32 * layer_spacing) - (layer_spacing * 3 / 2);
+            let sample_pos = crate::position::Pos(click_pos.0, click_pos.1 + offset_y);
 
             let color = bottle
                 .get_fills()

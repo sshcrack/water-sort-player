@@ -5,16 +5,14 @@ use std::{
 
 use anyhow::Result;
 use log::trace;
-use opencv::core::{absdiff, mean, no_array, Mat, MatTraitConst};
+use opencv::core::{Mat, MatTraitConst, absdiff, mean, no_array};
 use water_sort_core::bottles::detection::CROP_RECT;
 
 const HISTORY_COVERAGE_TOLERANCE: Duration = Duration::from_millis(20);
 
 pub enum MotionWindowState {
     Stable,
-    WaitingForCoverage {
-        missing_coverage: Duration,
-    },
+    WaitingForCoverage { missing_coverage: Duration },
     MovementDetected,
 }
 
@@ -69,7 +67,11 @@ pub fn has_no_movement_in_window(
     )
 }
 
-pub fn frames_are_identical(previous: &Mat, current: &Mat, mean_diff_threshold: f64) -> Result<bool> {
+pub fn frames_are_identical(
+    previous: &Mat,
+    current: &Mat,
+    mean_diff_threshold: f64,
+) -> Result<bool> {
     if previous.size()? != current.size()? || previous.typ() != current.typ() {
         return Ok(false);
     }

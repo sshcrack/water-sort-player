@@ -1,5 +1,8 @@
 use std::{
-    collections::HashSet, fs, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Result, anyhow, bail};

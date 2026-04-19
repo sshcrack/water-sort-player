@@ -21,7 +21,7 @@ struct Cli {
     use_state: Option<PathBuf>,
 
     #[arg(long)]
-    restart_on_new_level: bool
+    restart_on_new_level: bool,
 }
 
 fn main() {
@@ -31,7 +31,11 @@ fn main() {
 
     let cli = Cli::parse();
 
-    if let Err(error) = app::run(cli.quick, cli.use_state.as_deref(), cli.restart_on_new_level) {
+    if let Err(error) = app::run(
+        cli.quick,
+        cli.use_state.as_deref(),
+        cli.restart_on_new_level,
+    ) {
         error!("Error: {}", error);
     }
 }
