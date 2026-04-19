@@ -374,6 +374,7 @@ where
 
         for (move_to_try, mut next_state) in possible_moves {
             unlock_hidden_bottles_with_solved_colors(&mut next_state);
+            unmark_revealed_mystery_colors(&mut next_state);
             if let Some(is_state_valid) = is_state_valid.as_ref()
                 && !is_state_valid(&records[record_index].state, &next_state)
             {
@@ -415,6 +416,23 @@ where
     }
 
     None
+}
+
+fn unmark_revealed_mystery_colors(next_state: &mut [Bottle]) {
+    for bottle in next_state {
+        let fills_mut = bottle.get_fills_mut().iter_mut().rev();
+        for (c, was_mystery) in fills_mut {
+            if c == &BottleColor::Empty {
+                continue;
+            }
+
+            if matches!(*c, BottleColor::Fill(_)) {
+                *was_mystery = false;
+            } else {
+                break;
+            }
+        }
+    }
 }
 
 fn get_two_mut_from_vec(bottles: &mut [Bottle], a: usize, b: usize) -> (&mut Bottle, &mut Bottle) {
@@ -496,7 +514,7 @@ impl Move {
 
         destination_bottle.fill_from(source_bottle);
     }
-    
+
     pub fn get_expected_state_before_move(&self) -> &Vec<Bottle> {
         &self.expected_state_before_move
     }
@@ -635,8 +653,7 @@ pub fn sort_moves_by_heuristic(possible_moves: &mut [(Move, Vec<Bottle>)]) {
 mod tests {
     use crate::{
         discovery::{
-            improve_best_revealed_state,
-            improve_current_and_initial_bottles_with_revealed_state,
+            improve_best_revealed_state, improve_current_and_initial_bottles_with_revealed_state,
         },
         run_solver,
     };
