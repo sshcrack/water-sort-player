@@ -29,6 +29,7 @@ use water_sort_core::{
     },
 };
 use water_sort_device::{CaptureDeviceBackend, construct_capture_backend};
+use water_sort_solver::build_solver_initial_bottle_state;
 
 use self::frame_stability::{
     MotionWindowState, evaluate_motion_window, frames_are_identical, has_no_movement_in_window,
@@ -144,6 +145,7 @@ enum AppState {
         retries_remaining: u8,
     },
     ExecutePlanSolverMoves {
+        current_bottles: Vec<Bottle>,
         max_revealed_bottle_state: Vec<Bottle>,
         initial_state: Vec<Bottle>,
         known_colors: HashSet<BottleColor>,
@@ -391,6 +393,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         if mystery_count == 0 && hidden_count == 0 {
                             info!("No mystery colors detected, running solver directly...");
                             app_state = AppState::ExecutePlanSolverMoves {
+                                current_bottles: detected_bottles.clone(),
                                 max_revealed_bottle_state: detected_bottles.clone(),
                                 initial_state: detected_bottles.clone(),
                                 known_colors: known_colors.clone(),
@@ -547,6 +550,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 );
 
                                 app_state = AppState::ExecutePlanSolverMoves {
+                                    current_bottles: current_bottles.clone(),
                                     max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                     initial_state: initial_state.clone(),
                                     known_colors: known_colors.clone(),
@@ -798,6 +802,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             info!("All mystery colors revealed! Running solver...");
 
                             app_state = AppState::ExecutePlanSolverMoves {
+                                current_bottles: current_bottles.clone(),
                                 max_revealed_bottle_state: max_revealed_bottle_state.clone(),
                                 initial_state: initial_state.clone(),
                                 known_colors: known_colors.clone(),
@@ -1137,6 +1142,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                     initial_state,
                     max_revealed_bottle_state,
                     known_colors,
+                    current_bottles,
                 } => {
                     maybe_set_resolved_bottles(&mut discovery_capture, max_revealed_bottle_state);
                     finalize_discovery_capture(&mut discovery_capture);
@@ -1144,6 +1150,7 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                     let solution = solve_with_visualization(
                         max_revealed_bottle_state,
                         initial_state,
+                        current_bottles,
                         &frame_raw,
                         &mut window,
                         width,
@@ -1346,70 +1353,80 @@ fn load_app_state_from_file(path: &Path) -> Result<AppState> {
 fn solve_with_visualization(
     max_revealed_bottle_state: &[Bottle],
     initial_state: &[Bottle],
+    current_bottles: &[Bottle],
     frame_raw: &Mat,
     window: &mut Window,
     width: usize,
     height: usize,
 ) -> Result<Vec<Move>> {
-    #[cfg(feature = "solver-visualization")]
-    {
-        let baseline_frame = frame_raw.try_clone()?;
-        let mut last_update = Instant::now() - SOLVER_VISUALIZATION_UPDATE_INTERVAL;
+    let baseline_frame = frame_raw.try_clone()?;
+    let mut last_update = Instant::now() - SOLVER_VISUALIZATION_UPDATE_INTERVAL;
 
-        let maybe_solution = crate::solver::run_solver_with_progress(
-            max_revealed_bottle_state,
-            initial_state,
-            |snapshot| {
-                if !snapshot.is_goal && last_update.elapsed() < SOLVER_VISUALIZATION_UPDATE_INTERVAL
-                {
-                    return;
+    log::debug!("Solver run:");
+    log::debug!(
+        "Initial state for solver: {}",
+        initial_state
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    log::debug!(
+        "Max revealed bottle state for solver: {}",
+        max_revealed_bottle_state
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+
+    let mut on_progress = |snapshot: water_sort_solver::SolverProgressSnapshot<'_>| {
+        if !snapshot.is_goal && last_update.elapsed() < SOLVER_VISUALIZATION_UPDATE_INTERVAL {
+            return;
+        }
+        last_update = Instant::now();
+
+        let mut preview_frame = match baseline_frame.try_clone() {
+            Ok(frame) => frame,
+            Err(error) => {
+                warn!("Solver visualization frame clone failed: {:?}", error);
+                return;
+            }
+        };
+
+        if let Err(error) = draw_solver_search_preview(
+            &mut preview_frame,
+            snapshot.state,
+            snapshot.explored_states,
+            snapshot.queue_len,
+            snapshot.depth,
+            snapshot.is_goal,
+        ) {
+            warn!("Solver visualization draw failed: {:?}", error);
+            return;
+        }
+
+        match frame_to_window_buffer(&preview_frame) {
+            Ok(buffer) => {
+                if let Err(error) = window.update_with_buffer(&buffer, width, height) {
+                    warn!("Solver visualization window update failed: {:?}", error);
                 }
-                last_update = Instant::now();
+            }
+            Err(error) => {
+                warn!("Solver visualization buffer conversion failed: {:?}", error);
+            }
+        }
 
-                let mut preview_frame = match baseline_frame.try_clone() {
-                    Ok(frame) => frame,
-                    Err(error) => {
-                        warn!("Solver visualization frame clone failed: {:?}", error);
-                        return;
-                    }
-                };
+        std::thread::sleep(SOLVER_VISUALIZATION_FRAME_DELAY);
+    };
 
-                if let Err(error) = draw_solver_search_preview(
-                    &mut preview_frame,
-                    snapshot.state,
-                    snapshot.explored_states,
-                    snapshot.queue_len,
-                    snapshot.depth,
-                    snapshot.is_goal,
-                ) {
-                    warn!("Solver visualization draw failed: {:?}", error);
-                    return;
-                }
+    let initial_state_solver =
+        build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
 
-                match frame_to_window_buffer(&preview_frame) {
-                    Ok(buffer) => {
-                        if let Err(error) = window.update_with_buffer(&buffer, width, height) {
-                            warn!("Solver visualization window update failed: {:?}", error);
-                        }
-                    }
-                    Err(error) => {
-                        warn!("Solver visualization buffer conversion failed: {:?}", error);
-                    }
-                }
+    let maybe_solution = crate::solver::run_solver_with_progress(current_bottles, &mut on_progress)
+        .or_else(|| crate::solver::run_solver_with_progress(&initial_state_solver, &mut on_progress));
 
-                std::thread::sleep(SOLVER_VISUALIZATION_FRAME_DELAY);
-            },
-        );
-
-        maybe_solution.ok_or_else(|| anyhow!("Failed to find solver solution"))
-    }
-
-    #[cfg(not(feature = "solver-visualization"))]
-    {
-        let _ = (frame_raw, window, width, height);
-        run_solver(max_revealed_bottle_state, initial_state)
-            .ok_or_else(|| anyhow!("Failed to find solver solution"))
-    }
+    maybe_solution.ok_or_else(|| anyhow!("Failed to find solver solution"))
 }
 
 fn remaining_until(trigger_at: Instant, now: Instant) -> Option<Duration> {

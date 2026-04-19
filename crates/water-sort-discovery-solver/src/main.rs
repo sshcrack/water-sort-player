@@ -18,7 +18,9 @@ use water_sort_core::{
     bottles::{Bottle, test_utils::TestUtils},
     constants::{BottleColor, scalar_from_hex},
 };
-use water_sort_solver::{Move, SolverProgressSnapshot, run_solver_with_progress};
+use water_sort_solver::{
+    Move, SolverProgressSnapshot, build_solver_initial_bottle_state, run_solver_with_progress,
+};
 
 #[derive(Debug, Clone)]
 struct DiscoveryLevelEntry {
@@ -554,14 +556,15 @@ fn run() -> Result<()> {
         }
     };
 
-    let mut solution =
-        run_solver_with_progress(&resolved_bottles, &expected_bottles, &mut on_progress);
+    let bottles = build_solver_initial_bottle_state(&resolved_bottles, &expected_bottles);
+    let mut solution = run_solver_with_progress(&bottles, &mut on_progress);
 
     if solution.is_none() {
         warn!(
             "Solver could not find a path with expected-state mystery constraints. Retrying with resolved state as initial..."
         );
-        solution = run_solver_with_progress(&resolved_bottles, &resolved_bottles, &mut on_progress);
+        let bottles = build_solver_initial_bottle_state(&resolved_bottles, &resolved_bottles);
+        solution = run_solver_with_progress(&bottles, &mut on_progress);
     }
 
     let solution = solution.ok_or_else(|| anyhow!("failed to solve level {}", level.id))?;

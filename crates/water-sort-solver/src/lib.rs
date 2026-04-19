@@ -576,32 +576,12 @@ pub fn run_solver(
 
 #[cfg(feature = "solver-visualization")]
 pub fn run_solver_with_progress<ProgressFn>(
-    max_revealed_bottle_state: &[Bottle],
-    initial_state: &[Bottle],
+    bottles: &[Bottle],
     mut on_progress: ProgressFn,
 ) -> Option<Vec<Move>>
 where
     ProgressFn: FnMut(SolverProgressSnapshot<'_>),
 {
-    log::debug!("Solver run:");
-    log::debug!(
-        "Initial state for solver: {}",
-        initial_state
-            .iter()
-            .map(|b| b.to_string())
-            .collect::<Vec<_>>()
-            .join(" ")
-    );
-    log::debug!(
-        "Max revealed bottle state for solver: {}",
-        max_revealed_bottle_state
-            .iter()
-            .map(|b| b.to_string())
-            .collect::<Vec<_>>()
-            .join(" ")
-    );
-    let bottles = build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
-
     info!(
         "Solving puzzle with build bottle state: {}",
         bottles
