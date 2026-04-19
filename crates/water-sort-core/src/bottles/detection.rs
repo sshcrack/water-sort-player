@@ -20,7 +20,7 @@ use colored::Colorize;
 const CROP_X: i32 = 0;
 const CROP_Y: i32 = 143;
 const CROP_WIDTH: i32 = 360;
-const CROP_HEIGHT: i32 = 544;
+const CROP_HEIGHT: i32 = 495;
 const FULL_BOTTLE_HEIGHT: f32 = 146.0;
 const COLOR_LAYER_HEIGHT_RATIO: f32 = 28.0 / FULL_BOTTLE_HEIGHT;
 const OFFSET_Y_RATIO: f32 = 29.0 / FULL_BOTTLE_HEIGHT;

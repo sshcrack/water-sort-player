@@ -169,12 +169,12 @@ pub fn draw_state_hud(
 
     let timing = snapshot
         .until_ready
-        .map(format_duration)
+        .map(|e| format!("Next action: {}", format_duration(e)))
         .or_else(|| snapshot.motion_status.clone())
-        .unwrap_or_else(|| "ready".to_string());
+        .unwrap_or_else(|| "Next action: ready".to_string());
     imgproc::put_text(
         frame_display,
-        &format!("Next action: {}", timing),
+        &timing,
         Point::new(panel_x + 12, panel_y + 74),
         imgproc::FONT_HERSHEY_SIMPLEX,
         0.5,

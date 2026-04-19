@@ -374,23 +374,6 @@ mod tests {
 
 impl Display for Bottle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_empty() {
-            return match self.hidden_requirement {
-                HiddenRequirement::None => write!(f, "EEEE"),
-                HiddenRequirement::Locked(bottle_color) => {
-                    write!(f, "{}{}", "!".red(), bottle_color.to_string().bright_red())
-                }
-                HiddenRequirement::Unlocked(bottle_color) => {
-                    write!(
-                        f,
-                        "{}{},EEEE",
-                        "!".green(),
-                        bottle_color.to_string().bright_green()
-                    )
-                }
-            };
-        }
-
         let fill_str: String = self
             .fills
             .iter()
