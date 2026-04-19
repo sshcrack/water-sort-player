@@ -200,9 +200,8 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
         info!("Loaded initial app state: {}", loaded_state.get_name());
         loaded_state
     } else if quick_mode {
-        AppState::DetectAndPlan {
+        AppState::ClickRetryOnNewLevel {
             trigger_at: Instant::now() + Duration::from_secs(1),
-            retries_remaining: BOTTLE_DETECTION_RETRIES,
         }
     } else {
         AppState::WaitingToPressStart {
@@ -277,9 +276,11 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
 
         let frame_is_still =
             has_no_movement_in_window(&recent_frame_matches, now, NO_MOVEMENT_WINDOW);
-        let motion_status_text = format_motion_status(
-            evaluate_motion_window(&recent_frame_matches, now, NO_MOVEMENT_WINDOW),
-        );
+        let motion_status_text = format_motion_status(evaluate_motion_window(
+            &recent_frame_matches,
+            now,
+            NO_MOVEMENT_WINDOW,
+        ));
         previous_frame_raw = Some(frame_raw.try_clone()?);
 
         let mut frame_display = frame_raw.try_clone()?;
@@ -802,7 +803,6 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                                 known_colors: known_colors.clone(),
                             };
                         } else {
-
                             // Find best move to reveal more colors
                             let best_move = find_best_discovery_moves(
                                 &current_bottles,
@@ -1485,7 +1485,10 @@ fn format_motion_status(motion_state: MotionWindowState) -> String {
         MotionWindowState::Stable => "motion: stable".to_string(),
         MotionWindowState::MovementDetected => "motion: movement detected".to_string(),
         MotionWindowState::WaitingForCoverage { missing_coverage } => {
-            format!("motion: building history ({:.0}ms)", missing_coverage.as_millis())
+            format!(
+                "motion: building history ({:.0}ms)",
+                missing_coverage.as_millis()
+            )
         }
     }
 }

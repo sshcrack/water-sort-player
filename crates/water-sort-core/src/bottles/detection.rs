@@ -242,28 +242,37 @@ fn detect_normal_bottle(
     let mut fills = Vec::new();
     let mut current_offset_y = 0;
 
-    for _layer_index in 0..4 {
+    for layer_index in 0..4 {
         let layer_y = bounds.y + current_offset_y;
         let layer_h = color_layer_height;
         if layer_y + layer_h > bounds.y + bounds.height {
             break;
         }
 
-        let layer_rect = build_inner_layer_rect(bounds.x, layer_y, bounds.width, layer_h);
+        let mut layer_rect = build_inner_layer_rect(bounds.x, layer_y, bounds.width, layer_h);
+
+        if is_ice_bottle && layer_index == 3 {
+            layer_rect.height /= 2;
+        }
+
         let layer_img = crop_submat(cropped, layer_rect)?;
         let layer_color = classify_layer_color_or_add_to_known(&layer_img, known_colors)?;
         fills.push(layer_color);
 
         let rect_thickness = match layer_color {
             BottleColor::Empty => 10,
-            BottleColor::Mystery => 3,
-            BottleColor::Fill(_) => 1,
+            BottleColor::Mystery => 6,
+            BottleColor::Fill(_) => 3,
         };
 
         imgproc::rectangle(
             frame_display,
             layer_rect,
-            Scalar::new(0.0, 0.0, 255.0, 0.0),
+            if rect_thickness == 3 {
+                layer_color.to_pixel_value().into()
+            } else {
+                Scalar::new(0.0, 0.0, 255.0, 0.0)
+            },
             rect_thickness,
             imgproc::LINE_8,
             0,

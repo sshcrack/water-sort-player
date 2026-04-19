@@ -52,7 +52,7 @@ pub mod visualization;
 
 const FULL_BOTTLE_COUNT: usize = 4;
 
-type CanonicalStateKey = Vec<(HiddenRequirement, Vec<BottleColor>)>;
+type CanonicalStateKey = Vec<(HiddenRequirement, bool, Vec<BottleColor>)>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct SearchRecord {
@@ -91,6 +91,7 @@ fn canonical_state_key(bottles: &[Bottle]) -> CanonicalStateKey {
         .map(|bottle| {
             (
                 bottle.hidden_requirement_state(),
+                bottle.is_fixed_by_ice(),
                 bottle.get_fills().clone(),
             )
         })
@@ -517,6 +518,7 @@ pub fn build_solver_initial_bottle_state(
                 *initial_bottle.click_position(),
             );
 
+            new_bottle.set_fixed_by_ice(initial_bottle.is_fixed_by_ice());
             new_bottle.set_hidden_requirement(max_revealed_bottle.hidden_requirement_state());
             new_bottle.lock_hidden_requirement();
             bottles.push(new_bottle);
