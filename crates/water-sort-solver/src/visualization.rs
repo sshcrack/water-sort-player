@@ -1,10 +1,10 @@
-use opencv::{core::Mat, imgproc};
+use opencv::core::Mat;
 
 use water_sort_core::{bottles::Bottle, constants::BottleColor};
 
 const BOTTLE_CAPACITY: usize = 4;
 pub fn draw_revealed_fill_markers(
-    frame_display: &mut Mat,
+    _frame_display: &mut Mat,
     current_bottle_state: &[Bottle],
     max_revealed_bottle_state: &[Bottle],
 ) -> anyhow::Result<()> {

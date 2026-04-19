@@ -1,6 +1,5 @@
 use std::{
     collections::{HashSet, VecDeque},
-    f32::consts::E,
     path::Path,
     time::{Duration, Instant},
 };
@@ -183,7 +182,11 @@ impl AppState {
     }
 }
 
-pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
+pub fn run(
+    quick_mode: bool,
+    use_state_path: Option<&Path>,
+    restart_on_new_level: bool,
+) -> Result<()> {
     if quick_mode {
         info!("Quick start mode enabled: skipping scrcpy startup and start-button automation.");
     }
@@ -1229,9 +1232,19 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                             *next_move_at = now;
                         }
                     } else {
-                        app_state = AppState::CheckForRewards {
-                            trigger_at: now + NO_THANK_YOU_REWARDS_WAIT,
-                        };
+                        #[allow(clippy::collapsible_else_if)]
+                        if restart_on_new_level {
+                            capture.restart_app()?;
+                            info!("All planned moves executed. Waiting for new level to load...");
+                            app_state = AppState::WaitingToPressStart {
+                                trigger_at: Instant::now() + START_WAIT + Duration::from_secs(2),
+                            };
+                        } else {
+                            info!("All planned moves executed. Proceeding to reward screen...");
+                            app_state = AppState::CheckForRewards {
+                                trigger_at: now + NO_THANK_YOU_REWARDS_WAIT,
+                            };
+                        }
                     }
                 }
                 AppState::CheckForRewards { trigger_at } => {
