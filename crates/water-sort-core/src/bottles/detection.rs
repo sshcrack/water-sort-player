@@ -24,7 +24,8 @@ const CROP_HEIGHT: i32 = 495;
 const FULL_BOTTLE_HEIGHT: f32 = 146.0;
 const COLOR_LAYER_HEIGHT_RATIO: f32 = 28.0 / FULL_BOTTLE_HEIGHT;
 const OFFSET_Y_RATIO: f32 = 29.0 / FULL_BOTTLE_HEIGHT;
-const COLOR_MATCH_DISTANCE: u32 = 30 * 30;
+// Increased the threshold beginning from 30 * 30
+const COLOR_MATCH_DISTANCE: u32 = 55 * 55;
 const MIN_CURTAIN_BOTTLE_AREA: f64 = 490.0;
 const ICE_MIN_RATIO: f64 = 0.60;
 const ICE_MAX_RATIO: f64 = 0.85;
@@ -126,11 +127,11 @@ fn detect_bottles_with_seen_colors(
 
     for detected_bottle in &mut sorted {
         let hidden_requirement = detected_bottle.bottle.hidden_requirement_state();
-        let is_ice_unlock = detected_bottle.bottle.is_ice_unlock();
+        let is_ice_unlock = detected_bottle.bottle.is_fixed_by_ice();
         let fills = detected_bottle.bottle.get_fills();
         let click_position = bottle_click_position(detected_bottle.bounds);
         detected_bottle.bottle = Bottle::from_fills(fills, Some(click_position));
-        detected_bottle.bottle.set_is_ice_unlock(is_ice_unlock);
+        detected_bottle.bottle.set_fixed_by_ice(is_ice_unlock);
         detected_bottle
             .bottle
             .set_hidden_requirement(hidden_requirement);
@@ -274,7 +275,7 @@ fn detect_normal_bottle(
     fills.reverse();
 
     let mut bottle = Bottle::from_fills(fills, None);
-    bottle.set_is_ice_unlock(is_ice_bottle);
+    bottle.set_fixed_by_ice(is_ice_bottle);
 
     Ok(DetectedBottle {
         bottle,
@@ -408,7 +409,7 @@ fn detect_curtain_bottles(
         )?;
 
         let mut bottle = Bottle::from_hidden_requirement(bottle_color_from_bgr(unlock_color), None);
-        bottle.set_is_ice_unlock(false);
+        bottle.set_fixed_by_ice(false);
         detected.push(DetectedBottle {
             bottle,
             bounds: flask_bounds,

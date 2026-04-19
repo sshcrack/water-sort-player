@@ -32,7 +32,7 @@ pub struct Bottle {
     fills: Vec<(BottleColor, bool)>,
     hidden_requirement: HiddenRequirement,
     #[serde(default)]
-    is_ice_unlock: bool,
+    is_fixed_by_ice: bool,
     /// This will always be set to Some for non test environments
     click_position: Option<crate::Pos>,
 }
@@ -63,7 +63,7 @@ impl Bottle {
         Bottle {
             fills: fills.into_iter().map(|c| (c, false)).collect(),
             hidden_requirement: HiddenRequirement::None,
-            is_ice_unlock: false,
+            is_fixed_by_ice: false,
             click_position,
         }
     }
@@ -76,7 +76,7 @@ impl Bottle {
         Bottle {
             fills: Self::normalize_fills_with_initial(fills, initial),
             hidden_requirement: HiddenRequirement::None,
-            is_ice_unlock: false,
+            is_fixed_by_ice: false,
             click_position,
         }
     }
@@ -89,17 +89,17 @@ impl Bottle {
             // Length should be zero because we don't have any fills right now and can't improve current bottles
             fills: vec![], //vec![(BottleColor::Empty, false); DEFAULT_BOTTLE_CAPACITY],
             hidden_requirement: HiddenRequirement::Locked(requirement),
-            is_ice_unlock: false,
+            is_fixed_by_ice: false,
             click_position,
         }
     }
 
-    pub fn is_ice_unlock(&self) -> bool {
-        self.is_ice_unlock
+    pub fn is_fixed_by_ice(&self) -> bool {
+        self.is_fixed_by_ice
     }
 
-    pub fn set_is_ice_unlock(&mut self, is_ice_unlock: bool) {
-        self.is_ice_unlock = is_ice_unlock;
+    pub fn set_fixed_by_ice(&mut self, is_fixed_by_ice: bool) {
+        self.is_fixed_by_ice = is_fixed_by_ice;
     }
 
     pub fn hidden_requirement_state(&self) -> HiddenRequirement {
@@ -239,7 +239,7 @@ impl Bottle {
             return false;
         }
 
-        if self.is_full() || other.is_empty() {
+        if self.is_full() || other.is_empty() || other.is_fixed_by_ice() {
             return false;
         }
 
@@ -323,6 +323,9 @@ impl Bottle {
 
 impl Display for Bottle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_fixed_by_ice() {
+            write!(f, "[")?;
+        }
         let fill_str: String = self
             .fills
             .iter()
@@ -346,7 +349,13 @@ impl Display for Bottle {
                 write!(f, "{}{},{}", "!".green(), requirement, fill_str)
             }
             HiddenRequirement::None => write!(f, "{}", fill_str),
+        }?;
+
+        if self.is_fixed_by_ice() {
+            write!(f, "]")?;
         }
+
+        Ok(())
     }
 }
 

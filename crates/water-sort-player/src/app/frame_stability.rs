@@ -41,12 +41,12 @@ pub fn evaluate_motion_window(
     if *oldest_timestamp > cutoff {
         let missing_coverage = oldest_timestamp.duration_since(cutoff);
         if missing_coverage > HISTORY_COVERAGE_TOLERANCE {
-            trace!(
+            /* trace!(
                 "Not enough frame history to cover no-movement window. Oldest: {:?}, cutoff: {:?}, missing: {:?}.",
                 oldest_timestamp,
                 cutoff,
                 missing_coverage
-            );
+            ); */
             return MotionWindowState::WaitingForCoverage { missing_coverage };
         }
     }
