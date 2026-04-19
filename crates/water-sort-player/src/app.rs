@@ -1,6 +1,6 @@
 use std::{
-    collections::HashSet,
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
+    f32::consts::E,
     path::Path,
     time::{Duration, Instant},
 };
@@ -1157,8 +1157,16 @@ pub fn run(quick_mode: bool, use_state_path: Option<&Path>) -> Result<()> {
                         height,
                     )?;
 
-                    info!("Resetting level for the solver...");
-                    capture.click_at_position(RETRY_BUTTON_POS)?;
+                    if matches!(solution, SolverResult::SolvedOnReset(_)) {
+                        info!("Resetting level for the solver...");
+                        capture.click_at_position(RETRY_BUTTON_POS)?;
+                    }
+
+                    let solution = match solution {
+                        SolverResult::Solved(items) => items,
+                        SolverResult::SolvedOnReset(items) => items,
+                    };
+
                     app_state = AppState::ExecuteFinalSolveMoves {
                         planned_moves: solution,
                         performed_moves: 0,
@@ -1350,6 +1358,11 @@ fn load_app_state_from_file(path: &Path) -> Result<AppState> {
     })
 }
 
+enum SolverResult {
+    Solved(Vec<Move>),
+    SolvedOnReset(Vec<Move>),
+}
+
 fn solve_with_visualization(
     max_revealed_bottle_state: &[Bottle],
     initial_state: &[Bottle],
@@ -1358,7 +1371,7 @@ fn solve_with_visualization(
     window: &mut Window,
     width: usize,
     height: usize,
-) -> Result<Vec<Move>> {
+) -> Result<SolverResult> {
     let baseline_frame = frame_raw.try_clone()?;
     let mut last_update = Instant::now() - SOLVER_VISUALIZATION_UPDATE_INTERVAL;
 
@@ -1424,7 +1437,11 @@ fn solve_with_visualization(
         build_solver_initial_bottle_state(max_revealed_bottle_state, initial_state);
 
     let maybe_solution = crate::solver::run_solver_with_progress(current_bottles, &mut on_progress)
-        .or_else(|| crate::solver::run_solver_with_progress(&initial_state_solver, &mut on_progress));
+        .map(SolverResult::Solved)
+        .or_else(|| {
+            crate::solver::run_solver_with_progress(&initial_state_solver, &mut on_progress)
+                .map(SolverResult::SolvedOnReset)
+        });
 
     maybe_solution.ok_or_else(|| anyhow!("Failed to find solver solution"))
 }
