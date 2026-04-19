@@ -31,6 +31,8 @@ pub struct Bottle {
     // The boolean indicates whether the initial color was mystery, to properly handle filling in the solver
     fills: Vec<(BottleColor, bool)>,
     hidden_requirement: HiddenRequirement,
+    #[serde(default)]
+    is_ice_unlock: bool,
     /// This will always be set to Some for non test environments
     click_position: Option<crate::Pos>,
 }
@@ -61,6 +63,7 @@ impl Bottle {
         Bottle {
             fills: fills.into_iter().map(|c| (c, false)).collect(),
             hidden_requirement: HiddenRequirement::None,
+            is_ice_unlock: false,
             click_position,
         }
     }
@@ -73,6 +76,7 @@ impl Bottle {
         Bottle {
             fills: Self::normalize_fills_with_initial(fills, initial),
             hidden_requirement: HiddenRequirement::None,
+            is_ice_unlock: false,
             click_position,
         }
     }
@@ -85,8 +89,17 @@ impl Bottle {
             // Length should be zero because we don't have any fills right now and can't improve current bottles
             fills: vec![], //vec![(BottleColor::Empty, false); DEFAULT_BOTTLE_CAPACITY],
             hidden_requirement: HiddenRequirement::Locked(requirement),
+            is_ice_unlock: false,
             click_position,
         }
+    }
+
+    pub fn is_ice_unlock(&self) -> bool {
+        self.is_ice_unlock
+    }
+
+    pub fn set_is_ice_unlock(&mut self, is_ice_unlock: bool) {
+        self.is_ice_unlock = is_ice_unlock;
     }
 
     pub fn hidden_requirement_state(&self) -> HiddenRequirement {

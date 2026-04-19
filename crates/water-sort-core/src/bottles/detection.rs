@@ -26,6 +26,12 @@ const COLOR_LAYER_HEIGHT_RATIO: f32 = 28.0 / FULL_BOTTLE_HEIGHT;
 const OFFSET_Y_RATIO: f32 = 29.0 / FULL_BOTTLE_HEIGHT;
 const COLOR_MATCH_DISTANCE: u32 = 30 * 30;
 const MIN_CURTAIN_BOTTLE_AREA: f64 = 490.0;
+const ICE_MIN_RATIO: f64 = 0.60;
+const ICE_MAX_RATIO: f64 = 0.85;
+const ICE_MIN_WIDTH: i32 = 50;
+const ICE_MIN_HEIGHT: i32 = 168;
+const NORMALIZED_BOTTLE_WIDTH: i32 = 46;
+const NORMALIZED_BOTTLE_HEIGHT: i32 = 166;
 
 lazy_static! {
     pub static ref CROP_RECT: Rect = Rect::new(CROP_X, CROP_Y, CROP_WIDTH, CROP_HEIGHT);
@@ -58,7 +64,7 @@ fn detect_bottles_with_seen_colors(
     let mut curtain_indices = Vec::new();
 
     for (index, contour) in contour_candidates.iter().enumerate() {
-        let bounds = imgproc::bounding_rect(&contour)?;
+        let mut bounds = imgproc::bounding_rect(&contour)?;
         let contour_area = imgproc::contour_area(&contour, false)?;
         let bound_area = (bounds.width * bounds.height) as f64;
         let bottle_to_bounding_box_ratio = if bound_area == 0.0 {
@@ -66,7 +72,18 @@ fn detect_bottles_with_seen_colors(
         } else {
             contour_area / bound_area
         };
-        let is_normal_bottle = bottle_to_bounding_box_ratio > 0.9;
+        let is_ice_bottle = bottle_to_bounding_box_ratio >= ICE_MIN_RATIO
+            && bottle_to_bounding_box_ratio <= ICE_MAX_RATIO
+            && bounds.width > ICE_MIN_WIDTH
+            && bounds.height > ICE_MIN_HEIGHT;
+
+        if is_ice_bottle {
+            bounds.x += (bounds.width - NORMALIZED_BOTTLE_WIDTH) / 2;
+            bounds.width = NORMALIZED_BOTTLE_WIDTH;
+            bounds.height = NORMALIZED_BOTTLE_HEIGHT;
+        }
+
+        let is_normal_bottle = is_ice_bottle || bottle_to_bounding_box_ratio > 0.9;
 
         imgproc::put_text(
             &mut cropped_display,
@@ -90,6 +107,7 @@ fn detect_bottles_with_seen_colors(
             &cropped,
             &contour,
             bounds,
+            is_ice_bottle,
             seen_colors,
         )?;
 
@@ -108,9 +126,11 @@ fn detect_bottles_with_seen_colors(
 
     for detected_bottle in &mut sorted {
         let hidden_requirement = detected_bottle.bottle.hidden_requirement_state();
+        let is_ice_unlock = detected_bottle.bottle.is_ice_unlock();
         let fills = detected_bottle.bottle.get_fills();
         let click_position = bottle_click_position(detected_bottle.bounds);
         detected_bottle.bottle = Bottle::from_fills(fills, Some(click_position));
+        detected_bottle.bottle.set_is_ice_unlock(is_ice_unlock);
         detected_bottle
             .bottle
             .set_hidden_requirement(hidden_requirement);
@@ -180,6 +200,7 @@ fn detect_normal_bottle(
     cropped: &Mat,
     contour: &Vector<Point>,
     bounds: Rect,
+    is_ice_bottle: bool,
     known_colors: &mut HashSet<BottleColor>,
 ) -> Result<DetectedBottle> {
     let original_bounds = bounds;
@@ -252,8 +273,11 @@ fn detect_normal_bottle(
 
     fills.reverse();
 
+    let mut bottle = Bottle::from_fills(fills, None);
+    bottle.set_is_ice_unlock(is_ice_bottle);
+
     Ok(DetectedBottle {
-        bottle: Bottle::from_fills(fills, None),
+        bottle,
         bounds: original_bounds,
     })
 }
@@ -383,8 +407,10 @@ fn detect_curtain_bottles(
             0,
         )?;
 
+        let mut bottle = Bottle::from_hidden_requirement(bottle_color_from_bgr(unlock_color), None);
+        bottle.set_is_ice_unlock(false);
         detected.push(DetectedBottle {
-            bottle: Bottle::from_hidden_requirement(bottle_color_from_bgr(unlock_color), None),
+            bottle,
             bounds: flask_bounds,
         });
     }
