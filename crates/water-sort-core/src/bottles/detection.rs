@@ -299,20 +299,23 @@ fn detect_curtain_bottles(
     curtain_indices: &[usize],
     known_colors: &mut HashSet<BottleColor>,
 ) -> Result<Vec<DetectedBottle>> {
-    let mut grouped: Vec<(i32, Vec<usize>)> = Vec::new();
+    let mut grouped: Vec<((i32, i32), Vec<usize>)> = Vec::new();
 
     for &index in curtain_indices {
         let contour = contours.get(index)?;
         let bounds = imgproc::bounding_rect(&contour)?;
         let center_x = bounds.x + bounds.width / 2;
+        let center_y = bounds.y + bounds.height / 2;
 
         if let Some((_, indices)) = grouped
             .iter_mut()
-            .find(|(existing_center_x, _)| (*existing_center_x - center_x).abs() < 10)
+            .find(|((existing_center_x, existing_center_y), _)| {
+                (*existing_center_x - center_x).abs() < 10 && (*existing_center_y - center_y).abs() < 200
+            })
         {
             indices.push(index);
         } else {
-            grouped.push((center_x, vec![index]));
+            grouped.push(((center_x, center_y), vec![index]));
         }
     }
 
